@@ -21,7 +21,8 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
+        error     = true,
+        jvmVer    = {9, Integer.MAX_VALUE} // Unified logging was introduced in JDK9
     )
     public void instrument(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -39,7 +40,8 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,event=*.*,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
+        error     = true,
+        jvmVer    = {9, Integer.MAX_VALUE}
     )
     public void instrumentAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -54,7 +56,8 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,event=*.<init>,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
+        error     = true,
+        jvmVer    = {9, Integer.MAX_VALUE}
     )
     public void instrumentAllInit(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -69,7 +72,8 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,event=java.lang.Thread.*,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
+        error     = true,
+        jvmVer    = {9, Integer.MAX_VALUE}
     )
     public void instrumentAllMethodsInClass(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -85,7 +89,8 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
+        error     = true,
+        jvmVer    = {9, Integer.MAX_VALUE}
     )
     public void latency(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -103,7 +108,8 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=*.*,latency=100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
+        error     = true,
+        jvmVer    = {9, Integer.MAX_VALUE}
     )
     public void latencyAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -120,7 +126,8 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,total,latency=100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
+        error     = true,
+        jvmVer    = {9, Integer.MAX_VALUE}
     )
     public void latencyDuration(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -137,7 +144,8 @@ public class InstrumentTests {
         mainClass = Recursive.class,
         agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=250ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
+        error     = true,
+        jvmVer    = {9, Integer.MAX_VALUE}
     )
     public void recursive(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
