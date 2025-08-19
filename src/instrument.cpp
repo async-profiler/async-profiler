@@ -681,7 +681,7 @@ void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, int new
 
             u8 new_frame_type;
             if (new_offset_delta <= 63) {
-                new_frame_type = new_offset_delta + (frame_type / 64 * 64);
+                new_frame_type = (frame_type & ~63) | new_offset_delta;
             } else {
                 // Convert to same_locals_1_stack_item_frame_extended or same_frame_extended
                 new_frame_type = frame_type > 63 ? 247 : 251;
