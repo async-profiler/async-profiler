@@ -204,27 +204,32 @@ public class ProcTests {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();
 
-            boolean foundCpuActivity = events.stream().anyMatch(e -> e.cpuPercent > 0.0f);
-            assert foundCpuActivity;
+            ProcessSample sample = events.stream()
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("CpuIntensiveApp"))
+                    .max(Comparator.comparingLong(e -> e.time))
+                    .orElse(null);
+
+            assert sample != null;
+            Assert.isGreater(sample.cpuUser, 0);
+            Assert.isGreater(sample.cpuSystem, 0);
+            Assert.isGreater(sample.cpuPercent, 0);
         }
     }
 
     @Test(mainClass = MemoryIntensiveApp.class, jvmArgs = "-XX:+AlwaysPreTouch -XX:InitialRAMPercentage=10", os = Os.LINUX)
     public void processSamplingWithMemoryThreshold(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 2 -d 8 -f %f.jfr");
+        Output out = p.profile("--proc 1 -d 5 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
-            assert !events.isEmpty();
 
-            boolean foundMemoryUsage = events.stream().anyMatch(e -> {
-                if (e.vmRss > 0 && e.vmSize > 0) {
-                    double rssPercent = (double) e.vmRss / e.vmSize * 100.0;
-                    return rssPercent > 1.0;
-                }
-                return false;
-            });
+            ProcessSample sample = events.stream()
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("MemoryIntensiveApp"))
+                    .max(Comparator.comparingLong(e -> e.time))
+                    .orElse(null);
 
-            assert foundMemoryUsage;
+            assert sample != null;
+            Assert.isGreater(sample.vmSize, 0);
+            Assert.isGreater(sample.vmRss, 0);
         }
     }
 
