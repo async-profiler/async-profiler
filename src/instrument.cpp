@@ -351,8 +351,9 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     u16 max_locals = get16();
     put16(max_locals + (_latency_profiling ? 2 : 0));
 
-    u32 code_length = get32();
-    assert(code_length < MAX_CODE_LENGTH);
+    u32 code_length_32 = get32();
+    assert(code_length_32 <= MAX_CODE_LENGTH);
+    u16 code_length = (u16) code_length_32;
 
     const u8* code = get(code_length);
     u32 code_length_idx = _dst_len;
@@ -458,9 +459,10 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
             int32_t l = ntohl(*(u32*)(code + default_index + 4));
             // 4 bits: high
             int32_t h = ntohl(*(u32*)(code + default_index + 8));
-            // (high - low + 1) * 4 bits: branches
+            assert(h - l + 1 >= 0);
+            assert(h - l + 1 <= 0xFFFF);
             u16 branches_base_index = default_index + 12;
-            for (u16 c = 0; c < h - l + 1; ++c) {
+            for (u16 c = 0; c < (u16) (h - l + 1); ++c) {
                 jumps.push_back((branches_base_index + c * 4) << 16 | i);
             }
         } else if (opcode == JVM_OPC_lookupswitch) {
