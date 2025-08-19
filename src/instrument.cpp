@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <vector>
 #include "assert.h"
 #include "classfile_constants.h"
@@ -464,13 +465,6 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         } else if (isNarrowJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
-            if (max_relocation > 0x7fff - offset) {
-                Log::warn("Jump overflow, aborting instrumentation of %s.%s", _target_class, _target_method);
-                _dst_len = code_start;
-                put(code, code_length);
-                memset(relocation_table, 0, sizeof(relocation_table[0]));
-                return 0;
-            }
         } else if (isWideJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
@@ -580,6 +574,13 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         u32 new_jump_offset_idx = old_jump_offset_idx + relocation_table[old_jump_offset_idx];
         u8* new_jump_offset_ptr = _dst + code_start + new_jump_offset_idx;
         if (is_narrow) {
+            if (MAX(-new_offset, new_offset) > 0x7FFF) {
+                Log::warn("Jump overflow, aborting instrumentation of %s.%s", _target_class, _target_method);
+                _dst_len = code_start;
+                put(code, code_length);
+                memset(relocation_table, 0, sizeof(relocation_table[0]));
+                return 0;
+            }
             *(u16*)(new_jump_offset_ptr) = htons((u16) new_offset);
         } else {
             *(u32*)(new_jump_offset_ptr) = htonl((u32) new_offset);
