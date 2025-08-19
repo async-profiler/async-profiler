@@ -473,31 +473,51 @@ int OS::getProcessIds(int* pids, int max_pids) {
     return count;
 }
 
-bool readProcessCmdline(int pid, ProcessInfo* info) {
+bool readProcessCmdline(int pid, ProcessInfo *info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
-    FILE* file = fopen(path, "rb");
-    if (!file) return false;
+
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd == -1) {
+        return false;
+    }
 
     const size_t max_read = sizeof(info->cmdline) - 1;
-    size_t len = fread(info->cmdline, 1, max_read, file);
-    info->cmdline[max_read] = '\0';
+    size_t len = 0;
 
-    if (len > 0) {
-      // Replace null bytes with spaces (arguments are separated by null bytes)
-      for (size_t i = 0; i < len; i++) {
-          if (info->cmdline[i] == '\0') {
-              info->cmdline[i] = ' ';
-          }
-      }
-      // Ensure null termination
-      info->cmdline[len] = '\0';
-      // Remove trailing space if present
-      if (len > 0 && info->cmdline[len-1] == ' ') {
-          info->cmdline[len-1] = '\0';
-      }
+    for (;;) {
+        ssize_t r = read(fd, info->cmdline + len, max_read - len);
+        if (r > 0) {
+            len += (size_t)r;
+            if (len == max_read)
+                break;
+        } else if (r == 0) {
+            break;
+        } else {
+            if (errno == EINTR)
+                continue;
+            close(fd);
+            return false;
+        }
     }
-    fclose(file);
+
+    close(fd);
+
+    // Replace null bytes with spaces (arguments are separated by null bytes)
+    for (size_t i = 0; i < len; i++) {
+        if (info->cmdline[i] == '\0') {
+            info->cmdline[i] = ' ';
+        }
+    }
+
+    // Ensure null termination
+    info->cmdline[len] = '\0';
+
+    // Remove trailing space if present
+    while (len > 0 && info->cmdline[len - 1] == ' ') {
+        info->cmdline[--len] = '\0';
+    }
+
     return true;
 }
 
