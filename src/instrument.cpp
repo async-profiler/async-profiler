@@ -713,17 +713,19 @@ void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, u8 new_
             put16(locals_count_old + latency_profiling_ok);
 
             u16 locals_idx_old = 0;
-            u8 current_byte_count = 0;
-            while (current_byte_count < new_local_index) {
-                u8 tag = rewriteVerificationTypeInfo(relocation_table);
-                current_byte_count += (tag == JVM_ITEM_Long || tag == JVM_ITEM_Double ? 2 : 1);
-                ++locals_idx_old;
-            }
+            if (latency_profiling_ok) {
+                u8 current_byte_count = 0;
+                while (current_byte_count < new_local_index) {
+                    u8 tag = rewriteVerificationTypeInfo(relocation_table);
+                    current_byte_count += (tag == JVM_ITEM_Long || tag == JVM_ITEM_Double ? 2 : 1);
+                    ++locals_idx_old;
+                }
 
-            assert(current_byte_count == new_local_index);
-            assert(locals_idx_old <= locals_count_old);
-            // Make sure our new local variable is not left out
-            put8(JVM_ITEM_Long);
+                assert(current_byte_count == new_local_index);
+                assert(locals_idx_old <= locals_count_old);
+                // Make sure our new local variable is not left out
+                put8(JVM_ITEM_Long);
+            }
 
             // Write the remaining locals
             for (; locals_idx_old < locals_count_old; ++locals_idx_old) {
