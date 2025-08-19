@@ -600,8 +600,8 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     info->state = (unsigned char)state;
     info->minor_faults = minflt;
     info->major_faults = majflt;
-    info->cpu_user = utime / OS::clock_ticks_per_sec;
-    info->cpu_system = stime / OS::clock_ticks_per_sec;
+    info->cpu_user = static_cast<float>(utime) / OS::clock_ticks_per_sec;
+    info->cpu_system = static_cast<float>(stime) / OS::clock_ticks_per_sec;
     info->threads = threads;
     // (23) vsize convert from bytes to kB
     info->vm_size = vsize >> 10;
