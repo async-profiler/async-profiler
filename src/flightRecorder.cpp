@@ -46,9 +46,9 @@ const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
-const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
-const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
-const float MIN_CPU_THRESHOLD = 0.0f;     // Minimum % cpu utilization to include results
+const int MAX_PROCESSES = 5000;             // Hard limit to prevent excessive work
+const u64 MAX_TIME_NS = 900000000UL;        // Timeout after 900ms to guarantee runtime <1sec
+const float MIN_CPU_THRESHOLD = 0.0f;       // Minimum % cpu utilization to include results
 const u64 MIN_RSS_PERCENT_THRESHOLD = 5.0f; // Minimum % rss usage to include results
 const int MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH = 2500;
 
@@ -80,10 +80,8 @@ struct CpuTimes {
 };
 
 struct ProcessHistory {
-    u64 prev_cpu_total;
-    u64 prev_timestamp;
-
-    ProcessHistory() : prev_cpu_total(0), prev_timestamp(0) {}
+    float prev_cpu_total = 0.0f;
+    u64 prev_timestamp = 0;
 };
 
 class ProcessSampler {
@@ -116,37 +114,34 @@ class ProcessSampler {
         return _sampling_interval >= 0 && (wall_time - _last_sample_ts) >= (u64)_sampling_interval;
     }
 
-    static double getRssUsagePercent(const ProcessInfo &info) {
+    static double getRssUsagePercent(const ProcessInfo& info) {
         const u64 ram_size = OS::getRamSize();
-        if (ram_size <= 0 || info.vm_rss <= 0) {
-            return 0.0;
-        }
+        if (ram_size <= 0 || info.vm_rss <= 0) return 0.0;
 
         return static_cast<double>(info.vm_rss) / ram_size * 100;
     }
 
-    static bool shouldIncludeProcess(const ProcessInfo &info) {
+    static bool shouldIncludeProcess(const ProcessInfo& info) {
         return info.cpu_percent >= MIN_CPU_THRESHOLD || getRssUsagePercent(info) >= MIN_RSS_PERCENT_THRESHOLD;
     }
 
     static bool populateCpuPercent(ProcessInfo& info, const u64 sampling_time) {
-        const u64 current_cpu_total = info.cpu_user + info.cpu_system;
-        ProcessHistory &history = _process_history[info.pid];
+        const float current_cpu_total = info.cpu_user + info.cpu_system;
+        ProcessHistory& history = _process_history[info.pid];
         if (history.prev_timestamp == 0) {
             history.prev_cpu_total = current_cpu_total;
             history.prev_timestamp = sampling_time;
             return false;
         }
 
-        const u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
+        const float delta_cpu = current_cpu_total - history.prev_cpu_total;
         const u64 delta_time = sampling_time - history.prev_timestamp;
         float cpu_percent = 0.0f;
 
         if (delta_time > 0) {
-            float cpu_secs = static_cast<float>(delta_cpu) / OS::clock_ticks_per_sec;
-            float elapsed_secs = static_cast<float>(delta_time) / 1e9;
+            float elapsed_secs = delta_time / 1.0e9f;
             if (elapsed_secs > 0) {
-                cpu_percent = (cpu_secs / elapsed_secs) * 100.0;
+                cpu_percent = (delta_cpu / elapsed_secs) * 100.0;
             }
         }
 
@@ -163,7 +158,7 @@ class ProcessSampler {
         return pid_count;
     }
 
-    bool getProcessSample(int pid_index, u64 sampling_time, ProcessInfo &info) const {
+    bool getProcessSample(int pid_index, u64 sampling_time, ProcessInfo& info) const {
         const int pid = _pids[pid_index];
         if (OS::getBasicProcessInfo(pid, &info)) {
             if (populateCpuPercent(info, sampling_time)) {
@@ -559,9 +554,7 @@ class Recording {
     }
 
     bool processMonitorCycle(const u64 wall_time) {
-        if (!_process_sampler.shouldSample(wall_time)) {
-            return false;
-        }
+        if (!_process_sampler.shouldSample(wall_time)) return false;
 
         const u64 deadline_ns = OS::nanotime() + MAX_TIME_NS;
         const int process_count = _process_sampler.getSampledProcessCount(wall_time);
@@ -1235,8 +1228,8 @@ class Recording {
         buf->put8(info->state);
 
         buf->putVar64(info->start_time);
-        buf->putVar64(info->cpu_user / OS::clock_ticks_per_sec);
-        buf->putVar64(info->cpu_system / OS::clock_ticks_per_sec);
+        buf->putVar64(info->cpu_user);
+        buf->putVar64(info->cpu_system);
         buf->putFloat(info->cpu_percent);
         buf->putVar32(info->threads);
 

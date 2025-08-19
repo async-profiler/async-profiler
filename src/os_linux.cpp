@@ -447,7 +447,7 @@ u64 OS::getRamSize() {
         char key[6];
         while (fgets(line, sizeof(line), file)) {
             if (strncmp(line, "MemTotal:", 9) == 0) {
-                mem_total = strtoull(line+9, NULL, 10);
+                mem_total = strtoull(line + 9, NULL, 10);
                 break;
             }
         }
@@ -469,7 +469,7 @@ u64 OS::getSystemBootTime() {
         char key[6];
         while (fgets(line, sizeof(line), file)) {
             if (strncmp(line, "btime", 5) == 0) {
-                system_boot_time = strtoull(line+5, NULL, 10);
+                system_boot_time = strtoull(line + 5, NULL, 10);
                 break;
             }
         }
@@ -495,7 +495,7 @@ int OS::getProcessIds(int* pids, int max_pids) {
     return count;
 }
 
-bool readProcessCmdline(int pid, ProcessInfo *info) {
+bool readProcessCmdline(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
 
@@ -511,13 +511,11 @@ bool readProcessCmdline(int pid, ProcessInfo *info) {
         ssize_t r = read(fd, info->cmdline + len, max_read - len);
         if (r > 0) {
             len += (size_t)r;
-            if (len == max_read)
-                break;
+            if (len == max_read) break;
         } else if (r == 0) {
             break;
         } else {
-            if (errno == EINTR)
-                continue;
+            if (errno == EINTR) continue;
             close(fd);
             return false;
         }
@@ -543,13 +541,12 @@ bool readProcessCmdline(int pid, ProcessInfo *info) {
     return true;
 }
 
-bool readProcessStats(int pid, ProcessInfo *info) {
+bool readProcessStats(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
 
     int fd = open(path, O_RDONLY);
-    if (fd == -1)
-        return false;
+    if (fd == -1) return false;
 
     char buffer[4096];
     size_t len = 0;
@@ -558,21 +555,18 @@ bool readProcessStats(int pid, ProcessInfo *info) {
         ssize_t r = read(fd, buffer + len, sizeof(buffer) - 1 - len);
         if (r > 0) {
             len += (size_t)r;
-            if (len == sizeof(buffer) - 1)
-                break;
+            if (len == sizeof(buffer) - 1) break;
         } else if (r == 0) {
             break;
         } else {
-            if (errno == EINTR)
-                continue;
+            if (errno == EINTR) continue;
             close(fd);
             return false;
         }
     }
     close(fd);
 
-    if (len == 0)
-        return false;
+    if (len == 0) return false;
     buffer[len] = '\0';
 
     int parsed_pid, ppid;
@@ -598,8 +592,7 @@ bool readProcessStats(int pid, ProcessInfo *info) {
                "%llu",                  /* 24 rss                                   */
                &parsed_pid, comm, &state, &ppid, &minflt, &majflt, &utime, &stime, &threads, &starttime, &vsize, &rss);
 
-    if (parsed < 12)
-        return false;
+    if (parsed < 12) return false;
 
     memcpy(info->name, comm, COMM_LEN);
     info->pid = parsed_pid;
@@ -607,8 +600,8 @@ bool readProcessStats(int pid, ProcessInfo *info) {
     info->state = (unsigned char)state;
     info->minor_faults = minflt;
     info->major_faults = majflt;
-    info->cpu_user = utime;
-    info->cpu_system = stime;
+    info->cpu_user = utime / OS::clock_ticks_per_sec;
+    info->cpu_system = stime / OS::clock_ticks_per_sec;
     info->threads = threads;
     // (23) vsize convert from bytes to kB
     info->vm_size = vsize >> 10;
@@ -675,11 +668,11 @@ bool readProcessIO(int pid, ProcessInfo* info) {
     char line[1024];
     while (fgets(line, sizeof(line), file) && read_count < 2) {
         if (strncmp(line, "read_bytes:", 11) == 0) {
-            u64 read_bytes = strtoull(line+11, NULL, 10);
+            u64 read_bytes = strtoull(line + 11, NULL, 10);
             info->io_read = read_bytes >> 10;
             read_count++;
         } else if (strncmp(line, "write_bytes:", 12) == 0) {
-            u64 write_bytes = strtoull(line+12, NULL, 10);
+            u64 write_bytes = strtoull(line + 12, NULL, 10);
             info->io_write = write_bytes >> 10;
             read_count++;
         }

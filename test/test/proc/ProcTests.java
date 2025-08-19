@@ -18,20 +18,21 @@ public class ProcTests {
 
     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void basicProcessSampling(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 1 -d 5 -f %f.jfr");
+        Output out = p.profile("--proc 1 -d 3 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();
 
             List<ProcessSample> appSamples = events.stream()
-                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp")).collect(Collectors.toList());
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp"))
+                    .collect(Collectors.toList());
 
-            Assert.isEqual(appSamples.size(), 4); // We discard the first sample
+            Assert.isEqual(appSamples.size(), 2); // We discard the first sample
         }
     }
 
     @Test(mainClass = BasicApp.class, os = Os.LINUX)
-    public void processSamplingWithZeroFrequency(TestProcess p) throws Exception {
+    public void processSamplingWithZeroSamplingPeriod(TestProcess p) throws Exception {
         Output out = p.profile("--proc 0 -d 5 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
@@ -44,7 +45,6 @@ public class ProcTests {
     public void processSamplingInterval(TestProcess p) throws Exception {
         long startTime = System.currentTimeMillis();
         Output out = p.profile("--proc 2 -d 8 -f %f.jfr");
-        long endTime = System.currentTimeMillis();
 
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
@@ -80,10 +80,20 @@ public class ProcTests {
             assert sample.cmdLine != null;
             Assert.isGreaterOrEqual(sample.uid, 0);
             Assert.isNotEqual(sample.state, 0);
-            Assert.isGreater(sample.startTime, 0);
+            Assert.isGreater(sample.processStartTime, 0);
+            Assert.isGreater(sample.cpuUser, 0);
+            Assert.isGreater(sample.cpuSystem, 0);
+            Assert.isGreater(sample.cpuPercent, 0);
             Assert.isGreater(sample.threads, 0);
             Assert.isGreaterOrEqual(sample.vmSize, 0);
             Assert.isGreaterOrEqual(sample.vmRss, 0);
+            Assert.isGreaterOrEqual(sample.rssAnon, 0);
+            Assert.isGreaterOrEqual(sample.rssFiles, 0);
+            Assert.isGreaterOrEqual(sample.rssShmem, 0);
+            Assert.isGreaterOrEqual(sample.minorFaults, 0);
+            Assert.isGreaterOrEqual(sample.majorFaults, 0);
+            Assert.isGreaterOrEqual(sample.ioRead, 0);
+            Assert.isGreaterOrEqual(sample.ioWrite, 0);
         }
     }
 
@@ -96,7 +106,8 @@ public class ProcTests {
 
             ProcessSample sample = events.stream()
                     .filter(e -> e.cmdLine != null && e.cmdLine.contains("IoIntensiveApp"))
-                    .max(Comparator.comparingLong(e -> e.time)).orElse(null);
+                    .max(Comparator.comparingLong(e -> e.time))
+                    .orElse(null);
 
             assert sample != null;
             Assert.isGreaterOrEqual(sample.ioRead, 64 * 1024);
@@ -112,7 +123,8 @@ public class ProcTests {
 
             ProcessSample multiThreadSample = events.stream()
                     .filter(e -> e.cmdLine != null && e.cmdLine.contains("MultiThreadApp"))
-                    .findFirst().orElse(null);
+                    .findFirst()
+                    .orElse(null);
 
             assert multiThreadSample != null;
             Assert.isGreaterOrEqual(multiThreadSample.threads, 5);
@@ -121,7 +133,7 @@ public class ProcTests {
 
     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void processSamplingWithHigherSampling(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 9 -d 8 -f %f.jfr");
+        Output out = p.profile("--proc 5 -d 4 -f %f.jfr");
 
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
@@ -131,14 +143,15 @@ public class ProcTests {
 
     @Test(mainClass = ShortLivedApp.class, os = Os.LINUX)
     public void shortLivedProcesses(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 1 -d 15 -f %f.jfr", false, 10);
+        Output out = p.profile("--proc 1 -d 5 -f %f.jfr", false, 10);
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();
 
             ProcessSample sample = events.stream()
                     .filter(e -> e.cmdLine != null && e.cmdLine.contains("dd if=/dev/zero of=/dev/nul"))
-                    .findAny().orElse(null);
+                    .findAny()
+                    .orElse(null);
 
             assert sample != null;
         }
