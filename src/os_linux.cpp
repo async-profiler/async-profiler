@@ -436,6 +436,28 @@ bool OS::checkPreloaded() {
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
 }
 
+u64 OS::getRamSize() {
+    static u64 mem_total = 0;
+
+    if (mem_total == 0) {
+        FILE* file = fopen("/proc/meminfo", "r");
+        if (!file) return 0;
+
+        char line[1024];
+        char key[6];
+        while (fgets(line, sizeof(line), file)) {
+            if (strncmp(line, "MemTotal:", 9) == 0) {
+                mem_total = strtoull(line+9, NULL, 10);
+                break;
+            }
+        }
+
+        fclose(file);
+    }
+
+    return mem_total;
+}
+
 u64 OS::getSystemBootTime() {
     static u64 system_boot_time = 0;
 
@@ -477,7 +499,7 @@ bool readProcessCmdline(int pid, ProcessInfo *info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
 
-    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    int fd = open(path, O_RDONLY);
     if (fd == -1) {
         return false;
     }
@@ -525,7 +547,7 @@ bool readProcessStats(int pid, ProcessInfo *info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
 
-    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    int fd = open(path, O_RDONLY);
     if (fd == -1)
         return false;
 

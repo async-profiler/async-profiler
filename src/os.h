@@ -140,6 +140,7 @@ class OS {
     static bool checkPreloaded();
 
     static u64 getSystemBootTime();
+    static u64 getRamSize();
     static int getProcessIds(int* pids, int max_pids);
     static bool getBasicProcessInfo(int pid, ProcessInfo* info);
     static bool getDetailedProcessInfo(ProcessInfo* info);

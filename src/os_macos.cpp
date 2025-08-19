@@ -431,6 +431,10 @@ u64 OS::getSystemBootTime() {
     return 0;
 }
 
+u64 OS::getRamSize() {
+    return 0;
+}
+
 int OS::getProcessIds(int* pids, int max_pids) {
     return 0;
 }

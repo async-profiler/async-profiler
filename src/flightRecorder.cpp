@@ -117,11 +117,12 @@ class ProcessSampler {
     }
 
     static double getRssUsagePercent(const ProcessInfo &info) {
-        if (info.vm_size <= 0 || info.vm_rss <= 0) {
+        const u64 ram_size = OS::getRamSize();
+        if (ram_size <= 0 || info.vm_rss <= 0) {
             return 0.0;
         }
 
-        return static_cast<double>(info.vm_rss) / info.vm_size * 100;
+        return static_cast<double>(info.vm_rss) / ram_size * 100;
     }
 
     static bool shouldIncludeProcess(const ProcessInfo &info) {
@@ -578,7 +579,7 @@ class Recording {
             }
         }
 
-        return process_count > 0;
+        return true;
     }
 
     bool hasMasterRecording() const {
