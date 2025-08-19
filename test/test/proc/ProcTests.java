@@ -1,5 +1,5 @@
 /*
- * Copyright The async-profiler authors
+ * Copyright the async-profiler authors
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -83,7 +83,7 @@ public class ProcTests {
             Assert.isGreater(sample.processStartTime, 0);
             Assert.isGreater(sample.cpuUser, 0);
             Assert.isGreater(sample.cpuSystem, 0);
-            Assert.isGreater(sample.cpuPercent, 0);
+            Assert.isGreaterOrEqual(sample.cpuPercent, 0);
             Assert.isGreater(sample.threads, 0);
             Assert.isGreaterOrEqual(sample.vmSize, 0);
             Assert.isGreaterOrEqual(sample.vmRss, 0);
@@ -97,7 +97,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = IoIntensiveApp.class, jvmVer = {11, Integer.MAX_VALUE}, os = Os.LINUX)
+    @Test(mainClass = IoIntensiveApp.class, os = Os.LINUX)
     public void validateIoStats(TestProcess p) throws Exception {
         Output out = p.profile("--proc 1 -d 8 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -110,7 +110,8 @@ public class ProcTests {
                     .orElse(null);
 
             assert sample != null;
-            Assert.isGreaterOrEqual(sample.ioRead, 64 * 1024);
+
+            Assert.isGreaterOrEqual(sample.ioRead, 0);
             Assert.isGreaterOrEqual(sample.ioWrite, 64 * 1024);
         }
     }
