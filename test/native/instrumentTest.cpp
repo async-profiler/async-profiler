@@ -9,8 +9,8 @@
 #include "instrument.h"
 
 TEST_CASE(Instrument_test_updateCurrentFrame_start) {
-    long current_frame_old = -1;
-    long current_frame_new = -1;
+    int32_t current_frame_old = -1;
+    int32_t current_frame_new = -1;
     u16 relocation_table[3];
     relocation_table[2] = 4;
     u16 offset_delta_old = 2;
@@ -22,8 +22,8 @@ TEST_CASE(Instrument_test_updateCurrentFrame_start) {
 }
 
 TEST_CASE(Instrument_test_updateCurrentFrame_newEntry) {
-    long current_frame_old = -1;
-    long current_frame_new = 4;
+    int32_t current_frame_old = -1;
+    int32_t current_frame_new = 4;
     u16 relocation_table[3];
     relocation_table[2] = 4;
     u16 offset_delta_old = 2;
@@ -36,8 +36,8 @@ TEST_CASE(Instrument_test_updateCurrentFrame_newEntry) {
 }
 
 TEST_CASE(Instrument_test_updateCurrentFrame_mid) {
-    long current_frame_old = 1;
-    long current_frame_new = 2;
+    int32_t current_frame_old = 1;
+    int32_t current_frame_new = 2;
     u16 relocation_table[3];
     relocation_table[2] = 4;
     u16 offset_delta_old = 0;
@@ -94,21 +94,43 @@ TEST_CASE(Instrument_test_instructionBytes) {
 TEST_CASE(Instrument_test_instructionBytes_lookupswitch) {
     u8 code[12];
     code[0] = JVM_OPC_lookupswitch;
-    *(u32*)(code+8) = htonl(3); // pairs
-    CHECK_EQ(instructionBytes(code, 0), 12 + 3 * 4 * 2);
+
+    u32 pairs = 3;
+    *(u32*)(code+8) = htonl(pairs);
+
+    CHECK_EQ(instructionBytes(code, 0), 12 + pairs * 4 * 2);
 }
 
 TEST_CASE(Instrument_test_instructionBytes_largeLookupswitch) {
     u8 code[12];
     code[0] = JVM_OPC_lookupswitch;
-    *(u32*)(code+8) = htonl(0xFFFFFF); // pairs
-    CHECK_EQ(instructionBytes(code, 0), 12 + 0xFFFFFF * 4 * 2);
+
+    u32 pairs = 0xFFF;
+    *(u32*)(code+8) = htonl(pairs);
+
+    CHECK_EQ(instructionBytes(code, 0), 12 + pairs * 4 * 2);
 }
 
 TEST_CASE(Instrument_test_instructionBytes_tableswitch) {
     u8 code[16];
     code[0] = JVM_OPC_tableswitch;
-    *(u32*)(code+8) = htonl(3); // pairs
-    *(u32*)(code+12) = htonl(10); // pairs
-    CHECK_EQ(instructionBytes(code, 0), 16 + 8 * 4);
+
+    int32_t low = 3;
+    *(u32*)(code+8) = htonl(low);
+    int32_t high = 10;
+    *(u32*)(code+12) = htonl(high);
+
+    CHECK_EQ(instructionBytes(code, 0), 16 + (high - low + 1) * 4);
+}
+
+TEST_CASE(Instrument_test_instructionBytes_largeTableswitch) {
+    u8 code[16];
+    code[0] = JVM_OPC_tableswitch;
+    
+    int32_t low = 0;
+    *(u32*)(code+8) = htonl(low);
+    int32_t high = 0xFFF;
+    *(u32*)(code+12) = htonl(high);
+
+    CHECK_EQ(instructionBytes(code, 0), 16 + (high - low + 1) * 4);
 }

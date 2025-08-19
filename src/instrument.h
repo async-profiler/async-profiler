@@ -51,9 +51,9 @@ class Instrument : public Engine {
     static void JNICALL recordExit(JNIEnv* jni, jobject unused, jlong);
 };
 
-u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new,
+u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new,
                        u16 offset_delta_old, const u16* relocation_table);
 u8 parameterSlots(const char* method_sig);
-u32 instructionBytes(const u8* code, u32 index);
+u16 instructionBytes(const u8* code, u16 index);
 
 #endif // _INSTRUMENT_H

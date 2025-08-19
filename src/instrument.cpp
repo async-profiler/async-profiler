@@ -18,7 +18,7 @@
 #include "vmEntry.h"
 #include "instrument.h"
 
-constexpr u32 MAX_CODE_LENGTH = 65534;
+constexpr u16 MAX_CODE_LENGTH = 65534;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
@@ -41,7 +41,7 @@ u8 parameterSlots(const char* method_sig) {
     return count;
 }
 
-static inline u32 alignUp4(u32 i) {
+static inline u16 alignUp4(u16 i) {
     return (i & ~3) + 4;
 }
 
@@ -252,7 +252,7 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode(u16 access_flags, u16 descriptor_index);
-    u16 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table);
+    u16 rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table);
     void rewriteLineNumberTable(const u16* relocation_table);
     void rewriteLocalVariableTable(const u16* relocation_table, int new_local_index);
     void rewriteStackMapTable(const u16* relocation_table, int new_local_index);
@@ -315,7 +315,7 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
-inline u32 instructionBytes(const u8* code, u32 index) {
+inline u16 instructionBytes(const u8* code, u16 index) {
     static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
     u8 opcode = code[index];
     if (opcode == JVM_OPC_wide) {
@@ -323,15 +323,15 @@ inline u32 instructionBytes(const u8* code, u32 index) {
         return 4;
     }
     if (opcode == JVM_OPC_tableswitch) {
-        u32 default_index = alignUp4(index);
+        u16 default_index = alignUp4(index);
         int32_t l = ntohl(*(u32*)(code + default_index + 4));
         int32_t h = ntohl(*(u32*)(code + default_index + 8));
-        u32 branches_count = h - l + 1;
+        u16 branches_count = h - l + 1;
         return default_index - index + (3 + branches_count) * 4;
     }
     if (opcode == JVM_OPC_lookupswitch) {
-        u32 default_index = alignUp4(index);
-        u32 npairs = ntohl(*(u32*)(code + default_index + 4));
+        u16 default_index = alignUp4(index);
+        u16 npairs = (u16) ntohl(*(u32*)(code + default_index + 4));
         return default_index - index + (npairs + 1) * 8;
     }
     assert(opcode < JVM_OPC_MAX+1);
@@ -352,6 +352,8 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     put16(max_locals + (_latency_profiling ? 2 : 0));
 
     u32 code_length = get32();
+    assert(code_length < MAX_CODE_LENGTH);
+
     const u8* code = get(code_length);
     u32 code_length_idx = _dst_len;
     put32(code_length); // to be fixed later
@@ -381,7 +383,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
         // The rest of the code is unchanged
         put(code, code_length);
-        for (u32 i = 0; i <= code_length; ++i) relocation_table[i] = relocation;
+        for (u16 i = 0; i <= code_length; ++i) relocation_table[i] = relocation;
     }
 
     // Fix code length, we now know the real relocation
@@ -409,7 +411,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 }
 
 // Return the relocation after the last byte of code
-u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table) {
+u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table) {
     // Method start is relocated
     u16 current_relocation = EXTRA_BYTECODES_ENTRY;
 
@@ -418,7 +420,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     // - Adding a new invocation
     // - Narrow jump becoming a wide jump
     u32 max_relocation = current_relocation;
-    for (u32 i = 0; i < code_length;) {
+    for (u16 i = 0; i < code_length;) {
         u8 opcode = code[i];
         if (isFunctionExit(opcode)) {
             max_relocation += EXTRA_BYTECODES_EXIT;
@@ -445,12 +447,12 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     put8(start_time_loc_index);
     put16(JVM_OPC_nop);
 
-    // Low 32 bits: jump base index
-    // High 32 bits: jump offset index
+    // Low 16 bits: jump base index
+    // High 16 bits: jump offset index
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
-    std::vector<u64> jumps;
+    std::vector<u32> jumps;
     // Second scan: fill relocation_table and rewrite code.
-    for (u32 i = 0; i < code_length; /* incremented with instructionBytes */) {
+    for (u16 i = 0; i < code_length; /* incremented with instructionBytes */) {
         u8 opcode = code[i];
 
         if (isFunctionExit(opcode)) {
@@ -463,42 +465,42 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             put16(_cpool_len + 6);
             put8(JVM_OPC_nop);
         } else if (isNarrowJump(opcode)) {
-            jumps.push_back((i + 1ULL) << 32 | i);
+            jumps.push_back((i + 1U) << 16 | i);
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
         } else if (isWideJump(opcode)) {
-            jumps.push_back((i + 1ULL) << 32 | i);
+            jumps.push_back((i + 1U) << 16 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
             // 'default' lies after the padding
-            u32 default_index = alignUp4(i);
+            u16 default_index = alignUp4(i);
             // 4 bits: default
-            jumps.push_back((u64) default_index << 32 | i);
+            jumps.push_back((u32) default_index << 16 | i);
             // 4 bits: low
             int32_t l = ntohl(*(u32*)(code + default_index + 4));
             // 4 bits: high
             int32_t h = ntohl(*(u32*)(code + default_index + 8));
             // (high - low + 1) * 4 bits: branches
-            u32 branches_base_index = default_index + 12;
-            for (u64 c = 0; c < h - l + 1; ++c) {
-                jumps.push_back((branches_base_index + c * 4) << 32 | i);
+            u16 branches_base_index = default_index + 12;
+            for (u16 c = 0; c < h - l + 1; ++c) {
+                jumps.push_back((branches_base_index + c * 4) << 16 | i);
             }
         } else if (opcode == JVM_OPC_lookupswitch) {
             // 'default' lies after the padding
-            u32 default_index = alignUp4(i);
+            u16 default_index = alignUp4(i);
             // 4 bits: default
-            jumps.push_back((u64) default_index << 32 | i);
+            jumps.push_back((u32) default_index << 16 | i);
             // 4 bits: npairs
-            u32 npairs = ntohl(*(u32*)(code + default_index + 4));
-            u32 branches_base_index = default_index + 12;
-            for (u32 c = 0; c < npairs; ++c) {
-                u32 pair_base = branches_base_index + c * 8;
+            u16 npairs = (u16) ntohl(*(u32*)(code + default_index + 4));
+            u16 branches_base_index = default_index + 12;
+            for (u16 c = 0; c < npairs; ++c) {
+                u16 pair_base = branches_base_index + c * 8;
                 // 4 bits: match
                 // 4 bits: offset
-                jumps.push_back((u64) pair_base << 32 | i);
+                jumps.push_back((u32) pair_base << 16 | i);
             }
         }
 
-        u32 bc = instructionBytes(code, i);
-        for (u32 j = 0; j < bc; ++j) relocation_table[i + j] = current_relocation;
+        u16 bc = instructionBytes(code, i);
+        for (u16 j = 0; j < bc; ++j) relocation_table[i + j] = current_relocation;
         put(code + i, bc);
         i += bc;
 
@@ -542,7 +544,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                 _dst[_dst_len - 2] = index;
             }
         } else if (opcode == JVM_OPC_wide) {
-            u32 back = bc - 2;
+            u16 back = bc - 2;
             u16 index = ntohs(*(u16*)(code + i - back));
             if (index >= start_time_loc_index) {
                 index += 2;
@@ -552,11 +554,11 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     }
 
     // Third scan (jumps only): fix the jump offset using information in relocation_table.
-    for (u64 jump : jumps) {
-        u32 old_jump_base_idx = (u32) jump;
-        u32 old_jump_offset_idx = (u32) (jump >> 32);
+    for (u32 jump : jumps) {
+        u16 old_jump_base_idx = (u16) jump;
+        u16 old_jump_offset_idx = (u16) (jump >> 16);
 
-        u32 new_jump_base_idx = old_jump_base_idx + relocation_table[old_jump_base_idx];
+        u16 new_jump_base_idx = old_jump_base_idx + relocation_table[old_jump_base_idx];
         u8* new_jump_base_ptr = _dst + code_start + new_jump_base_idx;
         assert(code[old_jump_base_idx] == *new_jump_base_ptr);
 
@@ -568,10 +570,10 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             old_offset = (int32_t) ntohl(*(u32*)(code + old_jump_offset_idx));
         }
 
-        u32 old_jump_target = (u32) (old_jump_base_idx + old_offset);
+        u16 old_jump_target = (u16) (old_jump_base_idx + old_offset);
         int32_t new_offset = old_jump_target + relocation_table[old_jump_target] - new_jump_base_idx;
 
-        u32 new_jump_offset_idx = old_jump_offset_idx + relocation_table[old_jump_offset_idx];
+        u16 new_jump_offset_idx = old_jump_offset_idx + relocation_table[old_jump_offset_idx];
         u8* new_jump_offset_ptr = _dst + code_start + new_jump_offset_idx;
         if (is_narrow) {
             if (MAX(-new_offset, new_offset) > 0x7FFF) {
@@ -634,10 +636,10 @@ void BytecodeRewriter::rewriteLocalVariableTable(const u16* relocation_table, in
 }
 
 // Return the new offset delta
-u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new, 
+u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new, 
                        u16 offset_delta_old, const u16* relocation_table) {
     current_frame_old += offset_delta_old + 1;
-    u64 previous_frame_new = current_frame_new;
+    long previous_frame_new = current_frame_new;
     current_frame_new = current_frame_old + relocation_table[current_frame_old];
     return current_frame_new - previous_frame_new - 1;
 }
@@ -648,9 +650,9 @@ void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, int new
     put32(attribute_length);
 
     // Current instruction index in the old code
-    long current_frame_old = -1;
+    int32_t current_frame_old = -1;
     // And in the new code
-    long current_frame_new = -1;
+    int32_t current_frame_new = -1;
 
     u32 attribute_start_idx = _dst_len;
     u16 number_of_entries = get16();
