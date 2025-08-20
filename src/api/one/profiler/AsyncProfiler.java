@@ -311,5 +311,4 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native byte[] execute1(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
-
 }

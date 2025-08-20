@@ -20,26 +20,19 @@ public class TraceContext {
         if (buffer == null) return;
         
         buffer.position(0);
-        writeString(buffer, traceId, 32);
-        writeString(buffer, spanId, 16);
-        buffer.put((byte) 0);
+        writeString(buffer, traceId);
+        writeString(buffer, spanId);
     }
 
     public static void clearTraceContext() {
         ByteBuffer buffer = BUFFER.get();
         if (buffer == null) return;
         
-        buffer.position(0);
-        for (int i = 0; i < 49; i++) {
-            buffer.put((byte) 0);
+        buffer.clear();
         }
-    }
 
-    private static void writeString(ByteBuffer buffer, String str, int len) {
-        if (str == null) throw new IllegalArgumentException("String cannot be null");
-        if (str.length() < len) throw new IllegalArgumentException("String too short");
+    private static void writeString(ByteBuffer buffer, String str) {
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
-        buffer.put(bytes, 0, bytes.length);
-        for (int i = bytes.length; i < len; i++) buffer.put((byte) 0);
+        buffer.put(bytes);
     }
 }

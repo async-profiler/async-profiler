@@ -9,6 +9,7 @@
 #include "incbin.h"
 #include "javaApi.h"
 #include "os.h"
+#include "otlp.h"
 #include "profiler.h"
 #include "vmStructs.h"
 
@@ -150,7 +151,7 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
 
 extern "C" DLLEXPORT jobject JNICALL
 Java_one_profiler_AsyncProfiler_getThreadLocalBuffer(JNIEnv* env, jclass unused) {
-    return env->NewDirectByteBuffer(Profiler::traceBuffer(), 49);
+    return env->NewDirectByteBuffer(Profiler::traceBuffer(), Otlp::TRACE_CONTEXT_BUFFER_SIZE);
 }
 
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
