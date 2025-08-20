@@ -20,25 +20,25 @@ public class TraceContext {
         if (buffer == null) return;
 
         buffer.position(0);
-        writeString(buffer, traceId, 32);
-        writeString(buffer, spanId, 16);
+        
+        byte[] traceBytes = traceId.getBytes(StandardCharsets.UTF_8);
+        buffer.put(traceBytes, 0, traceBytes.length);
+        for (int i = traceBytes.length; i < 32; i++) buffer.put((byte) 0);
+        
+        byte[] spanBytes = spanId.getBytes(StandardCharsets.UTF_8);
+        buffer.put(spanBytes, 0, spanBytes.length);
+        for (int i = spanBytes.length; i < 16; i++) buffer.put((byte) 0);
+
         buffer.put((byte) 0);
     }
 
     public static void clearTraceContext() {
         ByteBuffer buffer = BUFFER.get();
         if (buffer == null) return;
-
+        
         buffer.position(0);
         for (int i = 0; i < 49; i++) {
             buffer.put((byte) 0);
         }
-    }
-
-    private static void writeString(ByteBuffer buffer, String str, int len) {
-        if (str.length() > len) throw new IllegalArgumentException("String too long");
-        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
-        buffer.put(bytes, 0, bytes.length);
-        for (int i = bytes.length; i < len; i++) buffer.put((byte) 0);
     }
 }
