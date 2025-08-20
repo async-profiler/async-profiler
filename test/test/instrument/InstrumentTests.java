@@ -26,7 +26,7 @@ public class InstrumentTests {
     )
     public void instrument(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile("%err"));
+        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 2;
@@ -45,7 +45,7 @@ public class InstrumentTests {
     )
     public void instrumentAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile("%err"));
+        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
         assert p.exitCode() == 0;
 
         assert out.contains("java\\/lang\\/Thread\\.run ");
@@ -61,7 +61,7 @@ public class InstrumentTests {
     )
     public void instrumentAllInit(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile("%err"));
+        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
         assert p.exitCode() == 0;
 
         assert !out.contains("java\\/lang\\/Thread\\.run ");
@@ -77,7 +77,7 @@ public class InstrumentTests {
     )
     public void instrumentAllMethodsInClass(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile("%err"));
+        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
         assert p.exitCode() == 0;
 
         assert out.contains("java\\/lang\\/Thread\\.run ");
@@ -94,7 +94,7 @@ public class InstrumentTests {
     )
     public void latency(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile("%err"));
+        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
@@ -113,7 +113,7 @@ public class InstrumentTests {
     )
     public void latencyAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile("%err"));
+        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
@@ -131,7 +131,7 @@ public class InstrumentTests {
     )
     public void latencyDuration(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile("%err"));
+        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") >= Duration.ofMillis(500).toNanos();
@@ -149,7 +149,7 @@ public class InstrumentTests {
     )
     public void recursive(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile("%err"));
+        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
         assert p.exitCode() == 0;
 
         // recursive(i) = \sum_{j=i}^5 200*(MAX_RECURSION-j) ms
