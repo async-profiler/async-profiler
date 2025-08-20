@@ -1408,10 +1408,7 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
 
     _rec->cpuMonitorCycle();
     _rec->heapMonitorCycle(gc_id);
-
-#ifdef __linux__
     _rec->processMonitorCycle(wall_time);
-#endif
 
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
 

@@ -512,8 +512,6 @@ bool readProcessCmdline(int pid, ProcessInfo* info) {
         if (r > 0) {
             len += (size_t)r;
             if (len == max_read) break;
-        } else if (r == 0) {
-            break;
         } else {
             if (errno == EINTR) continue;
             close(fd);
@@ -556,8 +554,6 @@ bool readProcessStats(int pid, ProcessInfo* info) {
         if (r > 0) {
             len += (size_t)r;
             if (len == sizeof(buffer) - 1) break;
-        } else if (r == 0) {
-            break;
         } else {
             if (errno == EINTR) continue;
             close(fd);
