@@ -1023,9 +1023,6 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 
     bool wildcard_class = _target_class[0] == '*' && strlen(_target_class) == 1;
     if (name == NULL || wildcard_class || strcmp(name, _target_class) == 0) {
-        if (wildcard_class && strncmp("one/profiler/", name, 13) == 0) {
-            return;
-        }
         BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency >= 0);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
