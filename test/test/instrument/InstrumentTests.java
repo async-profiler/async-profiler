@@ -12,6 +12,8 @@ import java.io.*;
 import java.nio.file.Files;
 
 
+// Append '-Xlog:redefine+class+exceptions*' to jvmArgs for more detailed
+// reports from verification errors.
 public class InstrumentTests {
 
     private static final String MAIN_METHOD_SEGMENT = "^test\\/instrument\\/Recursive\\.main";
@@ -20,13 +22,12 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true,
-        jvmVer    = {9, Integer.MAX_VALUE} // Unified logging was introduced in JDK9
+        jvmArgs   = "-Xverify:all",
+        error     = true
     )
     public void instrument(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
+        assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 2;
@@ -39,13 +40,12 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,event=*.*,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true,
-        jvmVer    = {9, Integer.MAX_VALUE}
+        jvmArgs   = "-Xverify:all",
+        error     = true
     )
     public void instrumentAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
+        assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
         assert out.contains("java\\/lang\\/Thread\\.run ");
@@ -55,13 +55,12 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,event=*.<init>,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true,
-        jvmVer    = {9, Integer.MAX_VALUE}
+        jvmArgs   = "-Xverify:all",
+        error     = true
     )
     public void instrumentAllInit(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
+        assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
         assert !out.contains("java\\/lang\\/Thread\\.run ");
@@ -71,13 +70,12 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,event=java.lang.Thread.*,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true,
-        jvmVer    = {9, Integer.MAX_VALUE}
+        jvmArgs   = "-Xverify:all",
+        error     = true
     )
     public void instrumentAllMethodsInClass(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
+        assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
         assert out.contains("java\\/lang\\/Thread\\.run ");
@@ -88,13 +86,12 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true,
-        jvmVer    = {9, Integer.MAX_VALUE}
+        jvmArgs   = "-Xverify:all",
+        error     = true
     )
     public void latency(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
+        assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
@@ -107,13 +104,13 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=*.*,latency=100ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true,
-        jvmVer    = {9, Integer.MAX_VALUE}
+        jvmArgs   = "-Xverify:all",
+        output = true,
+        error     = true
     )
     public void latencyAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
+        assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
@@ -125,13 +122,12 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,total,latency=100ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true,
-        jvmVer    = {9, Integer.MAX_VALUE}
+        jvmArgs   = "-Xverify:all",
+        error     = true
     )
     public void latencyDuration(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
+        assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") >= Duration.ofMillis(500).toNanos();
@@ -143,13 +139,12 @@ public class InstrumentTests {
     @Test(
         mainClass = Recursive.class,
         agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=600ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true,
-        jvmVer    = {9, Integer.MAX_VALUE}
+        jvmArgs   = "-Xverify:all",
+        error     = true
     )
     public void recursive(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assertNoVerificationErrors(p.getFile(TestProcess.STDERR));
+        assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
         // recursive(i) = \sum_{j=i}^5 200*(MAX_RECURSION-j) ms
@@ -173,9 +168,11 @@ public class InstrumentTests {
         assert out.samples(String.format("%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
     }
 
-    private static void assertNoVerificationErrors(File stderr) throws IOException {
-        String content = new String(Files.readAllBytes(stderr.toPath()));
-        assert content.isEmpty() : content;
+    private static void assertNoVerificationErrors(TestProcess p) throws IOException {
+        String stdout = new String(Files.readAllBytes(p.getFile(TestProcess.STDOUT).toPath()));
+        assert stdout.isEmpty() : stdout;
+        String stderr = new String(Files.readAllBytes(p.getFile(TestProcess.STDERR).toPath()));
+        assert stderr.isEmpty() : stderr;
     }
 
 }
