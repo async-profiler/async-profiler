@@ -23,6 +23,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
+        output    = true,
         error     = true
     )
     public void instrument(TestProcess p) throws Exception {
@@ -41,6 +42,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,event=*.*,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
+        output    = true,
         error     = true
     )
     public void instrumentAll(TestProcess p) throws Exception {
@@ -56,6 +58,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,event=*.<init>,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
+        output    = true,
         error     = true
     )
     public void instrumentAllInit(TestProcess p) throws Exception {
@@ -71,6 +74,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,event=java.lang.Thread.*,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
+        output    = true,
         error     = true
     )
     public void instrumentAllMethodsInClass(TestProcess p) throws Exception {
@@ -87,6 +91,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
+        output    = true,
         error     = true
     )
     public void latency(TestProcess p) throws Exception {
@@ -105,7 +110,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=*.*,latency=100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
-        output = true,
+        output    = true,
         error     = true
     )
     public void latencyAll(TestProcess p) throws Exception {
@@ -123,6 +128,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,total,latency=100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
+        output    = true,
         error     = true
     )
     public void latencyDuration(TestProcess p) throws Exception {
@@ -140,6 +146,7 @@ public class InstrumentTests {
         mainClass = Recursive.class,
         agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=600ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
+        output    = true,
         error     = true
     )
     public void recursive(TestProcess p) throws Exception {
@@ -170,7 +177,8 @@ public class InstrumentTests {
 
     private static void assertNoVerificationErrors(TestProcess p) throws IOException {
         String stdout = new String(Files.readAllBytes(p.getFile(TestProcess.STDOUT).toPath()));
-        assert stdout.isEmpty() : stdout;
+        assert !stdout.contains("[ERROR]") : stdout;
+
         String stderr = new String(Files.readAllBytes(p.getFile(TestProcess.STDERR).toPath()));
         assert stderr.isEmpty() : stderr;
     }
