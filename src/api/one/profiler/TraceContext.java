@@ -20,19 +20,13 @@ public class TraceContext {
         if (buffer == null) return;
         
         buffer.position(0);
-        writeString(buffer, traceId);
-        writeString(buffer, spanId);
+        buffer.put(traceId.getBytes(StandardCharsets.UTF_8));
+        buffer.put(spanId.getBytes(StandardCharsets.UTF_8));
     }
 
     public static void clearTraceContext() {
         ByteBuffer buffer = BUFFER.get();
         if (buffer == null) return;
-        
         buffer.clear();
-        }
-
-    private static void writeString(ByteBuffer buffer, String str) {
-        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
-        buffer.put(bytes);
     }
 }
