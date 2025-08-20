@@ -111,14 +111,14 @@ class ProcessSampler {
     }
 
     bool shouldSample(const u64 wall_time) const {
-        return _sampling_interval >= 0 && (wall_time - _last_sample_ts) >= (u64)_sampling_interval;
+        return _sampling_interval > 0 && (wall_time - _last_sample_ts) >= (u64)_sampling_interval;
     }
 
     static double getRssUsagePercent(const ProcessInfo& info) {
         const u64 ram_size = OS::getRamSize();
         if (ram_size <= 0 || info.vm_rss <= 0) return 0.0;
 
-        return static_cast<double>(info.vm_rss) / ram_size * 100;
+        return (double)info.vm_rss / ram_size * 100;
     }
 
     static bool shouldIncludeProcess(const ProcessInfo& info) {
@@ -136,16 +136,8 @@ class ProcessSampler {
 
         const float delta_cpu = current_cpu_total - history.prev_cpu_total;
         const u64 delta_time = sampling_time - history.prev_timestamp;
-        float cpu_percent = 0.0f;
+        info.cpu_percent = (delta_cpu * 1.0e9f / delta_time) * 100.0;
 
-        if (delta_time > 0) {
-            float elapsed_secs = delta_time / 1.0e9f;
-            if (elapsed_secs > 0) {
-                cpu_percent = (delta_cpu / elapsed_secs) * 100.0;
-            }
-        }
-
-        info.cpu_percent = cpu_percent;
         history.prev_cpu_total = current_cpu_total;
         history.prev_timestamp = sampling_time;
         return true;

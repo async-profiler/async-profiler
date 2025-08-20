@@ -507,8 +507,8 @@ bool readProcessCmdline(int pid, ProcessInfo* info) {
     const size_t max_read = sizeof(info->cmdline) - 1;
     size_t len = 0;
 
-    for (;;) {
-        ssize_t r = read(fd, info->cmdline + len, max_read - len);
+    ssize_t r;
+    while (r = read(fd, info->cmdline + len, max_read - len)) {
         if (r > 0) {
             len += (size_t)r;
             if (len == max_read) break;
@@ -551,8 +551,8 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     char buffer[4096];
     size_t len = 0;
 
-    for (;;) {
-        ssize_t r = read(fd, buffer + len, sizeof(buffer) - 1 - len);
+    ssize_t r;
+    while (r = read(fd, buffer + len, sizeof(buffer) - 1 - len)) {
         if (r > 0) {
             len += (size_t)r;
             if (len == sizeof(buffer) - 1) break;
@@ -600,12 +600,12 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     info->state = (unsigned char)state;
     info->minor_faults = minflt;
     info->major_faults = majflt;
-    info->cpu_user = static_cast<float>(utime) / OS::clock_ticks_per_sec;
-    info->cpu_system = static_cast<float>(stime) / OS::clock_ticks_per_sec;
+    info->cpu_user = (float)utime / OS::clock_ticks_per_sec;
+    info->cpu_system = (float)stime / OS::clock_ticks_per_sec;
     info->threads = threads;
     // (23) vsize convert from bytes to kB
     info->vm_size = vsize >> 10;
-    //(24) rss - convert from number of pages to kB
+    // (24) rss - convert from number of pages to kB
     info->vm_rss = (rss * OS::page_size) >> 10;
     info->start_time = OS::getSystemBootTime() + starttime / OS::clock_ticks_per_sec;
     return true;
@@ -628,27 +628,22 @@ bool readProcessStatus(int pid, ProcessInfo* info) {
             continue;
         }
 
-        size_t len = strlen(key);
-        if (len && key[len - 1] == ':') {
-            key[len - 1] = '\0';
-        }
-
-        if (strcmp(key, "Uid") == 0) {
+        if (strncmp(key, "Uid", 3) == 0) {
             read_count++;
-            info->uid = static_cast<unsigned int>(value);
-        } else if (strcmp(key, "RssAnon") == 0) {
+            info->uid = (unsigned int)value;
+        } else if (strncmp(key, "RssAnon", 7) == 0) {
             read_count++;
             info->rss_anon = value;
-        } else if (strcmp(key, "RssFile") == 0) {
+        } else if (strncmp(key, "RssFile", 7) == 0) {
             read_count++;
             info->rss_files = value;
-        } else if (strcmp(key, "RssShmem") == 0) {
+        } else if (strncmp(key, "RssShmem", 8) == 0) {
             read_count++;
             info->rss_shmem = value;
-        } else if (strcmp(key, "VmSize") == 0) {
+        } else if (strncmp(key, "VmSize", 6) == 0) {
             read_count++;
             info->vm_size = value;
-        } else if (strcmp(key, "VmRSS") == 0) {
+        } else if (strncmp(key, "VmRSS", 5) == 0) {
             read_count++;
             info->vm_rss = value;
         }
