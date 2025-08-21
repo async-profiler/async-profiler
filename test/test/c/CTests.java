@@ -26,4 +26,19 @@ public class CTests {
         File preloadFile = p.getFile("%preload_file");
         assert preloadFile == null || preloadFile.length() == 0;
     }
+
+    @Test(sh = "%testbin/begin_end %f", error = true, output = true)
+    public void beginEnd(TestProcess p) throws Exception {
+        Output output = p.waitForExit(TestProcess.STDERR);
+        assert p.exitCode() == 0;
+
+        assert output.contains("begin & end should be 2 different symbols");
+        assert output.contains("Profiler is not active");
+
+        output = p.readFile(TestProcess.STDOUT);
+        assert output.contains("Calling testMethod");
+
+        File file = p.getFile("%profile");
+        assert file == null || file.length() == 0;  // Profiler failed to start due to begin == end
+    }
 }
