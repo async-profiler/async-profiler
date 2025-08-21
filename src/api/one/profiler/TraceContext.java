@@ -20,16 +20,11 @@ public class TraceContext {
         if (buffer == null) return;
 
         buffer.position(0);
-        for (int i = 0; i < 49; i++) {
-            buffer.put((byte) 0);
-        }
         byte[] traceBytes = traceId.getBytes(StandardCharsets.UTF_8);
         buffer.put(traceBytes, 0, traceBytes.length);
         
         byte[] spanBytes = spanId.getBytes(StandardCharsets.UTF_8);
         buffer.put(spanBytes, 0, spanBytes.length);
-
-        buffer.put((byte) 0);
     }
 
     public static void clearTraceContext() {
@@ -37,7 +32,7 @@ public class TraceContext {
         if (buffer == null) return;
         
         buffer.position(0);
-        for (int i = 0; i < 49; i++) {
+        for (int i = 0; i < 48; i++) {
             buffer.put((byte) 0);
         }
     }
