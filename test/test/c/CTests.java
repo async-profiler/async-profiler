@@ -27,7 +27,7 @@ public class CTests {
         assert preloadFile == null || preloadFile.length() == 0;
     }
 
-    @Test(sh = "%testbin/begin_end %f", error = true, output = true)
+    @Test(sh = "%testbin/begin_end %profile", error = true, output = true)
     public void beginEnd(TestProcess p) throws Exception {
         Output output = p.waitForExit(TestProcess.STDERR);
         assert p.exitCode() == 0;
