@@ -156,7 +156,7 @@ public class ProcTests {
             assert !events.isEmpty();
 
             ProcessSample sample = events.stream()
-                    .filter(e -> e.cmdLine != null && e.cmdLine.startsWith("dd if"))
+                    .filter(e -> e.name != null && e.name.equals("dd"))
                     .findAny()
                     .orElse(null);
 
