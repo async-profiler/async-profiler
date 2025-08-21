@@ -421,12 +421,13 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
     // invokestatic "java/lang/System.nanoTime()V"
     put8(JVM_OPC_invokestatic);
     put16(_cpool_len + 10);
-    // nop ensures that tableswitch/lookupswitch needs no realignment
-    put8(JVM_OPC_nop);
 
     put8(JVM_OPC_lstore);
     put8(start_time_loc_index);
+
+    // nop ensures that tableswitch/lookupswitch needs no realignment
     put16(JVM_OPC_nop);
+    put8(JVM_OPC_nop);
 
     // Low 16 bits: jump base index
     // High 16 bits: jump offset index
