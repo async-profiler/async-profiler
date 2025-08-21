@@ -156,7 +156,7 @@ public class ProcTests {
             assert !events.isEmpty();
 
             ProcessSample sample = events.stream()
-                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("dd if=/dev/zero of=/dev/null"))
+                    .filter(e -> e.cmdLine != null && e.cmdLine.startsWith("dd if"))
                     .findAny()
                     .orElse(null);
 
