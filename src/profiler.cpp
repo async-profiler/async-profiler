@@ -812,7 +812,7 @@ Error Profiler::installTraps(const char* begin, const char* end, bool nostop) {
 
     // begin & end shouldn't have the same address, as that would result in an infinite loop
     if (begin_addr && begin_addr == end_addr) {
-        return Error("begin & end should be 2 different symbols");
+        return Error("begin and end symbols should not resolve to the same address");
     }
 
     _begin_trap.assign(begin_addr);
