@@ -538,7 +538,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
     if (current_relocation > MAX_CODE_LENGTH - code_length) {
         Log::warn("Method %s.%s is too large for instrumentation", _target_class, _target_method);
         put(code, code_length);
-        memset(relocation_table, 0, sizeof(relocation_table[0]));
+        memset(relocation_table, 0, sizeof(relocation_table[0]) * (code_length + 1));
         return 0;
     }
 
@@ -569,7 +569,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
                 Log::warn("Jump overflow, aborting instrumentation of %s.%s", _target_class, _target_method);
                 _dst_len = code_start;
                 put(code, code_length);
-                memset(relocation_table, 0, sizeof(relocation_table[0]));
+                memset(relocation_table, 0, sizeof(relocation_table[0]) * (code_length + 1));
                 return 0;
             }
             *(u16*)(new_jump_offset_ptr) = htons((u16) new_offset);
