@@ -1040,9 +1040,11 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
 void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
     if (!_enabled) return;
 
-    u64 duration = OS::nanotime() - (u64) startTimeNanos;
-    if (duration >= _latency) {
-        ExecutionEvent event((u64) startTimeNanos * TSC::frequency() / NANOTIME_FREQ);
-        Profiler::instance()->recordSample(NULL, duration, INSTRUMENTED_METHOD, &event);
+    u64 duration_ns = OS::nanotime() - (u64) startTimeNanos;
+    if (duration_ns >= _latency) {
+        u64 now_ticks = TSC::ticks();
+        double duration_ticks = (double) duration_ns * TSC::frequency() / NANOTIME_FREQ;
+        ExecutionEvent event(now_ticks - (u64) duration_ticks);
+        Profiler::instance()->recordSample(NULL, duration_ns, INSTRUMENTED_METHOD, &event);
     }
 }
