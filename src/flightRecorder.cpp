@@ -82,11 +82,13 @@ struct CpuTimes {
 struct ProcessHistory {
     float prev_cpu_total = 0.0f;
     u64 prev_timestamp = 0;
+    u64 start_time = 0;
 };
 
 class ProcessSampler {
   private:
-    static u64 _last_sample_ts;
+    static u64 _last_sample_time;
+    static u64 _next_sample_time;
     static std::unordered_map<int, ProcessHistory> _process_history;
 
     long _sampling_interval = -1;
@@ -106,12 +108,15 @@ class ProcessSampler {
 
     void enable(const long sampling_interval) {
         _sampling_interval = sampling_interval;
-        _last_sample_ts = 0;
-        _process_history.clear();
+        u64 expected_next = _last_sample_time + sampling_interval;
+        if (_next_sample_time != expected_next) {
+            _last_sample_time = 0;
+            _process_history.clear();
+        }
     }
 
     bool shouldSample(const u64 wall_time) const {
-        return _sampling_interval > 0 && (wall_time - _last_sample_ts) >= (u64)_sampling_interval;
+        return _sampling_interval > 0 && wall_time >= _next_sample_time;
     }
 
     static double getRssUsagePercent(const ProcessInfo& info) {
@@ -128,9 +133,10 @@ class ProcessSampler {
     static bool populateCpuPercent(ProcessInfo& info, const u64 sampling_time) {
         const float current_cpu_total = info.cpu_user + info.cpu_system;
         ProcessHistory& history = _process_history[info.pid];
-        if (history.prev_timestamp == 0) {
+        if (history.prev_timestamp == 0 || history.start_time != info.start_time) {
             history.prev_cpu_total = current_cpu_total;
             history.prev_timestamp = sampling_time;
+            history.start_time = info.start_time;
             return false;
         }
 
@@ -146,7 +152,8 @@ class ProcessSampler {
     int getSampledProcessCount(u64 wall_time) {
         const int pid_count = OS::getProcessIds(_pids, MAX_PROCESSES);
         cleanupProcessHistory(pid_count);
-        _last_sample_ts = wall_time;
+        _last_sample_time = wall_time;
+        _next_sample_time = wall_time + _sampling_interval;
         return pid_count;
     }
 
@@ -165,7 +172,8 @@ class ProcessSampler {
     }
 };
 
-u64 ProcessSampler::_last_sample_ts = 0;
+u64 ProcessSampler::_last_sample_time = 0;
+u64 ProcessSampler::_next_sample_time = 0;
 std::unordered_map<int, ProcessHistory> ProcessSampler::_process_history;
 
 class Buffer {
