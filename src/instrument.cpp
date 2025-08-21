@@ -6,7 +6,6 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <vector>
 #include "assert.h"
 #include "classfile_constants.h"
@@ -566,7 +565,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
         u16 new_jump_offset_idx = old_jump_offset_idx + relocation_table[old_jump_offset_idx];
         u8* new_jump_offset_ptr = _dst + code_start + new_jump_offset_idx;
         if (is_narrow) {
-            if (MAX(-new_offset, new_offset) > 0x7FFF) {
+            if (new_offset != (int16_t)new_offset) {
                 Log::warn("Jump overflow, aborting instrumentation of %s.%s", _target_class, _target_method);
                 _dst_len = code_start;
                 put(code, code_length);
