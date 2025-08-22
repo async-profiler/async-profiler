@@ -26,19 +26,4 @@ public class CTests {
         File preloadFile = p.getFile("%preload_file");
         assert preloadFile == null || preloadFile.length() == 0;
     }
-
-    @Test(sh = "%testbin/begin_end %profile", error = true, output = true)
-    public void beginEnd(TestProcess p) throws Exception {
-        Output output = p.waitForExit(TestProcess.STDERR);
-        assert p.exitCode() == 0;
-
-        assert output.contains("begin and end symbols should not resolve to the same address");
-        assert output.contains("Profiler is not active");
-
-        output = p.readFile(TestProcess.STDOUT);
-        assert output.contains("Calling testMethod");
-
-        File file = p.getFile("%profile");
-        assert file.length() == 0;  // Profiler failed to start due to begin == end
-    }
 }

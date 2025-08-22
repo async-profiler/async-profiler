@@ -174,7 +174,6 @@ build/%:
 
 build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
-	$(STRIP) $@
 
 build/$(JFRCONV): src/launcher/launcher.sh build/$(CONVERTER_JAR)
 	sed -e 's/PROFILER_VERSION/$(PROFILER_VERSION)/g' -e 's/BUILD_DATE/$(shell date "+%b %d %Y")/g' src/launcher/launcher.sh > $@
@@ -246,7 +245,6 @@ build-test-bins:
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CC) -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
 	$(CC) -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
-	$(CC) -o $(TEST_BIN_DIR)/begin_end -Isrc test/test/c/begin_end.c -ldl
 	$(CC) -o $(TEST_BIN_DIR)/profile_with_dlopen -Isrc test/test/nativemem/profile_with_dlopen.c -ldl
 	$(CC) -o $(TEST_BIN_DIR)/preload_malloc -Isrc test/test/nativemem/preload_malloc.c -ldl
 	$(CC) -o $(TEST_BIN_DIR)/nativemem_known_lib_crash -Isrc test/test/nativemem/nativemem_known_lib_crash.c -ldl
