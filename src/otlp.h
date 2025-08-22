@@ -12,6 +12,7 @@
 namespace Otlp {
 
 const u32 OTLP_BUFFER_INITIAL_SIZE = 5120;
+// https://opentelemetry.io/docs/specs/semconv/registry/attributes/thread/#thread-name
 const char* const OTLP_THREAD_NAME = "thread.name";
 
 namespace ProfilesDictionary {
