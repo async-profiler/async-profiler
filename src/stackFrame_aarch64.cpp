@@ -226,7 +226,8 @@ bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintp
 
 static inline bool isFrameComplete(instruction_t* entry, instruction_t* ip) {
     // Frame is fully constructed after sp is decremented by the frame size.
-    // Check if there is a such instruction anywhere before the current instruction pointer.
+    // Check if there is such an instruction anywhere between
+    // the method entry and the current instruction pointer.
     while (--ip >= entry) {
         if ((*ip & 0xff8003ff) == 0xd10003ff) {  // sub sp, sp, #frame_size
             return true;
