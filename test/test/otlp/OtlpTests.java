@@ -5,9 +5,7 @@
 
 package test.otlp;
 
-import java.io.File;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,11 +47,12 @@ public class OtlpTests {
         Profile profile = getFirstProfile(profilesData);
         assert profile.getSampleTypeList().size() == 2;
 
-        Set<String> threadNames = profile.getSampleList().stream()
-                .map(sample -> getAttribute(sample, profilesData.getDictionary(), "thread.name"))
-                .flatMap(Optional::stream)
-                .map(AnyValue::getStringValue)
-                .collect(Collectors.toSet());
+        Set<String> threadNames = new HashSet<>();
+        for (Sample sample: profile.getSampleList()) {
+            Optional<AnyValue> threadName = getAttribute(sample, profilesData.getDictionary(), "thread.name");
+            if (!threadName.isPresent()) continue;
+            threadNames.add(threadName.get().getStringValue());
+        }
         boolean cpuBurnerFound = threadNames.stream().anyMatch(threadName -> threadName.contains("CpuBurnerWorker"));
         assert cpuBurnerFound : "CpuBurner thread not found: " + threadNames;
     }
