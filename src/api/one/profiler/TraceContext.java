@@ -37,7 +37,6 @@ public class TraceContext {
     }
 
     private static void putHexString(ByteBuffer buffer, String hex) {
-        int startPos = buffer.position();
         for (int i = 0; i < hex.length(); i += 2) {
             int high = Character.digit(hex.charAt(i), 16);
             int low = Character.digit(hex.charAt(i + 1), 16);

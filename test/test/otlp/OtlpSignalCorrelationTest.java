@@ -19,6 +19,14 @@ import java.nio.charset.StandardCharsets;
 
 public class OtlpSignalCorrelationTest {
     private static final Duration TEST_DURATION = Duration.ofSeconds(3);
+    private static final String TRACE_ID_1 = "09a6c61f1181ce4fc439e5728c5fef75";
+    private static final String SPAN_ID_1 = "b98c89ad5d208dcc";
+    private static final String TRACE_ID_1_ALT = "55812e1a0e7d80817be621dedec6accb";
+    private static final String SPAN_ID_1_ALT = "ef95eccf36472d99";
+    private static final String TRACE_ID_2 = "adf1a04340a7a3995571db46c3c648dc";
+    private static final String SPAN_ID_2 = "86dd157fc2677b88";
+    private static final String TRACE_ID_3 = "761d3a2cbae70d2e625985c887874266";
+    private static final String SPAN_ID_3 = "839dfc1575e1ea94";
 
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
@@ -27,17 +35,19 @@ public class OtlpSignalCorrelationTest {
         Thread[] threads = new Thread[3];
         
         threads[0] = new Thread(() -> {
-            TraceContext.setTraceContext("09a6c61f1181ce4fc439e5728c5fef75", "b98c89ad5d208dcc");
+            TraceContext.setTraceContext(TRACE_ID_1, SPAN_ID_1);
+            burnCpu();
+            TraceContext.setTraceContext(TRACE_ID_1_ALT, SPAN_ID_1_ALT);
             burnCpu();
         });
-        
+
         threads[1] = new Thread(() -> {
-            TraceContext.setTraceContext("adf1a04340a7a3995571db46c3c648dc", "86dd157fc2677b88");
+            TraceContext.setTraceContext(TRACE_ID_2, SPAN_ID_2);
             burnCpu();
         });
-        
+
         threads[2] = new Thread(() -> {
-            TraceContext.setTraceContext("761d3a2cbae70d2e625985c887874266", "839dfc1575e1ea94");
+            TraceContext.setTraceContext(TRACE_ID_3, SPAN_ID_3);
             burnCpu();
         });
 
@@ -64,12 +74,13 @@ public class OtlpSignalCorrelationTest {
         assert samplesWithLinks > 0;
         
         Map<String, String> expectedPairs = new HashMap<>();
-        expectedPairs.put("09a6c61f1181ce4fc439e5728c5fef75", "b98c89ad5d208dcc");
-        expectedPairs.put("adf1a04340a7a3995571db46c3c648dc", "86dd157fc2677b88");
-        expectedPairs.put("761d3a2cbae70d2e625985c887874266", "839dfc1575e1ea94");
+        expectedPairs.put("", "");
+        expectedPairs.put(TRACE_ID_1, SPAN_ID_1);
+        expectedPairs.put(TRACE_ID_1_ALT, SPAN_ID_1_ALT);
+        expectedPairs.put(TRACE_ID_2, SPAN_ID_2);
+        expectedPairs.put(TRACE_ID_3, SPAN_ID_3);
         boolean allLinksValid = true;
-        StringBuilder debugOutput = new StringBuilder();
-        for (int i = 1; i < data.getDictionary().getLinkTableCount(); i++) {
+        for (int i = 0; i < data.getDictionary().getLinkTableCount(); i++) {
             Link link = data.getDictionary().getLinkTable(i);
             
             String linkTrace = bytesToHex(link.getTraceId());

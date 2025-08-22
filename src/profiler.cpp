@@ -1703,7 +1703,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
                 trace_context = (const uint8_t*)trace->frames[j].method_id;
                 continue;
             }
-
+            frames_seen++;
             // To be written below in Profile.location_indices
             location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
         }
@@ -1713,7 +1713,6 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
             otlp_buffer.field(Sample::link_index, link_idx);
         }
         otlp_buffer.commitMessage(sample_mark);
-        frames_seen += trace->num_frames - (trace_context ? 1 : 0);
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
