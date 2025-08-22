@@ -234,7 +234,7 @@ void WallClock::timerLoop() {
         if (thread_list->hasNext()) {
             // Try to keep interval stable regardless of the number of profiled threads
             long long sleep_time = cycle_start_time + (u64)_interval * thread_list->index() / thread_list->count() - current_time;
-            OS::sleep(sleep_time < MIN_INTERVAL ? MIN_INTERVAL : sleep_time);
+            OS::uninterruptibleSleep(sleep_time < MIN_INTERVAL ? MIN_INTERVAL : sleep_time, &_running);
         } else {
             // Cycle has ended: prepare for the next cycle
             cycle_start_time += (u64)_interval;
@@ -243,7 +243,7 @@ void WallClock::timerLoop() {
                 cycle_start_time = current_time + MIN_INTERVAL;
                 sleep_time = MIN_INTERVAL;
             }
-            OS::sleep(sleep_time);
+            OS::uninterruptibleSleep(sleep_time, &_running);
             thread_list->update();
         }
 
