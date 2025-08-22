@@ -92,7 +92,7 @@ class Profiler {
     volatile jvmtiEventMode _thread_events_state;
 
     // Thread-local storage for trace correlation
-    static thread_local char _trace_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE];
+    static thread_local uint8_t _trace_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE];
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
@@ -195,7 +195,7 @@ class Profiler {
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
     CodeCacheArray* nativeLibs() { return &_native_libs; }
-    static char* traceBuffer() { return _trace_buffer; }
+    static uint8_t* traceBuffer() { return _trace_buffer; }
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, Writer& out);

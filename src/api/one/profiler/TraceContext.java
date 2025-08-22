@@ -2,6 +2,8 @@ package one.profiler;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class TraceContext {
     private static final ThreadLocal<ByteBuffer> BUFFER = new ThreadLocal<ByteBuffer>() {
@@ -20,11 +22,8 @@ public class TraceContext {
         if (buffer == null) return;
 
         buffer.position(0);
-        byte[] traceBytes = traceId.getBytes(StandardCharsets.UTF_8);
-        buffer.put(traceBytes, 0, traceBytes.length);
-        
-        byte[] spanBytes = spanId.getBytes(StandardCharsets.UTF_8);
-        buffer.put(spanBytes, 0, spanBytes.length);
+        putHexString(buffer, traceId);
+        putHexString(buffer, spanId);
     }
 
     public static void clearTraceContext() {
@@ -32,8 +31,18 @@ public class TraceContext {
         if (buffer == null) return;
         
         buffer.position(0);
-        for (int i = 0; i < 48; i++) {
+        for (int i = 0; i < 24; i++) {
             buffer.put((byte) 0);
         }
     }
+
+    private static void putHexString(ByteBuffer buffer, String hex) {
+        int startPos = buffer.position();
+        for (int i = 0; i < hex.length(); i += 2) {
+            int high = Character.digit(hex.charAt(i), 16);
+            int low = Character.digit(hex.charAt(i + 1), 16);
+            buffer.put((byte) ((high << 4) + low));
+        }
+    }
+    
 }

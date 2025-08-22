@@ -66,7 +66,7 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-thread_local char Profiler::_trace_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE] = {0};
+thread_local uint8_t Profiler::_trace_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE] = {0};
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -694,11 +694,11 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
-    if (_trace_buffer[0] != '\0') {
+    if (_trace_buffer[0] != 0) {
         // TODO: free
-        char* trace_copy = (char*)malloc(Otlp::TRACE_CONTEXT_BUFFER_SIZE);
+        uint8_t* trace_copy = (uint8_t*)malloc(Otlp::TRACE_CONTEXT_BUFFER_SIZE);
         memcpy(trace_copy, _trace_buffer, Otlp::TRACE_CONTEXT_BUFFER_SIZE);
-        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, trace_copy);
+        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, (const char*)trace_copy);
     }
 
     if (stack_walk_begin != 0) {
@@ -1696,11 +1696,11 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.putVarInt(cts->counter);
         otlp_buffer.commitMessage(sample_value_mark);
 
-        const char* trace_context = nullptr;
+        const uint8_t* trace_context = nullptr;
 
         for (int j = 0; j < trace->num_frames; j++) {
             if (trace->frames[j].bci == BCI_TRACE_CONTEXT) {
-                trace_context = (const char*)trace->frames[j].method_id;
+                trace_context = (const uint8_t*)trace->frames[j].method_id;
                 continue;
             }
 
@@ -1709,7 +1709,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         }
 
         if (trace_context) {
-            size_t link_idx = links.indexOf(trace_context);
+            size_t link_idx = links.indexOf((const char*)trace_context);
             otlp_buffer.field(Sample::link_index, link_idx);
         }
         otlp_buffer.commitMessage(sample_mark);
@@ -1757,8 +1757,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
         if (!link_key.empty()) {
             const char* data = link_key.c_str();
-            otlp_buffer.field(Link::trace_id, data, 32);
-            otlp_buffer.field(Link::span_id, data + 32, 16);
+            otlp_buffer.field(Link::trace_id, data, 16);
+            otlp_buffer.field(Link::span_id, data + 16, 8);
         }
         otlp_buffer.commitMessage(link_mark);
     });
