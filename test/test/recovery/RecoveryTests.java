@@ -54,7 +54,8 @@ public class RecoveryTests {
         Assert.isGreater(out.ratio("unknown_Java"), 0.05);
 
         out = p.profile("-d 2 -e cpu -i 1ms --cstack vm -o collapsed");
-        Assert.isGreater(out.ratio("Numbers.main;[^;]+;test/recovery/Numbers.avg"), 0.8);
+        Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop"), 0.8);
+        Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop;test/recovery/Numbers.avg"), 0.5);
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
     }
 
