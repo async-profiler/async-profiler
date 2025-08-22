@@ -174,6 +174,7 @@ build/%:
 
 build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
+	$(STRIP) $@
 
 build/$(JFRCONV): src/launcher/launcher.sh build/$(CONVERTER_JAR)
 	sed -e 's/PROFILER_VERSION/$(PROFILER_VERSION)/g' -e 's/BUILD_DATE/$(shell date "+%b %d %Y")/g' src/launcher/launcher.sh > $@
