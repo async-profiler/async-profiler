@@ -6,7 +6,6 @@
 #ifndef _OTLP_H
 #define _OTLP_H
 
-#include "string.h"
 #include "protobuf.h"
 
 namespace Otlp {
