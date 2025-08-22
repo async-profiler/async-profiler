@@ -42,6 +42,18 @@ public class OtlpTests {
         assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
     }
 
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,threads,file=%f.pb")
+    public void testThreadName(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        assert profile.getSampleTypeList().size() == 2;
+
+        for (Sample sample : profile.getSampleList()) {
+            if (sample.getAttributeIndices(0))
+        }
+    }
+
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
     public void testSamples(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
