@@ -73,11 +73,18 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
     }
 
-    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64}, inputs = "")
-    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64}, inputs = "--cstack vm", nameSuffix = "VM")
+    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64})
     public void intrinsics(TestProcess p) throws Exception {
-        Output out = p.profile("-d 3 -e cpu -i 1ms -o collapsed " + p.inputs()[0]);
+        Output out = p.profile("-d 3 -e cpu -i 1ms -o collapsed");
         Assert.isLess(out.ratio("^\\[unknown"), 0.02, "No more than 2% of unknown frames");
         Assert.isLess(out.ratio("^[^ ;]+(;[^ ;]+)? "), 0.02, "No more than 2% of short stacks");
+    }
+
+    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64})
+    public void intrinsicsVM(TestProcess p) throws Exception {
+        // cstack=vm should yield less unknown frames than AsyncGetCallTrace
+        Output out = p.profile("-d 3 -e cpu -i 1ms -o collapsed --cstack vm");
+        Assert.isLess(out.ratio("^\\[unknown"), 0.01, "No more than 1% of unknown frames");
+        Assert.isLess(out.ratio("^[^ ;]+(;[^ ;]+)? "), 0.01, "No more than 1% of short stacks");
     }
 }
