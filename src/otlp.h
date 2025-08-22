@@ -12,8 +12,7 @@
 namespace Otlp {
 
 const u32 OTLP_BUFFER_INITIAL_SIZE = 5120;
-constexpr const char* const OTLP_THREAD_NAME = "thread.name";
-constexpr u32 OTLP_THREAD_NAME_LEN = strlen(OTLP_THREAD_NAME);
+const char* const OTLP_THREAD_NAME = "thread.name";
 
 namespace ProfilesDictionary {
     const protobuf_index_t mapping_table = 1;

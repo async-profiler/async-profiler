@@ -1749,7 +1749,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Write attribute_table (only threads for now)
     strings.forEachOrdered([&] (size_t idx, const std::string& s) {
         protobuf_mark_t attr_mark = otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
-        otlp_buffer.field(Key::key, OTLP_THREAD_NAME, OTLP_THREAD_NAME_LEN);
+        otlp_buffer.field(Key::key, OTLP_THREAD_NAME);
         protobuf_mark_t value_mark = otlp_buffer.startMessage(Key::value);
         otlp_buffer.field(AnyValue::string_value, s.data(), s.length());
         otlp_buffer.commitMessage(value_mark);
