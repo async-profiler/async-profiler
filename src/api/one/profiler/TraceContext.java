@@ -6,6 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 public class TraceContext {
+    private static final int TRACE_CONTEXT_SIZE = 24;
+
     private static final ThreadLocal<ByteBuffer> BUFFER = new ThreadLocal<ByteBuffer>() {
         @Override
         protected ByteBuffer initialValue() {
@@ -24,6 +26,8 @@ public class TraceContext {
         buffer.position(0);
         putHexString(buffer, traceId);
         putHexString(buffer, spanId);
+        // Control byte
+        buffer.put((byte) 1);
     }
 
     public static void clearTraceContext() {
@@ -31,7 +35,7 @@ public class TraceContext {
         if (buffer == null) return;
         
         buffer.position(0);
-        for (int i = 0; i < 24; i++) {
+        for (int i = 0; i < TRACE_CONTEXT_SIZE + 1; i++) {
             buffer.put((byte) 0);
         }
     }

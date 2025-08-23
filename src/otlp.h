@@ -11,7 +11,10 @@
 namespace Otlp {
 
 const u32 OTLP_BUFFER_INITIAL_SIZE = 5120;
-const u32 TRACE_CONTEXT_BUFFER_SIZE = 24;
+const u32 TRACE_CONTEXT_SIZE = 24;
+const u32 TRACE_CONTEXT_BUFFER_SIZE = TRACE_CONTEXT_SIZE + 1;
+const u32 TRACE_CONTEXT_CONTROL_BYTE = TRACE_CONTEXT_BUFFER_SIZE - 1;
+constexpr u8 INVALID_LINK[TRACE_CONTEXT_BUFFER_SIZE] = {0};
 
 namespace ProfilesDictionary {
     const protobuf_index_t mapping_table = 1;

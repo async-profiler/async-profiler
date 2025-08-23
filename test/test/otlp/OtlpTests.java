@@ -61,7 +61,10 @@ public class OtlpTests {
         assert p.exitCode() == 0;
     }
 
-    @Test(mainClass = OtlpSignalCorrelationTest.class, jvmArgs = "-Djava.library.path=build/lib")
+    @Test(
+        mainClass = OtlpSignalCorrelationTest.class, 
+        jvmArgs = "-Djava.library.path=build/lib"
+        )
     public void otlpSignalCorrelationTest(TestProcess p) throws Exception {
         classpathCheck();
 

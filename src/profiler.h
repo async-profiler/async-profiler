@@ -92,7 +92,11 @@ class Profiler {
     volatile jvmtiEventMode _thread_events_state;
 
     // Thread-local storage for trace correlation
-    static thread_local uint8_t _trace_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE];
+    static thread_local uint8_t _trace_context_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE];
+    static thread_local u32 _last_trace_context_idx;
+    // TODO: Is this enough? We can ask the user to restart every x seconds
+    uint8_t _trace_contexts[Otlp::TRACE_CONTEXT_BUFFER_SIZE * 1000];
+    u32 _trace_context_count = 0;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
@@ -195,7 +199,7 @@ class Profiler {
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
     CodeCacheArray* nativeLibs() { return &_native_libs; }
-    static uint8_t* traceBuffer() { return _trace_buffer; }
+    static uint8_t* traceBuffer() { return _trace_context_buffer; }
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, Writer& out);

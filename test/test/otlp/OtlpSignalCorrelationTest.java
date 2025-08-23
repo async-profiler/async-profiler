@@ -18,7 +18,8 @@ import java.util.HashMap;
 import java.nio.charset.StandardCharsets;
 
 public class OtlpSignalCorrelationTest {
-    private static final Duration TEST_DURATION = Duration.ofSeconds(3);
+    private static final Duration TEST_DURATION = Duration.ofSeconds(1);
+
     private static final String TRACE_ID_1 = "09a6c61f1181ce4fc439e5728c5fef75";
     private static final String SPAN_ID_1 = "b98c89ad5d208dcc";
     private static final String TRACE_ID_1_ALT = "55812e1a0e7d80817be621dedec6accb";
@@ -30,7 +31,7 @@ public class OtlpSignalCorrelationTest {
 
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
-        profiler.start(Events.CPU, 1_000_000);
+        profiler.execute("start,otlp");
 
         Thread[] threads = new Thread[3];
         
@@ -62,7 +63,8 @@ public class OtlpSignalCorrelationTest {
         ProfilesData data = dumpAndGetProfile(profiler);
         profiler.stop();
         
-        assert data.getDictionary().getLinkTableCount() >= 3;
+        assert data.getDictionary().getLinkTableCount() == 5 : 
+            data.getDictionary().getLinkTableCount();
         
         Profile profile = data.getResourceProfiles(0).getScopeProfiles(0).getProfiles(0);
         int samplesWithLinks = 0;
@@ -71,7 +73,7 @@ public class OtlpSignalCorrelationTest {
                 samplesWithLinks++;
             }
         }
-        assert samplesWithLinks > 0;
+        assert samplesWithLinks > 3;
         
         Map<String, String> expectedPairs = new HashMap<>();
         expectedPairs.put("", "");
@@ -86,13 +88,8 @@ public class OtlpSignalCorrelationTest {
             String linkTrace = bytesToHex(link.getTraceId());
             String linkSpan = bytesToHex(link.getSpanId());
             
-            if (!expectedPairs.containsKey(linkTrace) || 
-                !expectedPairs.get(linkTrace).equals(linkSpan)) {
-                allLinksValid = false;
-                break;
-            }
+            assert expectedPairs.get(linkTrace).equals(linkSpan);
         }
-        assert allLinksValid;
     }
 
     private static void burnCpu() {
@@ -110,8 +107,8 @@ public class OtlpSignalCorrelationTest {
 
     private static String bytesToHex(ByteString bytes) {
         StringBuilder hex = new StringBuilder();
-        for (byte b : bytes.toByteArray()) {
-            hex.append(String.format("%02x", b & 0xFF));
+        for (int i = 0; i < bytes.size(); ++i) {
+            hex.append(String.format("%02x", bytes.byteAt(i) & 0xFF));
         }
         return hex.toString();
     }
