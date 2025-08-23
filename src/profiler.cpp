@@ -1695,14 +1695,12 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
-        otlp_buffer.field(Sample::locations_start_index, frames_seen);
-        otlp_buffer.field(Sample::locations_length, trace->num_frames);
-
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
         otlp_buffer.putVarInt(cts->counter);
         otlp_buffer.commitMessage(sample_value_mark);
 
+        size_t locations_start_index = frames_seen;
         for (int j = 0; j < trace->num_frames; j++) {
             if (trace->frames[j].bci == BCI_TRACE_CONTEXT) {
                 size_t link_idx = ((size_t)trace->frames[j].method_id) + 1;
@@ -1713,6 +1711,9 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
             // To be written below in Profile.location_indices
             location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
         }
+
+        otlp_buffer.field(Sample::locations_start_index, locations_start_index);
+        otlp_buffer.field(Sample::locations_length, frames_seen - locations_start_index);
         otlp_buffer.commitMessage(sample_mark);
     }
 
