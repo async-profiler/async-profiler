@@ -163,7 +163,7 @@ bool StackFrame::unwindPrologue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintp
     // 11:   sub    $0x50,%rsp
     instruction_t* ip = (instruction_t*)pc;
     instruction_t* entry = (instruction_t*)nm->entry();
-    if (ip <= entry || *ip == 0x55) {  // push rbp
+    if (ip <= entry || *ip == 0x55 || nm->frameSize() == 0) {  // push rbp
         pc = ((uintptr_t*)sp)[0] - 1;
         sp += 8;
         return true;
