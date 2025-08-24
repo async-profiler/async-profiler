@@ -96,6 +96,7 @@ Checks: >
   readability-string-compare,
   readability-uniqueptr-delete-release,
   readability-use-anyofallof,
+  misc-include-cleaner
 # TODO: Consider these
 # bugprone-switch-missing-default-case
 # bugprone-multi-level-implicit-pointer-conversion
@@ -116,7 +117,6 @@ Checks: >
 # readability-non-const-parameter
 # readability-redundant-member-init
 # readability-simplify-boolean-expr
-# misc-include-cleaner
 # google-explicit-constructor
 # cppcoreguidelines-virtual-class-destructor
 # readability-make-member-function-const
@@ -128,3 +128,5 @@ CheckOptions:
     value: '(KB|Thread|setDaemon|klassOop|nVMs|loadLibrary|getTicksFrequency|counterTime|System|M|R|s_)'
   - key: readability-identifier-naming.PrivateMemberPrefix
     value: _
+  - key: misc-include-cleaner.MissingIncludes
+    value: false

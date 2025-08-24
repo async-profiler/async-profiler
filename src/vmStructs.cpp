@@ -4,7 +4,6 @@
  */
 
 #include <pthread.h>
-#include <unistd.h>
 #include "vmStructs.h"
 #include "vmEntry.h"
 #include "j9Ext.h"
