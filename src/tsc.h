@@ -94,6 +94,7 @@ class TSC {
         return enabled() ? rdtsc() - _offset : OS::nanotime();
     }
 
+    // Ticks per second.
     // Frequency is only used for Java lock profiling. When using the TSC with
     // no JVM, since there is no calibration, this function will return
     // an incorrect value.
