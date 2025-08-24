@@ -65,6 +65,7 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
+thread_local char* Profiler::_current_trace_context = nullptr;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -692,6 +693,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
+    if (_current_trace_context) {
+        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, _current_trace_context);
+    }
+
     if (stack_walk_begin != 0) {
         u64 stack_walk_end = OS::nanotime();
         atomicInc(_total_stack_walk_time, stack_walk_end - stack_walk_begin);
@@ -781,6 +786,23 @@ void Profiler::writeLog(LogLevel level, const char* message) {
 
 void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
     _jfr.recordLog(level, message, len);
+}
+
+void Profiler::setTraceContext(const char* trace_id, const char* span_id) {
+    if (trace_id && span_id) {
+        // TODO: free the memory
+        char* combined = (char*)malloc(49);
+        memcpy(combined, trace_id, 32);
+        memcpy(combined + 32, span_id, 16);
+        combined[48] = '\0';
+        _current_trace_context = combined;
+    } else {
+        _current_trace_context = nullptr;
+    }
+}
+
+void Profiler::clearTraceContext() {
+    _current_trace_context = nullptr;
 }
 
 void* Profiler::dlopen_hook(const char* filename, int flags) {
@@ -1298,6 +1320,9 @@ Error Profiler::stop(bool restart) {
         FdTransferClient::closePeer();
     }
 
+    free(_current_trace_context);
+    _current_trace_context = nullptr;
+
     _state = IDLE;
     return Error::OK;
 }
@@ -1651,6 +1676,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
     Index strings;
     Index functions;
+    Index links;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
@@ -1680,17 +1706,31 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
         otlp_buffer.field(Sample::locations_length, trace->num_frames);
+
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
         otlp_buffer.putVarInt(cts->counter);
         otlp_buffer.commitMessage(sample_value_mark);
         otlp_buffer.commitMessage(sample_mark);
 
+        const char* trace_context = nullptr;
+
         for (int j = 0; j < trace->num_frames; j++) {
+            if (trace->frames[j].bci == BCI_TRACE_CONTEXT) {
+                trace_context = (const char*)trace->frames[j].method_id;
+                continue;
+            }
+
             // To be written below in Profile.location_indices
             location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
         }
-        frames_seen += trace->num_frames;
+
+        if (trace_context) {
+            size_t link_idx = links.indexOf(trace_context);
+            otlp_buffer.field(Sample::link_index, link_idx);
+        }
+
+        frames_seen += trace->num_frames - (trace_context ? 1 : 0);
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
@@ -1728,6 +1768,17 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(line_mark);
         otlp_buffer.commitMessage(location_mark);
     }
+
+    // Write link_table
+    links.forEachOrdered([&] (size_t idx, const std::string& link_key) {
+        protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
+        if (!link_key.empty()) {
+            const char* data = link_key.c_str();
+            otlp_buffer.field(Link::trace_id, data, 32);
+            otlp_buffer.field(Link::span_id, data + 32, 16);
+        }
+        otlp_buffer.commitMessage(link_mark);
+    });
 
     // Write string_table
     strings.forEachOrdered([&] (size_t idx, const std::string& s) {
