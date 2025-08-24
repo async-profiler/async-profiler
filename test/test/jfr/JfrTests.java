@@ -198,6 +198,14 @@ public class JfrTests {
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
     }
 
+    @Test(mainClass = Ttsp.class, agentArgs = "start,begin=SafepointSynchronize::begin,end=SafepointSynchronize::begin,file=%f.jfr", output = true)
+    public void beginEnd(TestProcess p) throws Exception {
+        Output out = p.waitForExit(TestProcess.STDOUT);
+        assert p.exitCode() == 0;
+
+        assert out.contains("begin and end symbols should not resolve to the same address");
+    }
+
     private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {
         TreeMap<Instant, Instant> profilerWindows = new TreeMap<>();
         List<RecordedEvent> samples = new ArrayList<>();
