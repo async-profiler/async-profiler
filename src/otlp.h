@@ -11,12 +11,15 @@
 namespace Otlp {
 
 const u32 OTLP_BUFFER_INITIAL_SIZE = 5120;
+// https://opentelemetry.io/docs/specs/semconv/registry/attributes/thread/#thread-name
+const char* const OTLP_THREAD_NAME = "thread.name";
 
 namespace ProfilesDictionary {
     const protobuf_index_t mapping_table = 1;
     const protobuf_index_t location_table = 2;
     const protobuf_index_t function_table = 3;
     const protobuf_index_t string_table = 5;
+    const protobuf_index_t attribute_table = 6;
 }
 
 namespace ProfilesData {
@@ -52,6 +55,7 @@ namespace Sample {
     const protobuf_index_t locations_start_index = 1;
     const protobuf_index_t locations_length = 2;
     const protobuf_index_t value = 3;
+    const protobuf_index_t attribute_indices = 4;
 }
 
 namespace Location {
@@ -72,6 +76,15 @@ namespace AggregationTemporality {
     const u64 unspecified = 0;
     const u64 delta = 1;
     const u64 cumulative = 2;
+}
+
+namespace Key {
+    const u64 key = 1;
+    const u64 value = 2;
+}
+
+namespace AnyValue {
+    const u64 string_value = 1;
 }
 
 }
