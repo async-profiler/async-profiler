@@ -5,6 +5,8 @@
 
 #include <assert.h>
 #include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -44,6 +46,11 @@ const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
+const int MAX_PROCESSES = 5000;               // Hard limit to prevent excessive work
+const u64 MAX_TIME_NS = 900000000UL;          // Timeout after 900ms to guarantee runtime <1sec
+const float MIN_CPU_THRESHOLD = 5.0f;         // Minimum % cpu utilization to include results
+const float MIN_RSS_PERCENT_THRESHOLD = 5.0f; // Minimum % rss usage to include results
+const int MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH = 2500;
 
 enum GCWhen {
     BEFORE_GC,
@@ -72,6 +79,102 @@ struct CpuTimes {
     CpuTime total;
 };
 
+struct ProcessHistory {
+    float prev_cpu_total = 0.0f;
+    u64 prev_timestamp = 0;
+    u64 start_time = 0;
+};
+
+class ProcessSampler {
+  private:
+    static u64 _last_sample_time;
+    static u64 _next_sample_time;
+    static std::unordered_map<int, ProcessHistory> _process_history;
+
+    long _sampling_interval = -1;
+    int _pids[MAX_PROCESSES];
+
+  public:
+    void cleanupProcessHistory(const int pid_count) {
+        const std::unordered_set<int> active_pid_set(_pids, _pids + pid_count);
+        for (auto it = _process_history.begin(); it != _process_history.end();) {
+            if (active_pid_set.count(it->first) == 0) {
+                it = _process_history.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    void enable(const long sampling_interval) {
+        _sampling_interval = sampling_interval;
+        u64 expected_next = _last_sample_time + sampling_interval;
+        if (_next_sample_time != expected_next) {
+            _last_sample_time = 0;
+            _process_history.clear();
+        }
+    }
+
+    bool shouldSample(const u64 wall_time) const {
+        return _sampling_interval > 0 && wall_time >= _next_sample_time;
+    }
+
+    static double getRssUsagePercent(const ProcessInfo& info) {
+        const u64 ram_size = OS::getRamSize();
+        if (ram_size <= 0 || info.vm_rss <= 0) return 0.0;
+
+        return (double)info.vm_rss / ram_size * 100;
+    }
+
+    static bool shouldIncludeProcess(const ProcessInfo& info) {
+        return info.cpu_percent >= MIN_CPU_THRESHOLD || getRssUsagePercent(info) >= MIN_RSS_PERCENT_THRESHOLD;
+    }
+
+    static bool populateCpuPercent(ProcessInfo& info, const u64 sampling_time) {
+        const float current_cpu_total = info.cpu_user + info.cpu_system;
+        ProcessHistory& history = _process_history[info.pid];
+        if (history.prev_timestamp == 0 || history.start_time != info.start_time) {
+            history.prev_cpu_total = current_cpu_total;
+            history.prev_timestamp = sampling_time;
+            history.start_time = info.start_time;
+            return false;
+        }
+
+        const float delta_cpu = current_cpu_total - history.prev_cpu_total;
+        const u64 delta_time = sampling_time - history.prev_timestamp;
+        info.cpu_percent = (delta_cpu * 1.0e9f / delta_time) * 100.0;
+
+        history.prev_cpu_total = current_cpu_total;
+        history.prev_timestamp = sampling_time;
+        return true;
+    }
+
+    int getSampledProcessCount(u64 wall_time) {
+        const int pid_count = OS::getProcessIds(_pids, MAX_PROCESSES);
+        cleanupProcessHistory(pid_count);
+        _last_sample_time = wall_time;
+        _next_sample_time = wall_time + _sampling_interval;
+        return pid_count;
+    }
+
+    bool getProcessSample(int pid_index, u64 sampling_time, ProcessInfo& info) const {
+        const int pid = _pids[pid_index];
+        if (OS::getBasicProcessInfo(pid, &info)) {
+            if (populateCpuPercent(info, sampling_time)) {
+                if (shouldIncludeProcess(info)) {
+                    OS::getDetailedProcessInfo(&info);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+};
+
+u64 ProcessSampler::_last_sample_time = 0;
+u64 ProcessSampler::_next_sample_time = 0;
+std::unordered_map<int, ProcessHistory> ProcessSampler::_process_history;
 
 class Buffer {
   private:
@@ -179,6 +282,15 @@ class Buffer {
         put(v, len);
     }
 
+    void putByteString(const char* v) {
+        if (v == NULL) {
+            put8(0);
+        } else {
+            size_t len = strlen(v);
+            putByteString(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
+        }
+    }
+
     void put8(int offset, char v) {
         _data[offset] = v;
     }
@@ -245,6 +357,8 @@ class Recording {
     u32 _last_gc_id;
     CpuTimes _last_times;
     SmallBuffer _monitor_buf;
+    RecordingBuffer _proc_buf;
+    ProcessSampler _process_sampler;
 
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -297,6 +411,10 @@ class Recording {
 
         _heap_monitor_enabled = !args.hasOption(NO_HEAP_SUMMARY) && VM::_totalMemory != NULL && VM::_freeMemory != NULL;
         _last_gc_id = 0;
+
+        if (args._proc > 0) {
+            _process_sampler.enable(args._proc * 1000000);
+        }
     }
 
     ~Recording() {
@@ -316,6 +434,7 @@ class Recording {
 
     off_t finishChunk() {
         flush(&_monitor_buf);
+        flush(&_proc_buf);
 
         writeNativeLibraries(_buf);
 
@@ -432,6 +551,28 @@ class Recording {
         flushIfNeeded(&_monitor_buf, SMALL_BUFFER_LIMIT);
 
         _last_gc_id = gc_id;
+    }
+
+    bool processMonitorCycle(const u64 wall_time) {
+        if (!_process_sampler.shouldSample(wall_time)) return false;
+
+        const u64 deadline_ns = OS::nanotime() + MAX_TIME_NS;
+        const int process_count = _process_sampler.getSampledProcessCount(wall_time);
+        for (int pid_index = 0; pid_index < process_count; pid_index++) {
+            const u64 current_time = OS::nanotime();
+            if (current_time > deadline_ns) {
+                Log::debug("Incomplete process sampling cycle.");
+                break;
+            }
+
+            ProcessInfo info;
+            if (_process_sampler.getProcessSample(pid_index, current_time, info)) {
+                flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
+                recordProcessSample(&_proc_buf, &info, current_time);
+            }
+        }
+
+        return true;
     }
 
     bool hasMasterRecording() const {
@@ -636,6 +777,11 @@ class Recording {
         writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock >= 0);
         if (args._lock >= 0) {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
+        }
+
+        writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
+        if (args._proc > 0) {
+            writeIntSetting(buf, T_PROCESS_SAMPLE, "proc", args._proc);
         }
 
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VM::loaded() && VMStructs::libjvm()->hasDebugSymbols());
@@ -1068,6 +1214,41 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
+    void recordProcessSample(Buffer* buf, const ProcessInfo* info, u64 sampling_time) {
+        int start = buf->skip(5);
+        buf->put8(T_PROCESS_SAMPLE);
+        buf->putVar64(sampling_time);
+
+        buf->putVar32(info->pid);
+        buf->putVar32(info->ppid);
+        buf->putByteString(info->name);
+        buf->putByteString(info->cmdline);
+
+        buf->putVar32(info->uid);
+        buf->put8(info->state);
+
+        buf->putVar64(info->start_time);
+        buf->putFloat(info->cpu_user);
+        buf->putFloat(info->cpu_system);
+        buf->putFloat(info->cpu_percent);
+        buf->putVar32(info->threads);
+
+        buf->putVar64(info->vm_size);
+        buf->putVar64(info->vm_rss);
+
+        buf->putVar64(info->rss_anon);
+        buf->putVar64(info->rss_files);
+        buf->putVar64(info->rss_shmem);
+
+        buf->putVar64(info->minor_faults);
+        buf->putVar64(info->major_faults);
+
+        buf->putVar64(info->io_read);
+        buf->putVar64(info->io_write);
+
+        buf->putVar32(start, buf->offset() - start);
+    }
+
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
         int start = buf->skip(1);
         buf->put8(T_LIVE_OBJECT);
@@ -1235,6 +1416,8 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
 
     _rec->cpuMonitorCycle();
     _rec->heapMonitorCycle(gc_id);
+    _rec->processMonitorCycle(wall_time);
+
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
 
     _rec_lock.unlockShared();
