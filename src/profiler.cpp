@@ -13,6 +13,7 @@
 #include <sys/param.h>
 #include <time.h>
 #include "index.h"
+#include "otlp.h"
 #include "profiler.h"
 #include "perfEvents.h"
 #include "ctimer.h"
@@ -65,6 +66,8 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
+thread_local uint8_t Profiler::_trace_context_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE] = {0};
+thread_local u32 Profiler::_last_trace_context_idx = 0;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -692,6 +695,15 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
+    if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 1) {
+        _trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] = 2;
+        _last_trace_context_idx = atomicInc(_trace_context_count);
+        u32 buffer_idx = _last_trace_context_idx * Otlp::TRACE_CONTEXT_BUFFER_SIZE;
+        memcpy(_trace_contexts + buffer_idx, _trace_context_buffer,
+                Otlp::TRACE_CONTEXT_BUFFER_SIZE);
+    }
+    num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, (jmethodID) (u64) _last_trace_context_idx);
+
     if (stack_walk_begin != 0) {
         u64 stack_walk_end = OS::nanotime();
         atomicInc(_total_stack_walk_time, stack_walk_end - stack_walk_begin);
@@ -1105,6 +1117,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         _total_samples = 0;
         _total_stack_walk_time = 0;
         memset(_failures, 0, sizeof(_failures));
+        // TODO: Verify that restarting the profiler clears the link_table properly
+        _trace_context_count = 0;
 
         // Reset dictionaries and bitmaps
         lockAll();
@@ -1667,6 +1681,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
+    u32 trace_context_count = loadAcquire(_trace_context_count);
 
     std::vector<size_t> location_indices;
     location_indices.reserve(call_trace_samples.size());
@@ -1678,19 +1693,26 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
-        otlp_buffer.field(Sample::locations_start_index, frames_seen);
-        otlp_buffer.field(Sample::locations_length, trace->num_frames);
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
         otlp_buffer.putVarInt(cts->counter);
         otlp_buffer.commitMessage(sample_value_mark);
-        otlp_buffer.commitMessage(sample_mark);
 
+        size_t locations_start_index = frames_seen;
         for (int j = 0; j < trace->num_frames; j++) {
+            if (trace->frames[j].bci == BCI_TRACE_CONTEXT) {
+                size_t link_idx = ((size_t)trace->frames[j].method_id) + 1;
+                otlp_buffer.field(Sample::link_index, link_idx);
+                continue;
+            }
+            frames_seen++;
             // To be written below in Profile.location_indices
             location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
         }
-        frames_seen += trace->num_frames;
+
+        otlp_buffer.field(Sample::locations_start_index, locations_start_index);
+        otlp_buffer.field(Sample::locations_length, frames_seen - locations_start_index);
+        otlp_buffer.commitMessage(sample_mark);
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
@@ -1727,6 +1749,18 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.field(Line::function_index, function_idx);
         otlp_buffer.commitMessage(line_mark);
         otlp_buffer.commitMessage(location_mark);
+    }
+
+    // Write link_table
+    // Start with empty link
+    protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
+    otlp_buffer.commitMessage(link_mark);
+    for (size_t link_idx = 0; link_idx < trace_context_count; ++link_idx) {
+        protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
+        size_t start = TRACE_CONTEXT_BUFFER_SIZE * link_idx;
+        otlp_buffer.field(Link::trace_id, &_trace_contexts[start], 16);
+        otlp_buffer.field(Link::span_id, &_trace_contexts[start + 16], 8);
+        otlp_buffer.commitMessage(link_mark);
     }
 
     // Write string_table
