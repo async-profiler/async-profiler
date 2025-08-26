@@ -75,6 +75,7 @@ class JfrSync implements FlightRecorderListener {
         if ((eventMask & 1) != 0) {
             recording.disable("jdk.ExecutionSample");
             recording.disable("jdk.NativeMethodSample");
+            recording.disable("jdk.MethodTrace");
         }
         if ((eventMask & 2) != 0) {
             recording.disable("jdk.ObjectAllocationInNewTLAB");

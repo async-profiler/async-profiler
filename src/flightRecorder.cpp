@@ -1003,6 +1003,16 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordMethodTrace(Buffer* buf, int tid, u32 call_trace_id, MethodTraceEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_METHOD_TRACE);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_duration);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordWallClockSample(Buffer* buf, int tid, u32 call_trace_id, WallClockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_WALL_CLOCK_SAMPLE);
@@ -1321,6 +1331,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
             case EXECUTION_SAMPLE:
             case INSTRUMENTED_METHOD:
                 _rec->recordExecutionSample(buf, tid, call_trace_id, (ExecutionEvent*)event);
+                break;
+            case METHOD_TRACE:
+                _rec->recordMethodTrace(buf, tid, call_trace_id, (MethodTraceEvent*)event);
                 break;
             case WALL_CLOCK_SAMPLE:
                 _rec->recordWallClockSample(buf, tid, call_trace_id, (WallClockEvent*)event);

@@ -202,6 +202,14 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("heapSpace", T_VIRTUAL_SPACE, "VirtualSpace")
                 << field("heapUsed", T_LONG, "Heap Used", F_BYTES))
 
+            << (type("jdk.MethodTrace", T_METHOD_TRACE, "Method trace")
+                << category("Java Virtual Machine", "Profiling")
+                << field("method", T_STRING, "Method Name")
+                << field("startTime", T_LONG, "Start Time", F_TIME_MILLIS)
+                << field("duration", T_LONG, "Duration", F_TIME_MILLIS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL))
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+
             << (type("profiler.Log", T_LOG, "Log Message")
                 << category("Profiler")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)

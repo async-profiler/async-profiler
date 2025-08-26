@@ -89,16 +89,20 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f",
+        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,jfr,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
     )
     public void latency(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        Output jfr = p.waitForExit("%f");
         assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
+        String jfrOutPath = p.getFilePath("%f");
+        System.err.println(jfrOutPath);
+        Output out = Output.convertJfrToCollapsed(jfrOutPath);
+        System.err.println(out);
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
         assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") == 2;
         assert !out.contains("\\[thread3.*");
