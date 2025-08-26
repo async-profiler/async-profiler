@@ -49,7 +49,7 @@ class MethodTraceEvent : public Event {
     u64 _start_time;
     u64 _duration;
 
-    MethodTraceEvent(u64 start_time, u64 duration) : _start_time(start_time), _duration(_duration) {}
+    MethodTraceEvent(u64 start_time, u64 duration) : _start_time(start_time), _duration(duration) {}
 };
 
 class WallClockEvent : public Event {
