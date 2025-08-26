@@ -127,8 +127,7 @@ public class InstrumentTests {
                 builder.append(event);
             }
         }
-        String parsedOut = builder.toString();
-        assert parsedOut.contains("jdk.MethodTrace");
+        assert builder.toString().contains("jdk.MethodTrace");
     }
 
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
