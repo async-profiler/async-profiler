@@ -225,9 +225,9 @@ public class JfrReader implements Closeable {
     }
 
     private MethodTrace readMethodTrace() {
-        String method = getString();
         long startTime = getVarlong();
         long duration = getVarlong();
+        String method = getString();
         int tid = getVarint();
         int stackTraceId = getVarint();
         return new MethodTrace(startTime, tid, stackTraceId, method, duration);

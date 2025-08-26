@@ -7,6 +7,8 @@ package test.instrument;
 
 import one.profiler.test.*;
 
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordingFile;
 import java.time.Duration;
 import java.io.*;
 import java.nio.file.Files;
@@ -89,24 +91,43 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,jfr,file=%f",
+        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
     )
     public void latency(TestProcess p) throws Exception {
-        Output jfr = p.waitForExit("%f");
+        Output out = p.waitForExit("%f");
         assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
-        String jfrOutPath = p.getFilePath("%f");
-        System.err.println(jfrOutPath);
-        Output out = Output.convertJfrToCollapsed(jfrOutPath);
-        System.err.println(out);
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
         assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") == 2;
         assert !out.contains("\\[thread3.*");
         assert !out.contains("\\[thread4.*");
+    }
+
+    @Test(
+        mainClass = CpuBurner.class,
+        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,jfr,file=%f",
+        jvmArgs   = "-Xverify:all",
+        output    = true,
+        error     = true
+    )
+    public void latencyJfr(TestProcess p) throws Exception {
+        p.waitForExit();
+        assertNoVerificationErrors(p);
+        assert p.exitCode() == 0;
+
+        StringBuilder builder = new StringBuilder();
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                builder.append(event);
+            }
+        }
+        String parsedOut = builder.toString();
+        assert parsedOut.contains("jdk.MethodTrace");
     }
 
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
