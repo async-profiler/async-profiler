@@ -18,6 +18,7 @@ const char* const EVENT_CPU        = "cpu";
 const char* const EVENT_ALLOC      = "alloc";
 const char* const EVENT_NATIVEMEM  = "nativemem";
 const char* const EVENT_LOCK       = "lock";
+const char* const EVENT_NATIVELOCK  = "nativelock";
 const char* const EVENT_WALL       = "wall";
 const char* const EVENT_CTIMER     = "ctimer";
 const char* const EVENT_ITIMER     = "itimer";
@@ -165,6 +166,7 @@ class Arguments {
     long _alloc;
     long _nativemem;
     long _lock;
+    long _nativelock;
     long _wall;
     bool _all;
     int _jstackdepth;
@@ -223,6 +225,7 @@ class Arguments {
         _alloc(-1),
         _nativemem(-1),
         _lock(-1),
+        _nativelock(-1),
         _wall(-1),
         _all(false),
         _jstackdepth(DEFAULT_JSTACKDEPTH),

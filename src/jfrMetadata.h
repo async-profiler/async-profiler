@@ -65,6 +65,7 @@ enum JfrType {
     T_MALLOC = 119,
     T_FREE = 120,
     T_USER_EVENT = 121,
+    T_NATIVE_LOCK = 122,
 
     // types after T_ANNOTATION inherit from java.lang.annotation.Annotation, see JfrMetadata::type
     T_ANNOTATION = 200,

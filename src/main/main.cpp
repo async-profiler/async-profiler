@@ -44,7 +44,7 @@ static const char USAGE_STRING[] =
     "  collect           collect profile for the specified period of time\n"
     "                    and then stop (default action)\n"
     "Options:\n"
-    "  -e event          profiling event: cpu|alloc|nativemem|lock|cache-misses etc.\n"
+    "  -e event          profiling event: cpu|alloc|nativemem|lock|nativelock|cache-misses etc.\n"
     "  -d duration       run profiling for <duration> seconds\n"
     "  -f filename       dump output to <filename>\n"
     "  -i interval       sampling interval in nanoseconds\n"
@@ -74,6 +74,7 @@ static const char USAGE_STRING[] =
     "  --nativemem bytes native allocation profiling interval in bytes\n"
     "  --nofree          do not collect free calls in native allocation profiling\n"
     "  --lock duration   lock profiling threshold in nanoseconds\n"
+    "  --nativelock duration   lock profiling threshold in nanoseconds\n"
     "  --wall interval   wall clock profiling interval\n"
     "  --all             shorthand for enabling cpu, wall, alloc, live,\n"
     "                    nativemem and lock profiling simultaneously\n"
@@ -502,7 +503,7 @@ int main(int argc, const char** argv) {
                    arg == "--sched" || arg == "--live" || arg == "--nofree" || arg == "--record-cpu") {
             format << "," << (arg.str() + 2);
 
-        } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
+        } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" || arg == "--wall" ||
                    arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
                    arg == "--target-cpu") {

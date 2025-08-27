@@ -230,6 +230,8 @@ Error Arguments::parse(const char* args) {
                     if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
+                } else if (strcmp(value, EVENT_NATIVELOCK) == 0) {
+                    if (_nativelock < 0) _nativelock = DEFAULT_LOCK_INTERVAL;
                 } else if (_event != NULL && !_all) {
                     msg = "Duplicate event argument";
                 } else {
@@ -259,6 +261,9 @@ Error Arguments::parse(const char* args) {
             CASE("lock")
                 _lock = value == NULL ? DEFAULT_LOCK_INTERVAL : parseUnits(value, NANOS);
 
+            CASE("nativelock")
+                _nativelock = value == NULL ? DEFAULT_LOCK_INTERVAL : parseUnits(value, NANOS);
+
             CASE("wall")
                 _wall = value == NULL ? 0 : parseUnits(value, NANOS);
 
@@ -272,6 +277,7 @@ Error Arguments::parse(const char* args) {
             CASE("all")
                 _all = true;
                 _live = true;
+                _nativelock = 0;
                 if (_wall < 0) {
                     _wall = 0;
                 }
