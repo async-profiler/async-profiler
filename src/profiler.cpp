@@ -1278,6 +1278,7 @@ Error Profiler::stop(bool restart) {
 
     _engine->stop();
 
+    SafeJvmContext safe_jvm_context(_dynamic_jvm);
     switchLibraryTrap(false);
     switchThreadEvents(JVMTI_DISABLE);
     updateJavaThreadNames();
@@ -1364,6 +1365,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
         return Error("Profiler has not started");
     }
 
+    SafeJvmContext safe_jvm_context(_dynamic_jvm);
     if (_state == RUNNING) {
         updateJavaThreadNames();
         updateNativeThreadNames();

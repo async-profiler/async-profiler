@@ -325,10 +325,13 @@ void VM::tryAttach() {
     if (get_env_result == JNI_OK) {
         // Current thread already belongs to the running JVM
         VM::init(vm, true);
+        Profiler::instance()->setDynamicJvm(true);
     } else if (get_env_result == JNI_EDETACHED) {
         // There is a running JVM, but we need to check it is initialized
         if (hasJvmThreads() && vm->AttachCurrentThreadAsDaemon((void**)&env, NULL) == JNI_OK) {
             VM::init(vm, true);
+            vm->DetachCurrentThread();
+            Profiler::instance()->setDynamicJvm(true);
         }
     }
 }
@@ -454,6 +457,22 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
     return result;
 }
 
+SafeJvmContext::SafeJvmContext(const bool ensure_safe_context) {
+    if (ensure_safe_context && VM::loaded() && VM::jni() == NULL) {
+        _attached = true;
+        char name_buf[64] = "\0";
+        OS::threadName(OS::threadId(), name_buf, sizeof(name_buf));
+        VM::attachThread(name_buf);
+    } else {
+        _attached = false;
+    }
+}
+
+SafeJvmContext::~SafeJvmContext() {
+    if (_attached) {
+        VM::detachThread();
+    }
+}
 
 extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {

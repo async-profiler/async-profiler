@@ -75,8 +75,25 @@ void startProfiler() {
 }
 
 void stopProfiler(char* output_file) {
+    asprof_error_t err;
+
+    if (output_file == NULL) {
+        err = _asprof_execute("stop", outputCallback);
+    } else {
+        char cmd[4096];
+        snprintf(cmd, sizeof(cmd), "stop,file=%s", output_file);
+        err = _asprof_execute(cmd, outputCallback);
+    }
+
+    if (err != NULL) {
+        std::cerr << _asprof_error_str(err) << std::endl;
+        exit(1);
+    }
+}
+
+void dumpProfiler(char* output_file) {
     char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "stop,file=%s", output_file);
+    snprintf(cmd, sizeof(cmd), "dump,file=%s", output_file);
     asprof_error_t err = _asprof_execute(cmd, outputCallback);
     if (err != NULL) {
         std::cerr << _asprof_error_str(err) << std::endl;
@@ -309,11 +326,15 @@ void testFlow3(int argc, char** argv) {
 }
 
 void* jvmThreadWrapper(void* arg) {
+    volatile bool* run_jvm = (volatile bool*)arg;
+
     loadJvmLib();
 
     startJvm();
 
-    while (1) executeJvmTask();
+    while (*run_jvm) executeJvmTask();
+
+    stopJvm();
 
     return NULL;
 }
@@ -335,12 +356,14 @@ Explanation:
 The same as flow 1, except that profiler will have to attach the caller thread to the JVM.
 */
 void testFlow4(int argc, char** argv) {
+    volatile bool run_jvm = true;
+
     struct timespec wait_time = {(time_t)(2), 0L};
 
     loadProfiler();
 
     pthread_t thread;
-    pthread_create(&thread, NULL, jvmThreadWrapper, NULL);
+    pthread_create(&thread, NULL, jvmThreadWrapper, (void*)&run_jvm);
 
     nanosleep(&wait_time, NULL);
 
@@ -349,6 +372,53 @@ void testFlow4(int argc, char** argv) {
     nanosleep(&wait_time, NULL);
 
     stopProfiler(argv[2]);
+
+    run_jvm = false;
+
+    pthread_join(thread, NULL);
+}
+
+
+void* dumpProfile(void* arg) {
+    char* output_file = (char*)arg;
+    dumpProfiler(output_file);
+    return NULL;
+}
+
+/*
+Here is the flow of the test:
+1. Load the profiler
+2. Load the JVM library
+3. Start the JVM
+4. Start the profiler
+5. Execute the JVM task
+6. Stop the profiler
+7. Dump the profiler on a different thread
+8. Stop the JVM
+
+Expected output:
+The profiler should be able to profile the JVM task.
+
+Explanation:
+The JVM is loaded and started before the profiling session,
+so profiler correctly dump profiling details related to the JVM process.
+*/
+void testFlow5(int argc, char** argv) {
+    loadProfiler();
+
+    loadJvmLib();
+
+    startJvm();
+
+    startProfiler();
+
+    executeJvmTask();
+
+    pthread_t thread;
+    pthread_create(&thread, NULL, dumpProfile, argv[2]);
+    pthread_join(thread, NULL);
+
+    stopJvm();
 }
 
 int main(int argc, char** argv) {
@@ -368,6 +438,9 @@ int main(int argc, char** argv) {
             break;
         case '4':
             testFlow4(argc, argv);
+            break;
+        case '5':
+            testFlow5(argc, argv);
             break;
         default:
             std::cerr << "Unknown flow: " << flow[0] << std::endl;
