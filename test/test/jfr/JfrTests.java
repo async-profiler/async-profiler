@@ -12,6 +12,7 @@ import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
+import test.alloc.Hello;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -198,7 +199,7 @@ public class JfrTests {
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
     }
 
-    @Test(mainClass = Ttsp.class, agentArgs = "start,begin=SafepointSynchronize::begin,end=SafepointSynchronize::begin,file=%f.jfr", output = true)
+    @Test(mainClass = Hello.class, agentArgs = "start,begin=jni_CallStaticVoidMethod,end=jni_CallStaticVoidMethod,file=%f.jfr", output = true)
     public void beginEnd(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
