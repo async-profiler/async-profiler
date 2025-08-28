@@ -1686,7 +1686,12 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         u32 thread_name_idx = 0;
         for (int j = 0; j < trace->num_frames; j++) {
             if (trace->frames[j].bci == BCI_THREAD_ID) {
-                thread_name_idx = thread_names.indexOf(fn.name(trace->frames[j]));
+                int tid = (int)(uintptr_t) trace->frames[j].method_id;
+                MutexLocker ml(_thread_names_lock);
+                ThreadMap::iterator it = _thread_names.find(tid);
+                if (it != _thread_names.end()) {
+                    thread_name_idx = thread_names.indexOf(it->second);
+                }
                 continue;
             }
 
