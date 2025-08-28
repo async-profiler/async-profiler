@@ -75,7 +75,6 @@ class JfrSync implements FlightRecorderListener {
         if ((eventMask & 1) != 0) {
             recording.disable("jdk.ExecutionSample");
             recording.disable("jdk.NativeMethodSample");
-            recording.disable("jdk.MethodTrace");
         }
         if ((eventMask & 2) != 0) {
             recording.disable("jdk.ObjectAllocationInNewTLAB");
@@ -86,6 +85,9 @@ class JfrSync implements FlightRecorderListener {
         if ((eventMask & 4) != 0) {
             recording.disable("jdk.JavaMonitorEnter");
             recording.disable("jdk.ThreadPark");
+        }
+        if ((eventMask & 8) != 0) {
+            recording.disable("jdk.MethodTrace");
         }
 
         // Shifted JfrOption values
