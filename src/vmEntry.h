@@ -8,7 +8,7 @@
 
 #include <jvmti.h>
 #include "arch.h"
-
+#include "os.h"
 
 enum FrameTypeId {
     FRAME_INTERPRETED  = 0,
@@ -185,6 +185,15 @@ class VM {
 
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
+};
+
+class SafeJvmContext {
+  private:
+    bool _attached;
+
+  public:
+    SafeJvmContext(bool ensure_safe_context);
+    ~SafeJvmContext();
 };
 
 #endif // _VMENTRY_H

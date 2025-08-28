@@ -54,6 +54,7 @@ class Profiler {
     Trap _begin_trap;
     Trap _end_trap;
     bool _nostop;
+    bool _dynamic_jvm;
     Mutex _thread_names_lock;
     // TODO: single map?
     std::map<int, std::string> _thread_names;
@@ -174,7 +175,8 @@ class Profiler {
         _native_libs(),
         _call_stub_begin(NULL),
         _call_stub_end(NULL),
-        _dlopen_entry(NULL) {
+        _dlopen_entry(NULL),
+        _dynamic_jvm(false) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;
@@ -227,6 +229,14 @@ class Profiler {
     static void crashHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void wakeupHandler(int signo);
     static void setupSignalHandlers();
+
+    bool dynamicJvm() const {
+        return _dynamic_jvm;
+    }
+
+    void setDynamicJvm(bool dynamic) {
+        _dynamic_jvm = dynamic;
+    }
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,
