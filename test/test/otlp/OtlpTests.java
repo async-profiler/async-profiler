@@ -53,8 +53,7 @@ public class OtlpTests {
             if (!threadName.isPresent()) continue;
             threadNames.add(threadName.get().getStringValue());
         }
-        boolean cpuBurnerFound = threadNames.stream().anyMatch("CpuBurnerWorker"::equals);
-        assert cpuBurnerFound : "CpuBurner thread not found: " + threadNames;
+        assert threadNames.contains("CpuBurnerWorker") : "CpuBurner thread not found: " + threadNames;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
