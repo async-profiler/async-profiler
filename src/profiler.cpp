@@ -810,7 +810,7 @@ Error Profiler::installTraps(const char* begin, const char* end, bool nostop) {
         return Error("End address not found");
     }
 
-    // begin & end shouldn't have the same address, as that would result in an infinite loop
+    // Having 'begin' and 'end' traps at the same address would result in an infinite loop
     if (begin_addr && begin_addr == end_addr) {
         return Error("begin and end symbols should not resolve to the same address");
     }
