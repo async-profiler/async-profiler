@@ -76,8 +76,8 @@ class FrameName {
     FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names);
     ~FrameName();
 
-    const char* name(ASGCT_CallFrame& frame, bool for_matching = false);
-    FrameTypeId type(ASGCT_CallFrame& frame);
+    const char* name(const ASGCT_CallFrame& frame, bool for_matching = false);
+    FrameTypeId type(const ASGCT_CallFrame& frame);
 
     bool hasIncludeList() { return !_include.empty(); }
     bool hasExcludeList() { return !_exclude.empty(); }
