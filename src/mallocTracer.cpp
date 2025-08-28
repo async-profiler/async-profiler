@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
-#include "asprof.h"
 #include "assert.h"
 #include "codeCache.h"
 #include "mallocTracer.h"

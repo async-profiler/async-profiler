@@ -11,8 +11,6 @@
 #include <unistd.h>
 #include "ctimer.h"
 #include "j9StackTraces.h"
-#include "profiler.h"
-#include "stackWalker.h"
 
 
 #ifndef SIGEV_THREAD_ID

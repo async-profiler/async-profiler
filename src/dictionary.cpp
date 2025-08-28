@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dictionary.h"
-#include "arch.h"
 
 
 static inline char* allocateKey(const char* key, size_t length) {
