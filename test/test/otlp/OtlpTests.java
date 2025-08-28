@@ -16,14 +16,14 @@ import io.opentelemetry.proto.profiles.v1development.*;
 
 public class OtlpTests {
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
-    public void testOtlpReadable(TestProcess p) throws Exception {
+    public void readable(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
         assert getFirstProfile(profilesData) != null;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
-    public void testSampleType(TestProcess p) throws Exception {
+    public void sampleType(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
         Profile profile = getFirstProfile(profilesData);
@@ -53,12 +53,12 @@ public class OtlpTests {
             if (!threadName.isPresent()) continue;
             threadNames.add(threadName.get().getStringValue());
         }
-        boolean cpuBurnerFound = threadNames.stream().anyMatch(threadName -> threadName.contains("CpuBurnerWorker"));
+        boolean cpuBurnerFound = threadNames.stream().anyMatch("CpuBurnerWorker"::equals);
         assert cpuBurnerFound : "CpuBurner thread not found: " + threadNames;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
-    public void testSamples(TestProcess p) throws Exception {
+    public void samples(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
         Profile profile = getFirstProfile(profilesData);
@@ -69,7 +69,7 @@ public class OtlpTests {
     }
 
     @Test(mainClass = OtlpTemporalityTest.class, jvmArgs = "-Djava.library.path=build/lib")
-    public void otlpAggregationTemporalityTest(TestProcess p) throws Exception {
+    public void aggregationTemporality(TestProcess p) throws Exception {
         classpathCheck();
 
         p.waitForExit();
