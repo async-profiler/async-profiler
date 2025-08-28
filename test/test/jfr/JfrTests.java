@@ -199,7 +199,7 @@ public class JfrTests {
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
     }
 
-    @Test(mainClass = Hello.class, agentArgs = "start,begin=jni_CallStaticVoidMethod,end=jni_CallStaticVoidMethod,file=%f.jfr", output = true)
+    @Test(mainClass = Hello.class, agentArgs = "start,begin=write,end=write,file=%f.jfr", output = true)
     public void beginEnd(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
