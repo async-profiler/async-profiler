@@ -20,10 +20,11 @@ class GenericIndex {
 
   private:
     std::unordered_map<T, size_t> _idx_map;
+    size_t _start_index;
   
   public:
-    GenericIndex() {
-        // Index 0 should contain the empty string
+    GenericIndex(size_t start_index = 0) : _start_index(start_index) {
+        // The first index should contain the empty string
         indexOf(T());
     }
 
@@ -47,10 +48,10 @@ class GenericIndex {
     void forEachOrdered(const std::function<void(size_t idx, const T&)>& consumer) const {
         std::vector<const T*> arr(_idx_map.size());
         for (const auto& it : _idx_map) {
-            arr[it.second] = &it.first;
+            arr[it.second - _start_index] = &it.first;
         }
         for (size_t idx = 0; idx < size(); ++idx) {
-            consumer(idx, *arr[idx]);
+            consumer(idx + _start_index, *arr[idx]);
         }
     }
 };
@@ -58,6 +59,8 @@ class GenericIndex {
 class Index : public GenericIndex<std::string> {
   public:
     using GenericIndex<std::string>::indexOf;
+
+    Index(size_t start_index = 0) : GenericIndex(start_index) {}
 
     size_t indexOf(const char* value) {
         return indexOf(std::string(value));

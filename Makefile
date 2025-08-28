@@ -30,6 +30,8 @@ OBJCOPY ?= objcopy
 ifneq ($(CROSS_COMPILE),)
 CC := $(CROSS_COMPILE)gcc
 CXX := $(CROSS_COMPILE)g++
+AS := $(CROSS_COMPILE)as
+LD := $(CROSS_COMPILE)ld
 STRIP := $(CROSS_COMPILE)strip
 OBJCOPY := $(CROSS_COMPILE)objcopy
 endif
@@ -127,10 +129,6 @@ endif
 STATIC_BINARY=$(findstring musl-gcc,$(CC))
 ifneq (,$(STATIC_BINARY))
   CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
-endif
-
-ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
-  CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
 

@@ -135,6 +135,13 @@ void OS::sleep(u64 nanos) {
     nanosleep(&ts, NULL);
 }
 
+void OS::uninterruptibleSleep(u64 nanos, volatile bool* flag) {
+    // Workaround nanosleep bug: https://man7.org/linux/man-pages/man2/nanosleep.2.html#BUGS
+    u64 deadline = OS::nanotime() + nanos;
+    struct timespec ts = {(time_t)(deadline / 1000000000), (long)(deadline % 1000000000)};
+    while (*flag && clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, &ts) == EINTR);
+}
+
 u64 OS::overrun(siginfo_t* siginfo) {
     return siginfo->si_overrun;
 }
@@ -262,10 +269,14 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
     return oldsa.sa_sigaction;
 }
 
+static void restoreSignalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    signal(signo, SIG_DFL);
+}
+
 SigAction OS::replaceCrashHandler(SigAction action) {
     struct sigaction sa;
     sigaction(SIGSEGV, NULL, &sa);
-    SigAction old_action = sa.sa_sigaction;
+    SigAction old_action = sa.sa_handler == SIG_DFL ? restoreSignalHandler : sa.sa_sigaction;
     sa.sa_sigaction = action;
     sa.sa_flags |= SA_SIGINFO | SA_RESTART;
     sigaction(SIGSEGV, &sa, NULL);

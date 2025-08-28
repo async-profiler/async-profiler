@@ -502,7 +502,7 @@ class Recording {
         return true;
     }
 
-    const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
+    static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures& f) {
         snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
@@ -784,8 +784,8 @@ class Recording {
 
         buf->putVar32(11);
 
-        Index packages;
-        Index symbols;
+        Index packages(1);
+        Index symbols(1);
         Lookup lookup(&_method_map, Profiler::instance()->classMap(), &packages, &symbols, OUTPUT_JFR);
         writeFrameTypes(buf);
         writeThreadStates(buf);
