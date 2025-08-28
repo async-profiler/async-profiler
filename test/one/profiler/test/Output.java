@@ -41,7 +41,7 @@ public class Output {
     }
 
     public boolean containsExact(String string) {
-        return Arrays.stream(lines).anyMatch(s -> s.contains(string));
+        return stream().anyMatch(s -> s.contains(string));
     }
 
     public long samples(String regex) {
