@@ -66,6 +66,7 @@ struct FrameDesc {
     int cfa;
     int fp_off;
     int pc_off;
+    u32 fde_loc_end;
 
     static FrameDesc empty_frame;
     static FrameDesc default_frame;
@@ -147,11 +148,11 @@ class DwarfParser {
     void parse(const char* eh_frame_hdr);
     void parseCie();
     void parseFde();
-    void parseInstructions(u32 loc, const char* end);
+    void parseInstructions(u32 loc, const char* end, u32 fde_loc_end);
     int parseExpression();
 
-    void addRecord(u32 loc, u32 cfa_reg, int cfa_off, int fp_off, int pc_off);
-    FrameDesc* addRecordRaw(u32 loc, int cfa, int fp_off, int pc_off);
+    void addRecord(u32 loc, u32 cfa_reg, int cfa_off, int fp_off, int pc_off, u32 fde_loc_end);
+    FrameDesc* addRecordRaw(u32 loc, int cfa, int fp_off, int pc_off, u32 fde_loc_end);
 
   public:
     DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr);
