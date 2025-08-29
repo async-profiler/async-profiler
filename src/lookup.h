@@ -7,7 +7,6 @@
 #define _LOOKUP_H
 
 #include <assert.h>
-#include <mutex>
 #include <unordered_map>
 #include <jvmti.h>
 #include "arguments.h"
@@ -42,14 +41,9 @@ class MethodInfo {
 };
 
 class MethodMap : public std::unordered_map<jmethodID, MethodInfo> {
-  private:
-    std::mutex _mutex;
-
   public:
     MethodMap() = default;
     ~MethodMap();
-
-    std::mutex& getMutex() { return _mutex; }
 
     size_t usedMemory();
     // Reserve the spot for the method, but does not symbolize it

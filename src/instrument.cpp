@@ -1049,10 +1049,14 @@ void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTime
         jint num_frames = 0;
         jvmtiFrameInfo jvmti_frame;
         u32 key = 0;
-        MethodMap* method_map = Profiler::instance()->methodMap();
-        if (method_map != nullptr && VM::jvmti()->GetStackTrace(NULL, 1, 1, &jvmti_frame, &num_frames) == 0 && num_frames > 0) {
-            std::lock_guard<std::mutex> lock(method_map->getMutex());
-            key = method_map->assignKey(jvmti_frame.method);
+        {
+            MutexLocker locker(*Profiler::instance()->methodMapLock());
+            MethodMap* method_map = Profiler::instance()->methodMap();
+            if (method_map != nullptr && 
+                VM::jvmti()->GetStackTrace(NULL, 1, 1, &jvmti_frame, &num_frames) == 0 && num_frames > 0
+            ) {
+                key = method_map->assignKey(jvmti_frame.method);
+            }
         }
 
         MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks, key);

@@ -792,8 +792,11 @@ class Recording {
         writeThreadStates(buf);
         writeGCWhen(buf);
         writeThreads(buf);
-        writeStackTraces(buf, &lookup);
-        writeMethods(buf, &lookup);
+        {
+            MutexLocker locker(*Profiler::instance()->methodMapLock());
+            writeStackTraces(buf, &lookup);
+            writeMethods(buf, &lookup);
+        }
         writeClasses(buf, &lookup);
         writePackages(buf, &lookup);
         writeSymbols(buf, &lookup);
@@ -888,7 +891,6 @@ class Recording {
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
         writePoolHeader(buf, T_STACK_TRACE, traces.size());
-        std::lock_guard<std::mutex> lock(lookup->_method_map->getMutex());
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
             buf->putVar32(it->first);
@@ -917,7 +919,6 @@ class Recording {
 
     void writeMethods(Buffer* buf, Lookup* lookup) {
         MethodMap* method_map = lookup->_method_map;
-        std::lock_guard<std::mutex> lock(method_map->getMutex());
 
         u32 marked_count = 0;
         for (MethodMap::const_iterator it = method_map->begin(); it != method_map->end(); ++it) {
