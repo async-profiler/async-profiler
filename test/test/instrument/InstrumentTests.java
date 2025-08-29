@@ -120,14 +120,20 @@ public class InstrumentTests {
         assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
 
-        StringBuilder builder = new StringBuilder();
+        boolean found = false;
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
-                builder.append(event);
+                String eventName = event.getEventType().getName();
+
+                if (eventName.equals("jdk.MethodTrace")) {
+                    found = true;
+                    String repr = event.toString();
+                    assert repr.contains("method = test.instrument.CpuBurner.burn(Duration)") : repr;
+                }
             }
         }
-        assert builder.toString().contains("jdk.MethodTrace");
+        assert found : "Could not find any jdk.MethodTrace events";
     }
 
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
