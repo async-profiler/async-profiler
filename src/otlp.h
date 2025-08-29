@@ -15,6 +15,8 @@ const u32 TRACE_CONTEXT_SIZE = 24;
 const u32 TRACE_CONTEXT_BUFFER_SIZE = TRACE_CONTEXT_SIZE + 1;
 const u32 TRACE_CONTEXT_CONTROL_BYTE = TRACE_CONTEXT_BUFFER_SIZE - 1;
 constexpr u8 INVALID_LINK[TRACE_CONTEXT_BUFFER_SIZE] = {0};
+// https://opentelemetry.io/docs/specs/semconv/registry/attributes/thread/#thread-name
+const char* const OTLP_THREAD_NAME = "thread.name";
 
 namespace ProfilesDictionary {
     const protobuf_index_t mapping_table = 1;
@@ -22,6 +24,7 @@ namespace ProfilesDictionary {
     const protobuf_index_t function_table = 3;
     const protobuf_index_t link_table = 4;
     const protobuf_index_t string_table = 5;
+    const protobuf_index_t attribute_table = 6;
 }
 
 namespace ProfilesData {
@@ -57,6 +60,7 @@ namespace Sample {
     const protobuf_index_t locations_start_index = 1;
     const protobuf_index_t locations_length = 2;
     const protobuf_index_t value = 3;
+    const protobuf_index_t attribute_indices = 4;
     const protobuf_index_t link_index = 5;
 }
 
@@ -83,6 +87,15 @@ namespace AggregationTemporality {
     const u64 unspecified = 0;
     const u64 delta = 1;
     const u64 cumulative = 2;
+}
+
+namespace Key {
+    const u64 key = 1;
+    const u64 value = 2;
+}
+
+namespace AnyValue {
+    const u64 string_value = 1;
 }
 
 }

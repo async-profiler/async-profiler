@@ -823,6 +823,11 @@ Error Profiler::installTraps(const char* begin, const char* end, bool nostop) {
         return Error("End address not found");
     }
 
+    // Having 'begin' and 'end' traps at the same address would result in an infinite loop
+    if (begin_addr && begin_addr == end_addr) {
+        return Error("begin and end symbols should not resolve to the same address");
+    }
+
     _begin_trap.assign(begin_addr);
     _end_trap.assign(end_addr);
     _nostop = nostop;
@@ -1666,6 +1671,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
     Index strings;
     Index functions;
+    // Eventually this is going to be Index<Attribute>, for now we keep it simple
+    Index thread_names;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
@@ -1767,6 +1774,16 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Write string_table
     strings.forEachOrdered([&] (size_t idx, const std::string& s) {
         otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
+    });
+
+    // Write attribute_table (only threads for now)
+    thread_names.forEachOrdered([&] (size_t idx, const std::string& s) {
+        protobuf_mark_t attr_mark = otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
+        otlp_buffer.field(Key::key, OTLP_THREAD_NAME);
+        protobuf_mark_t value_mark = otlp_buffer.startMessage(Key::value);
+        otlp_buffer.field(AnyValue::string_value, s.data(), s.length());
+        otlp_buffer.commitMessage(value_mark);
+        otlp_buffer.commitMessage(attr_mark);
     });
 
     otlp_buffer.commitMessage(dictionary_mark);
