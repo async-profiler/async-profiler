@@ -10,8 +10,6 @@ import io.opentelemetry.proto.profiles.v1development.*;
 import java.time.Duration;
 import java.time.Instant;
 import com.google.protobuf.ByteString;
-import java.util.Map;
-import java.util.HashMap;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import java.util.Optional;
@@ -74,24 +72,6 @@ public class OtlpSignalCorrelationTest {
         }
         assert samplesWithLinks > 4;
         
-        Map<String, Map<String, String>> threadToExpectedPairs = new HashMap<>();
-        
-        Map<String, String> thread1Pairs = new HashMap<>();
-        thread1Pairs.put("", "");
-        thread1Pairs.put(TRACE_ID_1, SPAN_ID_1);
-        thread1Pairs.put(TRACE_ID_1_ALT, SPAN_ID_1_ALT);
-        threadToExpectedPairs.put("CorrelationThread1", thread1Pairs);
-
-        Map<String, String> thread2Pairs = new HashMap<>();
-        thread2Pairs.put("", "");
-        thread2Pairs.put(TRACE_ID_2, SPAN_ID_2);
-        threadToExpectedPairs.put("CorrelationThread2", thread2Pairs);
-
-        Map<String, String> thread3Pairs = new HashMap<>();
-        thread3Pairs.put("", "");
-        thread3Pairs.put(TRACE_ID_3, SPAN_ID_3);
-        threadToExpectedPairs.put("CorrelationThread3", thread3Pairs);
-        
         for (Sample sample : profile.getSampleList()) {
             if (sample.getLinkIndex() >= 0) {
                 Optional<AnyValue> threadNameOpt = OtlpTests.getAttribute(sample, data.getDictionary(), "thread.name");
@@ -102,17 +82,23 @@ public class OtlpSignalCorrelationTest {
                     String linkTrace = bytesToHex(link.getTraceId());
                     String linkSpan = bytesToHex(link.getSpanId());
                     
-                    Map<String, String> expectedPairs = threadToExpectedPairs.get(threadName);
-                    if (expectedPairs != null) {
-                        assert expectedPairs.containsKey(linkTrace);
-                        assert expectedPairs.get(linkTrace).equals(linkSpan);
+                    if (threadName.equals("CorrelationThread1")) {
+                        assert linkTrace.equals("") && linkSpan.equals("") ||
+                            linkTrace.equals(TRACE_ID_1) && linkSpan.equals(SPAN_ID_1) ||
+                            linkTrace.equals(TRACE_ID_1_ALT) && linkSpan.equals(SPAN_ID_1_ALT);
+                    } else if (threadName.equals("CorrelationThread2")) {
+                        assert linkTrace.equals("") && linkSpan.equals("") ||
+                            linkTrace.equals(TRACE_ID_2) && linkSpan.equals(SPAN_ID_2);
+                    } else if (threadName.equals("CorrelationThread3")) {
+                        assert linkTrace.equals("") && linkSpan.equals("") ||
+                            linkTrace.equals(TRACE_ID_3) && linkSpan.equals(SPAN_ID_3);
                     } else {
                         assert linkTrace.equals("") && linkSpan.equals("");
-                        System.out.println("OK: System thread " + threadName);
                     }
                 }
             }
         }
+
     }
 
     private static void burnCpu() {

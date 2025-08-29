@@ -76,7 +76,7 @@ public class OtlpTests {
     }
 
     @Test(mainClass = OtlpSignalCorrelationTest.class, jvmArgs = "-Djava.library.path=build/lib")
-    public void otlpSignalCorrelationTest(TestProcess p) throws Exception {
+    public void signalCorrelation(TestProcess p) throws Exception {
         classpathCheck();
 
         p.waitForExit();
