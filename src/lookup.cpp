@@ -174,11 +174,11 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method) {
         return false;
     }
 
-    if (mi->_status != MethodInfoStatus::BLANK && jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
+    if (mi->_status == MethodInfoStatus::BLANK && jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
         mi->_modifiers = 0;
     }
 
-    if (mi->_status != MethodInfoStatus::BLANK && jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
+    if (mi->_status == MethodInfoStatus::BLANK && jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
     }
