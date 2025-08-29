@@ -1192,7 +1192,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     switchLibraryTrap(true);
 
     if (args._output == OUTPUT_JFR) {
-        error = _jfr.start(args, reset);
+        delete _method_map;
+        _method_map = new MethodMap();
+        error = _jfr.start(args, reset, _method_map);
         if (error) {
             uninstallTraps();
             switchLibraryTrap(false);

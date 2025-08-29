@@ -7,6 +7,7 @@
 #define _LOOKUP_H
 
 #include <assert.h>
+#include <mutex>
 #include <unordered_map>
 #include <jvmti.h>
 #include "arguments.h"
@@ -15,9 +16,19 @@
 class Dictionary;
 class Index;
 
+enum class MethodInfoStatus {
+  // New instance, only '_key' may be assigned.
+  BLANK,
+  // The instance has been symbolized and is ready to be flushed.
+  WRITE_READY,
+  // The instance has been symbolized previously, but the symbols
+  // it refers to are stale. It should be resolved again.
+  STALE
+};
+
 class MethodInfo {
   public:
-    bool _mark = false;
+    MethodInfoStatus _status = MethodInfoStatus::BLANK;
     u32 _key = 0;
     u32 _class = 0;
     u32 _name = 0;
@@ -31,11 +42,18 @@ class MethodInfo {
 };
 
 class MethodMap : public std::unordered_map<jmethodID, MethodInfo> {
+  private:
+    std::mutex _mutex;
+
   public:
     MethodMap() = default;
     ~MethodMap();
 
+    std::mutex& getMutex() { return _mutex; }
+
     size_t usedMemory();
+    // Reserve the spot for the method, but does not symbolize it
+    size_t assignKey(jmethodID method);
 };
 
 class Lookup {
@@ -64,7 +82,7 @@ class Lookup {
     Output _output_type;
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name);
-    bool fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time);
+    bool fillJavaMethodInfo(MethodInfo* mi, jmethodID method);
     void fillJavaClassInfo(MethodInfo* mi, u32 class_id);
 };
 
