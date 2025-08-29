@@ -67,7 +67,7 @@ static Instrument instrument;
 static ProfilingWindow profiling_window;
 
 thread_local uint8_t Profiler::_trace_context_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE] = {0};
-thread_local u32 Profiler::_last_trace_context_idx = 0;
+thread_local u32 Profiler::_last_trace_context_key = 0;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -697,15 +697,12 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 1) {
         _trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] = 2;
-        _last_trace_context_idx = atomicInc(_trace_context_count);
-        u32 buffer_idx = _last_trace_context_idx * Otlp::TRACE_CONTEXT_BUFFER_SIZE;
-        memcpy(_trace_contexts + buffer_idx, _trace_context_buffer,
-                Otlp::TRACE_CONTEXT_BUFFER_SIZE);
+        _last_trace_context_key = _trace_context_map.lookup((const char*) _trace_context_buffer, Otlp::TRACE_CONTEXT_SIZE);
     }
-    
     if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 2) {
-        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, (jmethodID) (u64) _last_trace_context_idx);
+        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, _last_trace_context_key);
     }
+
     if (stack_walk_begin != 0) {
         u64 stack_walk_end = OS::nanotime();
         atomicInc(_total_stack_walk_time, stack_walk_end - stack_walk_begin);
@@ -1124,14 +1121,13 @@ Error Profiler::start(Arguments& args, bool reset) {
         _total_samples = 0;
         _total_stack_walk_time = 0;
         memset(_failures, 0, sizeof(_failures));
-        // TODO: Verify that restarting the profiler clears the link_table properly
-        _trace_context_count = 0;
 
         // Reset dictionaries and bitmaps
         lockAll();
         _class_map.clear();
         _thread_filter.clear();
         _call_trace_storage.clear();
+        _trace_context_map.clear();
         // Make sure frame structure is consistent throughout the entire recording
         _add_event_frame = args._output != OUTPUT_JFR;
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
@@ -1423,7 +1419,8 @@ Error Profiler::dump(Writer& out, Arguments& args) {
 void Profiler::printUsedMemory(Writer& out) {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
-    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory();
+    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory()
+                        + _trace_context_map.usedMemory();
 
     size_t code_cache = _runtime_stubs.usedMemory();
     int native_lib_count = _native_libs.count();
@@ -1674,6 +1671,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     Index functions;
     // Eventually this is going to be Index<Attribute>, for now we keep it simple
     Index thread_names;
+    Index links;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
@@ -1690,10 +1688,12 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
-    u32 trace_context_count = loadAcquire(_trace_context_count);
 
     std::vector<size_t> location_indices;
     location_indices.reserve(call_trace_samples.size());
+
+    std::map<u32, const char*> trace_contexts_map;
+    _trace_context_map.collect(trace_contexts_map);
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     size_t frames_seen = 0;
@@ -1716,7 +1716,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
                 continue;
             }
             if (trace->frames[j].bci == BCI_TRACE_CONTEXT) {
-                size_t link_idx = ((size_t)trace->frames[j].method_id) + 1;
+                u32 key = (u32) (u64) trace->frames[j].method_id;
+                size_t link_idx = links.indexOf(trace_contexts_map[key]);
                 otlp_buffer.field(Sample::link_index, link_idx);
                 continue;
             }
@@ -1777,16 +1778,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     }
 
     // Write link_table
-    // Start with empty link
-    protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
-    otlp_buffer.commitMessage(link_mark);
-    for (size_t link_idx = 0; link_idx < trace_context_count; ++link_idx) {
+    links.forEachOrdered([&] (size_t idx, const std::string& s) {
         protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
-        size_t start = TRACE_CONTEXT_BUFFER_SIZE * link_idx;
-        otlp_buffer.field(Link::trace_id, &_trace_contexts[start], 16);
-        otlp_buffer.field(Link::span_id, &_trace_contexts[start + 16], 8);
+        if (!s.empty()) {
+            otlp_buffer.field(Link::trace_id, s.c_str(), 16);
+            otlp_buffer.field(Link::span_id, s.c_str() + 16, 8);
+        }
         otlp_buffer.commitMessage(link_mark);
-    }
+    });
 
     // Write string_table
     strings.forEachOrdered([&] (size_t idx, const std::string& s) {

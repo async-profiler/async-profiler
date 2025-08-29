@@ -61,6 +61,7 @@ class Profiler {
     std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
     Dictionary _symbol_map;
+    Dictionary _trace_context_map;
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
@@ -93,10 +94,7 @@ class Profiler {
 
     // Thread-local storage for trace correlation
     static thread_local uint8_t _trace_context_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE];
-    static thread_local u32 _last_trace_context_idx;
-    // TODO: Is this enough? We can ask the user to restart every x seconds
-    uint8_t _trace_contexts[Otlp::TRACE_CONTEXT_BUFFER_SIZE * 1000];
-    u32 _trace_context_count = 0;
+    static thread_local u32 _last_trace_context_key;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
