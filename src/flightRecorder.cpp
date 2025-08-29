@@ -888,6 +888,7 @@ class Recording {
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
         writePoolHeader(buf, T_STACK_TRACE, traces.size());
+        std::lock_guard<std::mutex> lock(lookup->_method_map->getMutex());
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
             buf->putVar32(it->first);
