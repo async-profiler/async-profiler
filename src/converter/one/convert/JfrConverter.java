@@ -60,6 +60,7 @@ public abstract class JfrConverter extends Classifier {
                 : args.live ? LiveObject.class
                 : args.alloc ? AllocationSample.class
                 : args.lock ? ContendedLock.class
+                : args.trace ? MethodTrace.class
                 : ExecutionSample.class;
 
         BitSet threadStates = null;

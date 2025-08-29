@@ -1003,6 +1003,17 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordMethodTrace(Buffer* buf, int tid, u32 call_trace_id, MethodTraceEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_METHOD_TRACE);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_duration);
+        buf->putVar32(0); // TODO
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordWallClockSample(Buffer* buf, int tid, u32 call_trace_id, WallClockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_WALL_CLOCK_SAMPLE);
@@ -1290,6 +1301,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     int event_mask = (args._event != NULL ? 1 : 0) |
                      (args._alloc >= 0 ? 2 : 0) |
                      (args._lock >= 0 ? 4 : 0) |
+                     (args._latency >= 0 ? 8 : 0) |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << 4);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
@@ -1321,6 +1333,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
             case EXECUTION_SAMPLE:
             case INSTRUMENTED_METHOD:
                 _rec->recordExecutionSample(buf, tid, call_trace_id, (ExecutionEvent*)event);
+                break;
+            case METHOD_TRACE:
+                _rec->recordMethodTrace(buf, tid, call_trace_id, (MethodTraceEvent*)event);
                 break;
             case WALL_CLOCK_SAMPLE:
                 _rec->recordWallClockSample(buf, tid, call_trace_id, (WallClockEvent*)event);
