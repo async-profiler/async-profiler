@@ -922,7 +922,7 @@ class Recording {
 
         u32 marked_count = 0;
         for (MethodMap::const_iterator it = method_map->begin(); it != method_map->end(); ++it) {
-            if (it->second._status == MethodInfoStatus::WRITE_READY) {
+            if (it->second._status == MethodInfoStatus::DIRTY) {
                 marked_count++;
             }
         }
@@ -930,7 +930,7 @@ class Recording {
         writePoolHeader(buf, T_METHOD, marked_count);
         for (MethodMap::iterator it = method_map->begin(); it != method_map->end(); ++it) {
             MethodInfo& mi = it->second;
-            if (it->second._status == MethodInfoStatus::WRITE_READY) {
+            if (it->second._status == MethodInfoStatus::DIRTY) {
                 mi._status = MethodInfoStatus::STALE;
                 buf->putVar32(mi._key);
                 buf->putVar32(mi._class);

@@ -19,7 +19,7 @@ enum class MethodInfoStatus {
   // New instance, only '_key' may be assigned.
   BLANK,
   // The instance has been symbolized and is ready to be flushed.
-  WRITE_READY,
+  DIRTY,
   // The instance has been symbolized previously, but the symbols
   // it refers to are stale. It should be resolved again.
   STALE

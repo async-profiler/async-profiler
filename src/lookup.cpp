@@ -59,8 +59,8 @@ MethodInfo* Lookup::resolveMethod(ASGCT_CallFrame& frame) {
         mi->_key = _method_map->size();
     }
 
-    if (mi->_status != MethodInfoStatus::WRITE_READY) {
-        mi->_status = MethodInfoStatus::WRITE_READY;
+    if (mi->_status != MethodInfoStatus::DIRTY) {
+        mi->_status = MethodInfoStatus::DIRTY;
         if (method == NULL) {
             fillNativeMethodInfo(mi, "unknown", NULL);
         } else if (frame.bci > BCI_NATIVE_FRAME) {
