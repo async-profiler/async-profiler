@@ -268,6 +268,9 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
+manual-test: build-test-java
+	echo "-Djava.library.path=$(TEST_LIB_DIR)" -ea -cp "build/$(TEST_JAR):build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*"
+
 $(TEST_DEPS_DIR):
 	mkdir -p $@
 
