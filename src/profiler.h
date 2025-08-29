@@ -61,7 +61,7 @@ class Profiler {
     std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
     Dictionary _symbol_map;
-    MethodMap* _method_map = nullptr;
+    MethodMap* _method_map;
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
@@ -163,6 +163,7 @@ class Profiler {
         _begin_trap(2),
         _end_trap(3),
         _thread_filter(),
+        _method_map(nullptr),
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
