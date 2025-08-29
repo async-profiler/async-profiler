@@ -5,17 +5,16 @@
 package test.otlp;
 
 import one.profiler.AsyncProfiler;
-import one.profiler.Events;
 import one.profiler.TraceContext;
 import io.opentelemetry.proto.profiles.v1development.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import com.google.protobuf.ByteString;
 import java.util.Map;
 import java.util.HashMap;
-import java.nio.charset.StandardCharsets;
+import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.KeyValue;
+import java.util.Optional;
 
 public class OtlpSignalCorrelationTest {
     private static final Duration TEST_DURATION = Duration.ofSeconds(1);
@@ -31,7 +30,7 @@ public class OtlpSignalCorrelationTest {
 
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
-        profiler.execute("start,otlp");
+        profiler.execute("start,otlp,threads");
 
         Thread[] threads = new Thread[3];
         
@@ -40,17 +39,17 @@ public class OtlpSignalCorrelationTest {
             burnCpu();
             TraceContext.setTraceContext(TRACE_ID_1_ALT, SPAN_ID_1_ALT);
             burnCpu();
-        });
+        }, "CorrelationThread1");
 
         threads[1] = new Thread(() -> {
             TraceContext.setTraceContext(TRACE_ID_2, SPAN_ID_2);
             burnCpu();
-        });
+        }, "CorrelationThread2");
 
         threads[2] = new Thread(() -> {
             TraceContext.setTraceContext(TRACE_ID_3, SPAN_ID_3);
             burnCpu();
-        });
+        }, "CorrelationThread3");
 
         for (Thread t : threads) {
             t.start();
@@ -73,22 +72,46 @@ public class OtlpSignalCorrelationTest {
                 samplesWithLinks++;
             }
         }
-        assert samplesWithLinks > 3;
+        assert samplesWithLinks > 4;
         
-        Map<String, String> expectedPairs = new HashMap<>();
-        expectedPairs.put("", "");
-        expectedPairs.put(TRACE_ID_1, SPAN_ID_1);
-        expectedPairs.put(TRACE_ID_1_ALT, SPAN_ID_1_ALT);
-        expectedPairs.put(TRACE_ID_2, SPAN_ID_2);
-        expectedPairs.put(TRACE_ID_3, SPAN_ID_3);
-        boolean allLinksValid = true;
-        for (int i = 0; i < data.getDictionary().getLinkTableCount(); i++) {
-            Link link = data.getDictionary().getLinkTable(i);
-            
-            String linkTrace = bytesToHex(link.getTraceId());
-            String linkSpan = bytesToHex(link.getSpanId());
-            
-            assert expectedPairs.get(linkTrace).equals(linkSpan);
+        Map<String, Map<String, String>> threadToExpectedPairs = new HashMap<>();
+        
+        Map<String, String> thread1Pairs = new HashMap<>();
+        thread1Pairs.put("", "");
+        thread1Pairs.put(TRACE_ID_1, SPAN_ID_1);
+        thread1Pairs.put(TRACE_ID_1_ALT, SPAN_ID_1_ALT);
+        threadToExpectedPairs.put("CorrelationThread1", thread1Pairs);
+
+        Map<String, String> thread2Pairs = new HashMap<>();
+        thread2Pairs.put("", "");
+        thread2Pairs.put(TRACE_ID_2, SPAN_ID_2);
+        threadToExpectedPairs.put("CorrelationThread2", thread2Pairs);
+
+        Map<String, String> thread3Pairs = new HashMap<>();
+        thread3Pairs.put("", "");
+        thread3Pairs.put(TRACE_ID_3, SPAN_ID_3);
+        threadToExpectedPairs.put("CorrelationThread3", thread3Pairs);
+        
+        for (Sample sample : profile.getSampleList()) {
+            if (sample.getLinkIndex() >= 0) {
+                Optional<AnyValue> threadNameOpt = OtlpTests.getAttribute(sample, data.getDictionary(), "thread.name");
+                if (threadNameOpt.isPresent()) {
+                    String threadName = threadNameOpt.get().getStringValue();
+                    
+                    Link link = data.getDictionary().getLinkTable(sample.getLinkIndex());
+                    String linkTrace = bytesToHex(link.getTraceId());
+                    String linkSpan = bytesToHex(link.getSpanId());
+                    
+                    Map<String, String> expectedPairs = threadToExpectedPairs.get(threadName);
+                    if (expectedPairs != null) {
+                        assert expectedPairs.containsKey(linkTrace);
+                        assert expectedPairs.get(linkTrace).equals(linkSpan);
+                    } else {
+                        assert linkTrace.equals("") && linkSpan.equals("");
+                        System.out.println("OK: System thread " + threadName);
+                    }
+                }
+            }
         }
     }
 
