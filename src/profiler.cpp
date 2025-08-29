@@ -702,6 +702,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         memcpy(_trace_contexts + buffer_idx, _trace_context_buffer,
                 Otlp::TRACE_CONTEXT_BUFFER_SIZE);
     }
+    
     if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 2) {
         num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, (jmethodID) (u64) _last_trace_context_idx);
     }
