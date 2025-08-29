@@ -1192,12 +1192,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     switchLibraryTrap(true);
 
     if (args._output == OUTPUT_JFR) {
-        {
-            MutexLocker lock(_method_map_lock);
-            delete _method_map;
-            _method_map = new MethodMap();
-        }
-        error = _jfr.start(args, reset, _method_map);
+        error = _jfr.start(args, reset);
         if (error) {
             uninstallTraps();
             switchLibraryTrap(false);

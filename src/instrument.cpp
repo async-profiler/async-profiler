@@ -11,7 +11,6 @@
 #include "classfile_constants.h"
 #include "incbin.h"
 #include "log.h"
-#include "lookup.h"
 #include "os.h"
 #include "profiler.h"
 #include "tsc.h"
@@ -1045,21 +1044,7 @@ void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTime
     if (duration_ns >= _latency) {
         u64 now_ticks = TSC::ticks();
         u64 duration_ticks = (u64) ((double) duration_ns * TSC::frequency() / NANOTIME_FREQ);
-
-        jint num_frames = 0;
-        jvmtiFrameInfo jvmti_frame;
-        u32 key = 0;
-        {
-            MutexLocker locker(*Profiler::instance()->methodMapLock());
-            MethodMap* method_map = Profiler::instance()->methodMap();
-            if (method_map != nullptr && 
-                VM::jvmti()->GetStackTrace(NULL, 1, 1, &jvmti_frame, &num_frames) == 0 && num_frames > 0
-            ) {
-                key = method_map->assignKey(jvmti_frame.method);
-            }
-        }
-
-        MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks, key);
+        MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks);
         Profiler::instance()->recordSample(NULL, duration_ns, METHOD_TRACE, &event);
     }
 }

@@ -17,7 +17,6 @@
 #include "event.h"
 #include "flightRecorder.h"
 #include "log.h"
-#include "lookup.h"
 #include "mutex.h"
 #include "spinLock.h"
 #include "threadFilter.h"
@@ -61,8 +60,6 @@ class Profiler {
     std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
     Dictionary _symbol_map;
-    MethodMap* _method_map;
-    Mutex _method_map_lock;
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
@@ -164,8 +161,6 @@ class Profiler {
         _begin_trap(2),
         _end_trap(3),
         _thread_filter(),
-        _method_map(nullptr),
-        _method_map_lock(),
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
@@ -194,8 +189,6 @@ class Profiler {
     long uptime()       { return (OS::micros() - _start_time) / 1000000ULL; }
 
     Dictionary* classMap() { return &_class_map; }
-    MethodMap* methodMap() { return _method_map; }
-    Mutex* methodMapLock() { return &_method_map_lock; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
     CodeCacheArray* nativeLibs() { return &_native_libs; }
 

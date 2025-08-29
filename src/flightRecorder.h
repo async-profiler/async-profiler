@@ -10,7 +10,6 @@
 #include "arguments.h"
 #include "event.h"
 #include "log.h"
-#include "lookup.h"
 
 class Recording;
 
@@ -25,7 +24,7 @@ class FlightRecorder {
     FlightRecorder() : _rec(NULL) {
     }
 
-    Error start(Arguments& args, bool reset, MethodMap* method_map);
+    Error start(Arguments& args, bool reset);
     void stop();
     void flush();
     size_t usedMemory();

@@ -41,30 +41,21 @@ size_t MethodMap::usedMemory() {
     return bytes;
 }
 
-size_t MethodMap::assignKey(jmethodID method) {
-    if (method == NULL) return 0;
-
-    MethodInfo* mi = &(*this)[method];
-    if (mi->_key == 0) {
-        mi->_key = size();
-    }
-    return mi->_key;
-}
-
 MethodInfo* Lookup::resolveMethod(ASGCT_CallFrame& frame) {
     jmethodID method = frame.method_id;
     MethodInfo* mi = &(*_method_map)[method];
 
-    if (mi->_key == 0) {
+    bool first_time = mi->_key == 0;
+    if (first_time) {
         mi->_key = _method_map->size();
     }
 
-    if (mi->_status != MethodInfoStatus::DIRTY) {
-        mi->_status = MethodInfoStatus::DIRTY;
+    if (!mi->_mark) {
+        mi->_mark = true;
         if (method == NULL) {
             fillNativeMethodInfo(mi, "unknown", NULL);
         } else if (frame.bci > BCI_NATIVE_FRAME) {
-            if (!fillJavaMethodInfo(mi, method)) {
+            if (!fillJavaMethodInfo(mi, method, first_time)) {
                 fillNativeMethodInfo(mi, "stale_jmethodID", NULL);
             }
         } else if (frame.bci == BCI_NATIVE_FRAME) {
@@ -140,7 +131,7 @@ void Lookup::fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* 
     }
 }
 
-bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method) {
+bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
     if (VMMethod::isStaleMethodId(method)) {
         return false;
     }
@@ -174,11 +165,11 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method) {
         return false;
     }
 
-    if (mi->_status == MethodInfoStatus::BLANK && jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
+    if (first_time && jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
         mi->_modifiers = 0;
     }
 
-    if (mi->_status == MethodInfoStatus::BLANK && jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
+    if (first_time && jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
     }

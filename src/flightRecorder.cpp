@@ -224,7 +224,7 @@ class Recording {
     char* _master_recording_file;
     off_t _chunk_start;
     ThreadFilter _thread_set;
-    MethodMap* _method_map;
+    MethodMap _method_map;
 
     u64 _start_time;
     u64 _start_ticks;
@@ -251,8 +251,7 @@ class Recording {
     }
 
   public:
-    Recording(int fd, const char* master_recording_file, Arguments& args, MethodMap* method_map) :
-            _fd(fd), _thread_set(), _method_map(method_map) {
+    Recording(int fd, const char* master_recording_file, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
         _master_recording_file = master_recording_file == NULL ? NULL : strdup(master_recording_file);
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
@@ -392,7 +391,7 @@ class Recording {
     }
 
     size_t usedMemory() {
-        return _method_map->usedMemory() + _thread_set.usedMemory() +
+        return _method_map.usedMemory() + _thread_set.usedMemory() +
                (_memfd >= 0 ? lseek(_memfd, 0, SEEK_CUR) : 0);
     }
 
@@ -787,16 +786,13 @@ class Recording {
 
         Index packages(1);
         Index symbols(1);
-        Lookup lookup(_method_map, Profiler::instance()->classMap(), &packages, &symbols, OUTPUT_JFR);
+        Lookup lookup(&_method_map, Profiler::instance()->classMap(), &packages, &symbols, OUTPUT_JFR);
         writeFrameTypes(buf);
         writeThreadStates(buf);
         writeGCWhen(buf);
         writeThreads(buf);
-        {
-            MutexLocker locker(*Profiler::instance()->methodMapLock());
-            writeStackTraces(buf, &lookup);
-            writeMethods(buf, &lookup);
-        }
+        writeStackTraces(buf, &lookup);
+        writeMethods(buf, &lookup);
         writeClasses(buf, &lookup);
         writePackages(buf, &lookup);
         writeSymbols(buf, &lookup);
@@ -922,7 +918,7 @@ class Recording {
 
         u32 marked_count = 0;
         for (MethodMap::const_iterator it = method_map->begin(); it != method_map->end(); ++it) {
-            if (it->second._status == MethodInfoStatus::DIRTY) {
+            if (it->second._mark) {
                 marked_count++;
             }
         }
@@ -930,8 +926,8 @@ class Recording {
         writePoolHeader(buf, T_METHOD, marked_count);
         for (MethodMap::iterator it = method_map->begin(); it != method_map->end(); ++it) {
             MethodInfo& mi = it->second;
-            if (it->second._status == MethodInfoStatus::DIRTY) {
-                mi._status = MethodInfoStatus::STALE;
+            if (mi._mark) {
+                mi._mark = false;
                 buf->putVar32(mi._key);
                 buf->putVar32(mi._class);
                 buf->putVar64(mi._name | _base_id);
@@ -1012,7 +1008,7 @@ class Recording {
         buf->put8(T_METHOD_TRACE);
         buf->putVar64(event->_start_time);
         buf->putVar64(event->_duration);
-        buf->putVar32(event->_method_pool_idx);
+        buf->putVar32(0); // TODO
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->put8(start, buf->offset() - start);
@@ -1173,7 +1169,7 @@ char* Recording::_jvm_flags = NULL;
 char* Recording::_java_command = NULL;
 
 
-Error FlightRecorder::start(Arguments& args, bool reset, MethodMap* method_map) {
+Error FlightRecorder::start(Arguments& args, bool reset) {
     const char* filename = args.file();
     if (filename == NULL || filename[0] == 0) {
         return Error("Flight Recorder output file is not specified");
@@ -1206,7 +1202,7 @@ Error FlightRecorder::start(Arguments& args, bool reset, MethodMap* method_map) 
         free(filename_tmp);
     }
 
-    _rec = new Recording(fd, master_recording_file, args, method_map);
+    _rec = new Recording(fd, master_recording_file, args);
     _rec_lock.unlock();
     return Error::OK;
 }

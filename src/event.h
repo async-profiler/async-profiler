@@ -48,11 +48,8 @@ class MethodTraceEvent : public Event {
   public:
     u64 _start_time;
     u64 _duration;
-    u32 _method_pool_idx;
 
-    MethodTraceEvent(u64 start_time, u64 duration, u32 method_pool_idx) : _start_time(start_time),
-                                                                          _duration(duration),
-                                                                          _method_pool_idx(method_pool_idx) {}
+    MethodTraceEvent(u64 start_time, u64 duration) : _start_time(start_time), _duration(duration) {}
 };
 
 class WallClockEvent : public Event {
