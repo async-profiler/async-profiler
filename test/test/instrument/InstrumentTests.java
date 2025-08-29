@@ -124,9 +124,7 @@ public class InstrumentTests {
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
-                String eventName = event.getEventType().getName();
-
-                if (eventName.equals("jdk.MethodTrace")) {
+                if (event.getEventType().getName().equals("jdk.MethodTrace")) {
                     found = true;
                     String repr = event.toString();
                     assert repr.contains("method = test.instrument.CpuBurner.burn(Duration)") : repr;
