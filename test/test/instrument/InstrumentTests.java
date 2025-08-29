@@ -206,7 +206,7 @@ public class InstrumentTests {
 
     private static void assertNoVerificationErrors(TestProcess p) throws IOException {
         String stdout = new String(Files.readAllBytes(p.getFile(TestProcess.STDOUT).toPath()));
-        assert !stdout.contains("[ERROR]") : stdout;
+        assert !stdout.contains("[ERROR]") && !stdout.contains("SIGSEGV") : stdout;
 
         String stderr = new String(Files.readAllBytes(p.getFile(TestProcess.STDERR).toPath()));
         assert stderr.isEmpty() : stderr;
