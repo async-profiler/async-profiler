@@ -1430,6 +1430,26 @@ void Profiler::printUsedMemory(Writer& out) {
     out << buf;
 }
 
+void Profiler::getMetrics(int* metrics) {
+    size_t call_trace_storage = _call_trace_storage.usedMemory() / 1024;
+    size_t flight_recording = _jfr.usedMemory() / 1024;
+    size_t dictionaries = (_class_map.usedMemory() + _symbol_map.usedMemory() + 
+                          _thread_filter.usedMemory()) / 1024;
+    
+    size_t code_cache = _runtime_stubs.usedMemory();
+    int native_lib_count = _native_libs.count();
+    for (int i = 0; i < native_lib_count; i++) {
+        code_cache += _native_libs[i]->usedMemory();
+    }
+    code_cache = (code_cache + native_lib_count * sizeof(CodeCache)) / 1024;
+    
+    metrics[0] = (int)call_trace_storage;
+    metrics[1] = (int)flight_recording;
+    metrics[2] = (int)dictionaries;
+    metrics[3] = (int)code_cache;
+    metrics[4] = (int)_failures[-ticks_skipped];
+}
+
 void Profiler::logStats() {
     if (!_features.stats) return;
 

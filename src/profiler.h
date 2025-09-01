@@ -96,6 +96,8 @@ class Profiler {
     const void* _call_stub_begin;
     const void* _call_stub_end;
 
+    int _metrics[5];  // Call trace storage, Flight recording, Dictionaries, Code cache, Discarded Samples
+
     // dlopen() hook support
     void** _dlopen_entry;
     static void* dlopen_hook(const char* filename, int flags);
@@ -212,6 +214,7 @@ class Profiler {
     void tryResetCounters();
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
+    void getMetrics(int* metrics);
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
