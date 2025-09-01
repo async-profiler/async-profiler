@@ -131,7 +131,7 @@ public class OtlpTests {
         return scopeProfiles.getProfiles(0);
     }
 
-    public static Optional<AnyValue> getAttribute(Sample sample, ProfilesDictionary dictionary, String name) {
+    static Optional<AnyValue> getAttribute(Sample sample, ProfilesDictionary dictionary, String name) {
         for (int index : sample.getAttributeIndicesList()) {
             KeyValue kv = dictionary.getAttributeTable(index);
             if (name.equals(kv.getKey())) {

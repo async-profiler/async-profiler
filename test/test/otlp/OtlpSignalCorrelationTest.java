@@ -61,16 +61,19 @@ public class OtlpSignalCorrelationTest {
         profiler.stop();
         
         assert data.getDictionary().getLinkTableCount() == 5 : 
-            data.getDictionary().getLinkTableCount();
+            "Expected 5 links in link_table, but got: " + data.getDictionary().getLinkTableCount();
         
         Profile profile = data.getResourceProfiles(0).getScopeProfiles(0).getProfiles(0);
         int samplesWithLinks = 0;
+
         for (Sample sample : profile.getSampleList()) {
             if (sample.getLinkIndex() > 0) {
                 samplesWithLinks++;
             }
         }
         assert samplesWithLinks > 4;
+
+        boolean foundTrace1 = false, foundTrace1Alt = false, foundTrace2 = false, foundTrace3 = false;
         
         for (Sample sample : profile.getSampleList()) {
             if (sample.getLinkIndex() >= 0) {
@@ -81,23 +84,33 @@ public class OtlpSignalCorrelationTest {
                     Link link = data.getDictionary().getLinkTable(sample.getLinkIndex());
                     String linkTrace = bytesToHex(link.getTraceId());
                     String linkSpan = bytesToHex(link.getSpanId());
+
+                    if (linkTrace.equals(TRACE_ID_1)) foundTrace1 = true;
+                    else if (linkTrace.equals(TRACE_ID_1_ALT)) foundTrace1Alt = true;
+                    else if (linkTrace.equals(TRACE_ID_2)) foundTrace2 = true;
+                    else if (linkTrace.equals(TRACE_ID_3)) foundTrace3 = true;
                     
                     if (threadName.equals("CorrelationThread1")) {
-                        assert linkTrace.equals("") && linkSpan.equals("") ||
-                            linkTrace.equals(TRACE_ID_1) && linkSpan.equals(SPAN_ID_1) ||
-                            linkTrace.equals(TRACE_ID_1_ALT) && linkSpan.equals(SPAN_ID_1_ALT);
+                        assert (linkTrace.equals("") && linkSpan.equals("")) ||
+                            (linkTrace.equals(TRACE_ID_1) && linkSpan.equals(SPAN_ID_1)) ||
+                            (linkTrace.equals(TRACE_ID_1_ALT) && linkSpan.equals(SPAN_ID_1_ALT));
                     } else if (threadName.equals("CorrelationThread2")) {
-                        assert linkTrace.equals("") && linkSpan.equals("") ||
-                            linkTrace.equals(TRACE_ID_2) && linkSpan.equals(SPAN_ID_2);
+                        assert (linkTrace.equals("") && linkSpan.equals("")) ||
+                            (linkTrace.equals(TRACE_ID_2) && linkSpan.equals(SPAN_ID_2));
                     } else if (threadName.equals("CorrelationThread3")) {
-                        assert linkTrace.equals("") && linkSpan.equals("") ||
-                            linkTrace.equals(TRACE_ID_3) && linkSpan.equals(SPAN_ID_3);
+                        assert (linkTrace.equals("") && linkSpan.equals("")) ||
+                            (linkTrace.equals(TRACE_ID_3) && linkSpan.equals(SPAN_ID_3));
                     } else {
                         assert linkTrace.equals("") && linkSpan.equals("");
                     }
                 }
             }
         }
+
+        assert foundTrace1 : "TRACE_ID_1 not found";
+        assert foundTrace1Alt : "TRACE_ID_1_ALT not found";
+        assert foundTrace2 : "TRACE_ID_2 not found";
+        assert foundTrace3 : "TRACE_ID_3 not found";
 
     }
 
