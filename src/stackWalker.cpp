@@ -257,6 +257,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         }
     }
 
+    const void* start_addr = NULL;
+
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
@@ -386,7 +388,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 }
             }
         } else {
-            fillFrame(frames[depth++], BCI_NATIVE_FRAME, profiler->findNativeMethod(pc));
+            fillFrame(frames[depth++], BCI_NATIVE_FRAME, profiler->findNativeMethod(pc, &start_addr));
         }
 
         uintptr_t prev_sp = sp;
@@ -438,6 +440,10 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 // Stack bottom
                 break;
             }
+        }
+
+        if (depth == 1 && start_addr && !frame.completeNativeFrame((uintptr_t)start_addr, (uintptr_t)prev_pc)) {
+            pc = (const void*)frame.link();
         }
 
         if (inDeadZone(pc) || (pc == prev_pc && sp == prev_sp)) {

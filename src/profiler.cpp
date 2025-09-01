@@ -291,9 +291,9 @@ CodeCache* Profiler::findLibraryByAddress(const void* address) {
     return NULL;
 }
 
-const char* Profiler::findNativeMethod(const void* address) {
+const char* Profiler::findNativeMethod(const void* address, const void** start_address) {
     CodeCache* lib = findLibraryByAddress(address);
-    return lib == NULL ? NULL : lib->binarySearch(address);
+    return lib == NULL ? NULL : lib->binarySearch(address, start_address);
 }
 
 CodeBlob* Profiler::findRuntimeStub(const void* address) {
@@ -340,9 +340,10 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
 int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type) {
     int depth = 0;
     jmethodID prev_method = NULL;
+    const void* start_addr;
 
     for (int i = 0; i < native_frames; i++) {
-        const char* current_method_name = findNativeMethod(callchain[i]);
+        const char* current_method_name = findNativeMethod(callchain[i], &start_addr);
         char mark;
         if (current_method_name != NULL && (mark = NativeFunc::mark(current_method_name)) != 0) {
             if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {

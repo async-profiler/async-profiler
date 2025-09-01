@@ -79,6 +79,8 @@ class StackFrame {
 
     bool checkInterruptedSyscall();
 
+    bool completeNativeFrame(uintptr_t start_addr, uintptr_t pc);
+
     // Check if PC points to a syscall instruction
     static bool isSyscall(instruction_t* pc);
 };

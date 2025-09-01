@@ -159,4 +159,8 @@ bool StackFrame::isSyscall(instruction_t* pc) {
     return (*pc & 0x1f) == 17;
 }
 
+bool completeNativeFrame(uintptr_t start_addr, uintptr_t pc) {
+    return true;
+}
+
 #endif // defined(__PPC64__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)

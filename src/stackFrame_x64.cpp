@@ -319,4 +319,8 @@ bool StackFrame::isSyscall(instruction_t* pc) {
     return pc[0] == 0x0f && pc[1] == 0x05;
 }
 
+bool completeNativeFrame(uintptr_t start_addr, uintptr_t pc) {
+    return true;
+}
+
 #endif // __x86_64__

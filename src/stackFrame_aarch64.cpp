@@ -402,4 +402,23 @@ bool StackFrame::isSyscall(instruction_t* pc) {
     return (*pc & 0xffffefff) == 0xd4000001;
 }
 
+bool StackFrame::completeNativeFrame(uintptr_t start_addr, uintptr_t pc) {
+    // {stack_bang}
+    // stp	x29, x30, [sp, #offset]
+
+    if (pc >= start_addr + 100) { // if PC has progressed enough distance from base, assume frame is complete
+        return true;
+    }
+
+    instruction_t* ip = (instruction_t*)pc - 1;
+    while (ip >= (instruction_t*)start_addr) {
+        if ((*ip & 0xff407fff) == 0xa9007bfd) { // stp	x29, x30, [sp, #offset]
+            return true;
+        }
+        ip--;
+    }
+
+    return false;
+}
+
 #endif // __aarch64__

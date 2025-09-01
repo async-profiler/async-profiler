@@ -130,7 +130,7 @@ CodeBlob* CodeCache::findBlobByAddress(const void* address) {
     return NULL;
 }
 
-const char* CodeCache::binarySearch(const void* address) {
+const char* CodeCache::binarySearch(const void* address, const void** start_address) {
     int low = 0;
     int high = _count - 1;
 
@@ -141,6 +141,7 @@ const char* CodeCache::binarySearch(const void* address) {
         } else if (_blobs[mid]._start > address) {
             high = mid - 1;
         } else {
+            *start_address = _blobs[mid]._start;
             return _blobs[mid]._name;
         }
     }
@@ -148,8 +149,10 @@ const char* CodeCache::binarySearch(const void* address) {
     // Symbols with zero size can be valid functions: e.g. ASM entry points or kernel code.
     // Also, in some cases (endless loop) the return address may point beyond the function.
     if (low > 0 && (_blobs[low - 1]._start == _blobs[low - 1]._end || _blobs[low - 1]._end == address)) {
+        *start_address = _blobs[low - 1]._start;
         return _blobs[low - 1]._name;
     }
+    *start_address = NULL;
     return _name;
 }
 
