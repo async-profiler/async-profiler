@@ -88,7 +88,6 @@ struct ProcessHistory {
 class ProcessSampler {
   private:
     static u64 _last_sample_time;
-    static u64 _next_sample_time;
     static std::unordered_map<int, ProcessHistory> _process_history;
 
     long _sampling_interval = -1;
@@ -107,16 +106,15 @@ class ProcessSampler {
     }
 
     void enable(const long sampling_interval) {
-        _sampling_interval = sampling_interval;
-        u64 expected_next = _last_sample_time + sampling_interval;
-        if (_next_sample_time != expected_next) {
+        if (_sampling_interval != sampling_interval) {
+            _sampling_interval = sampling_interval;
             _last_sample_time = 0;
             _process_history.clear();
         }
     }
 
     bool shouldSample(const u64 wall_time) const {
-        return _sampling_interval > 0 && wall_time >= _next_sample_time;
+        return _sampling_interval > 0 && wall_time >= _last_sample_time + _sampling_interval;
     }
 
     static double getRssUsagePercent(const ProcessInfo& info) {
@@ -153,27 +151,17 @@ class ProcessSampler {
         const int pid_count = OS::getProcessIds(_pids, MAX_PROCESSES);
         cleanupProcessHistory(pid_count);
         _last_sample_time = wall_time;
-        _next_sample_time = wall_time + _sampling_interval;
         return pid_count;
     }
 
     bool getProcessSample(int pid_index, u64 sampling_time, ProcessInfo& info) const {
         const int pid = _pids[pid_index];
-        if (OS::getBasicProcessInfo(pid, &info)) {
-            if (populateCpuPercent(info, sampling_time)) {
-                if (shouldIncludeProcess(info)) {
-                    OS::getDetailedProcessInfo(&info);
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return OS::getBasicProcessInfo(pid, &info) && populateCpuPercent(info, sampling_time) &&
+               shouldIncludeProcess(info) && OS::getDetailedProcessInfo(&info);
     }
 };
 
 u64 ProcessSampler::_last_sample_time = 0;
-u64 ProcessSampler::_next_sample_time = 0;
 std::unordered_map<int, ProcessHistory> ProcessSampler::_process_history;
 
 class Buffer {
