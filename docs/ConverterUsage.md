@@ -6,11 +6,13 @@ as a standalone Java application: [`jfr-converter.jar`](https://github.com/async
 
 ## Supported conversions
 
-| Source    | html | collapsed | pprof | pb.gz | heatmap | otlp |
-| --------- | ---- | --------- | ----- | ----- | ------- | ---- |
-| jfr       | ✅   | ✅        | ✅    | ✅    | ✅      | ✅   |
-| html      | ✅   | ✅        | ❌    | ❌    | ❌      | ❌   |
-| collapsed | ✅   | ✅        | ❌    | ❌    | ❌      | ❌   |
+The tool can convert several source formats into various outputs. The conversion capabilities are summarized below:
+
+| Source Format | to html | to collapsed | to pprof | to pb.gz | to heatmap | to otlp |
+| ------------- | ------- | ------------ | -------- | -------- | ---------- | ------- |
+| jfr           | ✅      | ✅           | ✅       | ✅       | ✅         | ✅      |
+| html          | ✅      | ✅           | ❌       | ❌       | ❌         | ❌      |
+| collapsed     | ✅      | ✅           | ❌       | ❌       | ❌         | ❌      |
 
 ## Usage
 
