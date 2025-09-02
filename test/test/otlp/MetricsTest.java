@@ -18,13 +18,13 @@ public class MetricsTest {
         System.out.println("Code cache: " + metrics1[3] + " KB");
         System.out.println("Discarded samples: " + metrics1[4]);
         
-        profiler.start("cpu", 1000000);
+        profiler.start("cpu,file=profile.jfr,jfr", 1000000);
         
         for (int i = 0; i < 1000000; i++) {
             Math.sqrt(i);
             CpuBurner.burn();
         }
-        
+        Thread.sleep(10000);
         profiler.stop();
         
         int[] metrics2 = profiler.getMetrics();
