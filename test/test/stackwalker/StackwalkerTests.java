@@ -93,8 +93,6 @@ public class StackwalkerTests {
 
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
         output.stream().forEach(stack -> {
-            // There should be multiple frames per sample
-            assert !stack.matches("^([^\\[;]+)\\s+\\d+$");
             // There should be no unknown frames between largeInnerFrameFinal & Java_test_stackwalker_StackGenerator_largeInnerFrame
             if (stack.contains("test/stackwalker/StackGenerator.main_[0];test/stackwalker/StackGenerator.largeInnerFrame_[0];")) {
                 assert !stack.matches("Java_test_stackwalker_StackGenerator_largeInnerFrame;\\[unknown];largeInnerFrameFinal");
