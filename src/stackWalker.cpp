@@ -179,7 +179,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
             if (EMPTY_FRAME_SIZE == 0 && depth == 1 && f->pc_off == DW_PC_RA) {
                 pc = (const void*)frame.link();
             } else if (f->pc_off != DW_PC_RA) {
-                pc = stripPointer(*(void**)(sp + f->pc_off));
+                pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
             } else {
                 break;
             }
@@ -425,7 +425,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
             if (EMPTY_FRAME_SIZE == 0 && depth == 1 && f->pc_off == DW_PC_RA) {
                 pc = (const void*)frame.link();
             } else if (f->pc_off != DW_PC_RA) {
-                pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
+                pc = stripPointer(*(void**)(sp + f->pc_off));
             } else {
                 break;
             }
