@@ -445,10 +445,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
             put8(JVM_OPC_invokestatic);
             put16(_cpool_len + 6);
             put8(JVM_OPC_nop);
-        } else if (isNarrowJump(opcode)) {
-            jumps.push_back((i + 1U) << 16 | i);
-            int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
-        } else if (isWideJump(opcode)) {
+        } else if (isNarrowJump(opcode) || isWideJump(opcode)) {
             jumps.push_back((i + 1U) << 16 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
             // 'default' lies after the padding
