@@ -417,7 +417,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
 
     u32 code_start = _dst_len;
 
-    // invokestatic "java/lang/System.nanoTime()V"
+    // invokestatic "java/lang/System.nanoTime()J"
     put8(JVM_OPC_invokestatic);
     put16(_cpool_len + 10);
 
