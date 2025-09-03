@@ -15,11 +15,21 @@ public class MethodTrace extends Event {
         this.duration = duration;
     }
 
-    public int method() {
-        return method;
+    @Override
+    public int hashCode() {
+        int result = 17;
+        result = 31 * result + time;
+        result = 31 * result + tid;
+        return result;
     }
 
-    public long duration() {
-        return duration;
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof MethodTrace)) {
+            return false;
+        }
+
+        MethodTrace m = (MethodTrace) o;
+        return m.time == time && m.tid == m.tid;
     }
 }
