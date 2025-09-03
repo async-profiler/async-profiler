@@ -8,6 +8,11 @@
 #include "classfile_constants.h"
 #include "instrument.h"
 
+u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new,
+                       u16 offset_delta_old, const u16* relocation_table);
+u8 parameterSlots(const char* method_sig);
+u16 instructionBytes(const u8* code, u16 index);
+
 TEST_CASE(Instrument_test_updateCurrentFrame_start) {
     int32_t current_frame_old = -1;
     int32_t current_frame_new = -1;
