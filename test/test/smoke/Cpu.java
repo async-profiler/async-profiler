@@ -6,25 +6,32 @@
 package test.smoke;
 
 import java.io.File;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Cpu {
     private static volatile int value;
 
     private static void method1() {
-        for (int i = 0; i < 1000000; i++) {
-            value++;
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < 20) {
+            for (int i = 0; i < 1000000; i++) {
+                value += ThreadLocalRandom.current().nextInt();
+            }
         }
     }
 
     private static void method2() {
-        for (int i = 0; i < 1000000; i++) {
-            value++;
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < 20) {
+            for (int i = 0; i < 1000000; i++) {
+                value += ThreadLocalRandom.current().nextInt();
+            }
         }
     }
 
-    private static void method3() throws Exception {
+    private static void method3() {
         long startTime = System.currentTimeMillis();
-        while (System.currentTimeMillis() - startTime < 10) {
+        while (System.currentTimeMillis() - startTime < 20) {
             for (String s : new File("/").list()) {
                 value += s.hashCode();
             }
