@@ -137,6 +137,21 @@ enum PatchConstants {
     EXTRA_BYTECODES_INDEXED = 4
 };
 
+static u16 get16(const u8* ptr) {
+    return ntohs(*(u16*)ptr);
+}
+
+static u32 get32(const u8* ptr) {
+    return ntohl(*(u32*)ptr);
+}
+
+static void put16(u16 v, u8* ptr) {
+    *(u16*)ptr = htons(v);
+}
+
+static void put32(u32 v, u8* ptr) {
+    *(u32*)ptr = htonl(v);
+}
 
 class BytecodeRewriter {
   private:
@@ -172,11 +187,11 @@ class BytecodeRewriter {
     }
 
     u16 get16() {
-        return ntohs(*(u16*)get(2));
+        return ::get16(get(2));
     }
 
     u32 get32() {
-        return ntohl(*(u32*)get(4));
+        return ::get32(get(4));
     }
 
     u64 get64() {
@@ -219,11 +234,11 @@ class BytecodeRewriter {
     }
 
     void put16(u16 v) {
-        *(u16*)alloc(2) = htons(v);
+        ::put16(v, alloc(2));
     }
 
     void put32(u32 v) {
-        *(u32*)alloc(4) = htonl(v);
+        ::put32(v, alloc(4));
     }
 
     void put64(u64 v) {
@@ -322,14 +337,14 @@ inline u16 instructionBytes(const u8* code, u16 index) {
             return code[index + 1] == JVM_OPC_iinc ? 6 : 4;
         case JVM_OPC_tableswitch: {
             u16 default_index = alignUp4(index);
-            int32_t l = ntohl(*(u32*)(code + default_index + 4));
-            int32_t h = ntohl(*(u32*)(code + default_index + 8));
+            int32_t l = get32(code + default_index + 4);
+            int32_t h = get32(code + default_index + 8);
             u16 branches_count = h - l + 1;
             return default_index - index + (3 + branches_count) * 4;
         }
         case JVM_OPC_lookupswitch: {
             u16 default_index = alignUp4(index);
-            u16 npairs = (u16) ntohl(*(u32*)(code + default_index + 4));
+            u16 npairs = (u16) get32(code + default_index + 4);
             return default_index - index + (npairs + 1) * 8;
         }
         default:
@@ -387,7 +402,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     }
 
     // Fix code length, we now know the real relocation
-    *(u32*)(_dst + code_length_idx) = htonl(code_length + relocation);
+    ::put32(code_length + relocation, _dst + code_length_idx);
 
     u16 exception_table_length = get16();
     put16(exception_table_length);
@@ -407,7 +422,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     delete[] relocation_table;
 
     // Patch attribute length
-    *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
+    ::put32(_dst_len - code_begin, _dst + code_begin - 4);
 }
 
 // Return the relocation after the last byte of code
@@ -453,9 +468,9 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
             // 4 bytes: default
             jumps.push_back((u32) default_index << 16 | i);
             // 4 bytes: low
-            int32_t l = ntohl(*(u32*)(code + default_index + 4));
+            int32_t l = ::get32(code + default_index + 4);
             // 4 bytes: high
-            int32_t h = ntohl(*(u32*)(code + default_index + 8));
+            int32_t h = ::get32(code + default_index + 8);
             assert(h - l + 1 >= 0);
             assert(h - l + 1 <= 0xFFFF);
             u16 branches_base_index = default_index + 12;
@@ -468,7 +483,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
             // 4 bytes: default
             jumps.push_back((u32) default_index << 16 | i);
             // 4 bytes: npairs
-            u16 npairs = (u16) ntohl(*(u32*)(code + default_index + 4));
+            u16 npairs = (u16) ::get32(code + default_index + 4);
             u16 branches_base_index = default_index + 12;
             for (u16 c = 0; c < npairs; ++c) {
                 u16 pair_base = branches_base_index + c * 8;
@@ -523,10 +538,10 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
             }
         } else if (opcode == JVM_OPC_wide) {
             u16 back = bc - 2;
-            u16 index = ntohs(*(u16*)(code + i - back));
+            u16 index = ::get16(code + i - back);
             if (index >= start_time_loc_index) {
                 index += 2;
-                *(u16*)(_dst + _dst_len - back) = htons(index);
+                ::put16(index, _dst + _dst_len - back);
             }
         }
     }
@@ -551,9 +566,9 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
         bool is_narrow = isNarrowJump(*new_jump_base_ptr);
         int32_t old_offset;
         if (is_narrow) {
-            old_offset = (int32_t) (int16_t) ntohs(*(u16*)(code + old_jump_offset_idx));
+            old_offset = (int32_t) (int16_t) ::get16(code + old_jump_offset_idx);
         } else {
-            old_offset = (int32_t) ntohl(*(u32*)(code + old_jump_offset_idx));
+            old_offset = (int32_t) ::get32(code + old_jump_offset_idx);
         }
 
         u16 old_jump_target = (u16) (old_jump_base_idx + old_offset);
@@ -569,9 +584,9 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
                 memset(relocation_table, 0, sizeof(relocation_table[0]) * (code_length + 1));
                 return 0;
             }
-            *(u16*)(new_jump_offset_ptr) = htons((u16) new_offset);
+            ::put16(new_offset, new_jump_offset_ptr);
         } else {
-            *(u32*)(new_jump_offset_ptr) = htonl((u32) new_offset);
+            ::put32((u32) new_offset, new_jump_offset_ptr);
         }
     }
 
@@ -730,7 +745,7 @@ void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, int new
     }
 
     // Patch attribute length and number of entries
-    *(u32*)(_dst + attribute_start_idx - 4) = htonl(_dst_len - attribute_start_idx);
+    ::put32(_dst_len - attribute_start_idx, _dst + attribute_start_idx - 4);
 }
 
 u8 BytecodeRewriter::rewriteVerificationTypeInfo(const u16* relocation_table) {
