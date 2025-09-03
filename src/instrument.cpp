@@ -926,14 +926,9 @@ Error Instrument::check(Arguments& args) {
         _instrument_class_loaded = true;
     }
 
-    if (args._latency >= 0) {
-        if (args._interval > 0) {
-            return Error("latency and interval cannot both be positive");
-        }
-    } else if (args._interval < 0) {
+    if (args._latency < 0 && args._interval < 0) {
         return Error("interval must be positive");
     }
-
     return Error::OK;
 }
 
@@ -944,13 +939,8 @@ Error Instrument::start(Arguments& args) {
     }
 
     setupTargetClassAndMethod(args._event);
-    if (args._latency >= 0) {
-        _latency = args._latency;
-        _interval = 0;
-    } else {
-        _latency = -1;
-        _interval = args._interval ? args._interval : 1;
-    }
+    _latency = args._latency;
+    _interval = args._interval ? args._interval : 1;
     _calls = 0;
     _running = true;
 
@@ -1046,7 +1036,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
-    if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
+    if (shouldRecordSample()) {
         ExecutionEvent event(TSC::ticks());
         Profiler::instance()->recordSample(NULL, _interval, INSTRUMENTED_METHOD, &event);
     }
@@ -1056,7 +1046,7 @@ void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTime
     if (!_enabled) return;
 
     u64 duration_ns = OS::nanotime() - (u64) startTimeNanos;
-    if (duration_ns >= _latency) {
+    if (duration_ns >= _latency && shouldRecordSample()) {
         u64 now_ticks = TSC::ticks();
         u64 duration_ticks = (u64) ((double) duration_ns * TSC::frequency() / NANOTIME_FREQ);
         MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks);

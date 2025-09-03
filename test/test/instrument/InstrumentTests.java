@@ -109,6 +109,21 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
+        agentArgs = "start,event=test.instrument.CpuBurner.burn,latency=100ms,interval=2,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all",
+        output    = true,
+        error     = true
+    )
+    public void latencyAndInterval(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p);
+        assert p.exitCode() == 0;
+
+        assert out.samples(".*;test\\/instrument\\/CpuBurner\\.burn") == 1;
+    }
+
+    @Test(
+        mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,jfr,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,

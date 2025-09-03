@@ -34,6 +34,10 @@ class Instrument : public Engine {
         return "calls";
     }
 
+    static bool shouldRecordSample() {
+        return _interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0;
+    }
+
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
