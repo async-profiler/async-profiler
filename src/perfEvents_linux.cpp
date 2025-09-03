@@ -5,7 +5,6 @@
 
 #ifdef __linux__
 
-#include <jvmti.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -17,7 +16,6 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
-#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
 #include "arch.h"

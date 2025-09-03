@@ -5,12 +5,10 @@
 
 #include <algorithm>
 #include <dlfcn.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <time.h>
 #include "index.h"
 #include "profiler.h"
@@ -21,7 +19,6 @@
 #include "lockTracer.h"
 #include "wallClock.h"
 #include "j9ObjectSampler.h"
-#include "j9StackTraces.h"
 #include "j9WallClock.h"
 #include "instrument.h"
 #include "itimer.h"
