@@ -32,4 +32,9 @@ public class MethodTrace extends Event {
         MethodTrace m = (MethodTrace) o;
         return m.time == time && m.tid == m.tid;
     }
+
+    @Override
+    public long value() {
+        return duration;
+    }
 }
