@@ -6,8 +6,8 @@
 package one.jfr.event;
 
 public class MethodTrace extends Event {
-    private final int method;
-    private final long duration;
+    public final int method;
+    public final long duration;
 
     public MethodTrace(long time, int tid, int stackTraceId, int method, long duration) {
         super(time, tid, stackTraceId);
@@ -17,20 +17,16 @@ public class MethodTrace extends Event {
 
     @Override
     public int hashCode() {
-        int result = 17;
-        result = 31 * result + (int) time;
-        result = 31 * result + tid;
-        return result;
+        return method * 127 + stackTraceId;
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof MethodTrace)) {
-            return false;
+    public boolean sameGroup(Event o) {
+        if (o instanceof MethodTrace) {
+            MethodTrace c = (MethodTrace) o;
+            return method == c.method;
         }
-
-        MethodTrace m = (MethodTrace) o;
-        return m.time == time && m.tid == m.tid;
+        return false;
     }
 
     @Override
