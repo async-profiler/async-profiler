@@ -86,7 +86,7 @@ public class StackwalkerTests {
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "largeInnerFrame",
-            agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr")
+            agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr")
     public void largeInnerFrameVM(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;

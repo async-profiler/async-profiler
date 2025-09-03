@@ -423,7 +423,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         } else {
             // Adjust FP
             if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
-                fp = (uintptr_t)SafeAccess::load((void**)(sp + f->fp_off));
+                fp = *(uintptr_t*)(sp + f->fp_off);
             }
 
             // Adjust PC
