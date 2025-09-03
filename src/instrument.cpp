@@ -318,8 +318,7 @@ inline u16 instructionBytes(const u8* code, u16 index) {
     static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
     u8 opcode = code[index];
     if (opcode == JVM_OPC_wide) {
-        if (code[index+1] == JVM_OPC_iinc) return 6;
-        return 4;
+        return code[index + 1] == JVM_OPC_iinc ? 6 : 4;
     }
     if (opcode == JVM_OPC_tableswitch) {
         u16 default_index = alignUp4(index);
