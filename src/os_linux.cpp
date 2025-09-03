@@ -466,7 +466,6 @@ u64 OS::getSystemBootTime() {
         if (!file) return 0;
 
         char line[1024];
-        char key[6];
         while (fgets(line, sizeof(line), file)) {
             if (strncmp(line, "btime", 5) == 0) {
                 system_boot_time = strtoull(line + 5, NULL, 10);
