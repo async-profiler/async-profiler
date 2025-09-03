@@ -317,25 +317,26 @@ static inline bool isWideJump(u8 opcode) {
 inline u16 instructionBytes(const u8* code, u16 index) {
     static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
     u8 opcode = code[index];
-    if (opcode == JVM_OPC_wide) {
-        return code[index + 1] == JVM_OPC_iinc ? 6 : 4;
+    switch (opcode) {
+        case JVM_OPC_wide:
+            return code[index + 1] == JVM_OPC_iinc ? 6 : 4;
+        case JVM_OPC_tableswitch: {
+            u16 default_index = alignUp4(index);
+            int32_t l = ntohl(*(u32*)(code + default_index + 4));
+            int32_t h = ntohl(*(u32*)(code + default_index + 8));
+            u16 branches_count = h - l + 1;
+            return default_index - index + (3 + branches_count) * 4;
+        }
+        case JVM_OPC_lookupswitch: {
+            u16 default_index = alignUp4(index);
+            u16 npairs = (u16) ntohl(*(u32*)(code + default_index + 4));
+            return default_index - index + (npairs + 1) * 8;
+        }
+        default:
+            assert(opcode < JVM_OPC_MAX+1);
+            return OPCODE_LENGTH[opcode];
     }
-    if (opcode == JVM_OPC_tableswitch) {
-        u16 default_index = alignUp4(index);
-        int32_t l = ntohl(*(u32*)(code + default_index + 4));
-        int32_t h = ntohl(*(u32*)(code + default_index + 8));
-        u16 branches_count = h - l + 1;
-        return default_index - index + (3 + branches_count) * 4;
-    }
-    if (opcode == JVM_OPC_lookupswitch) {
-        u16 default_index = alignUp4(index);
-        u16 npairs = (u16) ntohl(*(u32*)(code + default_index + 4));
-        return default_index - index + (npairs + 1) * 8;
-    }
-    assert(opcode < JVM_OPC_MAX+1);
-    return OPCODE_LENGTH[opcode];
 }
-
 
 void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     u32 attribute_length = get32();
