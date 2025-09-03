@@ -15,6 +15,7 @@ const int DW_REG_INVALID = 255;  // denotes unsupported configuration
 
 const int DW_PC_OFFSET = 1;
 const int DW_SAME_FP = 0x80000000;
+const int DW_PC_RA = 0x80000000;
 const int DW_STACK_SLOT = sizeof(void*);
 
 
@@ -27,6 +28,7 @@ const int DW_REG_SP = 7;
 const int DW_REG_PC = 16;
 const int EMPTY_FRAME_SIZE = DW_STACK_SLOT;
 const int LINKED_FRAME_SIZE = 2 * DW_STACK_SLOT;
+const int DEFAULT_PC_OFF = -EMPTY_FRAME_SIZE;
 
 #elif defined(__i386__)
 
@@ -37,6 +39,7 @@ const int DW_REG_SP = 4;
 const int DW_REG_PC = 8;
 const int EMPTY_FRAME_SIZE = DW_STACK_SLOT;
 const int LINKED_FRAME_SIZE = 2 * DW_STACK_SLOT;
+const int DEFAULT_PC_OFF = -EMPTY_FRAME_SIZE;
 
 #elif defined(__aarch64__)
 
@@ -47,6 +50,7 @@ const int DW_REG_SP = 31;
 const int DW_REG_PC = 30;
 const int EMPTY_FRAME_SIZE = 0;
 const int LINKED_FRAME_SIZE = 0;
+const int DEFAULT_PC_OFF = DW_PC_RA;
 
 #else
 
@@ -57,6 +61,7 @@ const int DW_REG_SP = 1;
 const int DW_REG_PC = 2;
 const int EMPTY_FRAME_SIZE = 0;
 const int LINKED_FRAME_SIZE = 0;
+const int DEFAULT_PC_OFF = DW_PC_RA;
 
 #endif
 

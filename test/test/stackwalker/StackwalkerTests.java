@@ -84,4 +84,21 @@ public class StackwalkerTests {
                 "Java_test_stackwalker_StackGenerator_leafFrame;" +
                 "doCpuTask");
     }
+
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "largeInnerFrame",
+            agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr")
+    public void largeInnerFrameVM(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
+        output.stream().forEach(stack -> {
+            // There should be multiple frames per sample
+            assert !stack.matches("^([^\\[;]+)\\s+\\d+$");
+            // There should be no unknown frames between largeInnerFrameFinal & Java_test_stackwalker_StackGenerator_largeInnerFrame
+            if (stack.contains("test/stackwalker/StackGenerator.main_[0];test/stackwalker/StackGenerator.largeInnerFrame_[0];")) {
+                assert !stack.matches("Java_test_stackwalker_StackGenerator_largeInnerFrame;\\[unknown];largeInnerFrameFinal");
+            }
+        });
+    }
 }
