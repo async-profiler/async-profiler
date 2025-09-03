@@ -18,7 +18,7 @@ public class MethodTrace extends Event {
     @Override
     public int hashCode() {
         int result = 17;
-        result = 31 * result + time;
+        result = 31 * result + (int) time;
         result = 31 * result + tid;
         return result;
     }

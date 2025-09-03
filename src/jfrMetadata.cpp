@@ -206,9 +206,9 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << category("Java Virtual Machine", "Method Tracing")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
                 << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
-                << field("method", T_METHOD, "Method", F_CPOOL)
-                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL))
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("method", T_METHOD, "Method", F_CPOOL))
 
             << (type("profiler.Log", T_LOG, "Log Message")
                 << category("Profiler")
