@@ -175,7 +175,7 @@ public class JfrReader implements Closeable {
 
             if (type == executionSample || type == nativeMethodSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(false);
-            } if (type == methodTrace) {
+            } else if (type == methodTrace) {
                 if (cls == null || cls == MethodTrace.class) return (E) readMethodTrace();
             } else if (type == wallClockSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(true);
