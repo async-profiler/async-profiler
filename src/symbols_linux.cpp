@@ -275,6 +275,7 @@ class ElfParser {
     void loadSymbolTable(const char* symbols, size_t total_size, size_t ent_size, const char* strings);
     void addRelocationSymbols(ElfSection* reltab, const char* plt);
     const char* getDebuginfodCache();
+    void parseDebugFrameSection();
 
   public:
     static void parseProgramHeaders(CodeCache* cc, const char* base, const char* end, bool relocate_dyn);
@@ -454,18 +455,36 @@ void ElfParser::parseDynamicSection() {
 }
 
 void ElfParser::parseDwarfInfo() {
-    if (!DWARF_SUPPORTED) return;
+    if (!DWARF_SUPPORTED || _cc->hasDwarfTable()) return;
 
     ElfProgramHeader* eh_frame_hdr = findProgramHeader(PT_GNU_EH_FRAME);
     if (eh_frame_hdr != NULL) {
         if (eh_frame_hdr->p_vaddr != 0) {
-            DwarfParser dwarf(_cc->name(), _base, at(eh_frame_hdr));
+            DwarfParser dwarf(_cc->name(), _base);
+            dwarf.parseEhFrameHdr(at(eh_frame_hdr));
             _cc->setDwarfTable(dwarf.table(), dwarf.count());
         } else if (strcmp(_cc->name(), "[vdso]") == 0) {
             FrameDesc* table = (FrameDesc*)malloc(sizeof(FrameDesc));
             *table = FrameDesc::empty_frame;
             _cc->setDwarfTable(table, 1);
         }
+    }
+}
+
+
+void ElfParser::parseDebugFrameSection() {
+    if (_cc->hasDwarfTable()) {
+        return;
+    }
+    ElfSection* debug_frame_section = findSection(SHT_PROGBITS, ".debug_frame");
+    if (debug_frame_section != NULL) {
+        if (debug_frame_section->sh_size > 0) {
+            const char* section_start = at(debug_frame_section);
+            DwarfParser dwarf(_cc->name(), _base);
+            dwarf.parseDebugFrame(section_start, section_start + debug_frame_section->sh_size);
+            _cc->setDwarfTable(dwarf.table(), dwarf.count());
+        }
+        return;
     }
 }
 
@@ -492,12 +511,12 @@ void ElfParser::loadSymbols(bool use_debug) {
         ElfSection* strtab = section(symtab->sh_link);
         loadSymbolTable(at(symtab), symtab->sh_size, symtab->sh_entsize, at(strtab));
         _cc->setDebugSymbols(true);
-    } else if (use_debug) {
-        // Try to load symbols from an external debuginfo library
-        loadSymbolsUsingBuildId() || loadSymbolsUsingDebugLink();
     }
 
     if (use_debug) {
+        // Try to load symbols from an external debuginfo library
+        loadSymbolsUsingBuildId() || loadSymbolsUsingDebugLink();
+
         // Synthesize names for PLT stubs
         ElfSection* plt = findSection(SHT_PROGBITS, ".plt");
         if (plt != NULL) {
@@ -508,6 +527,8 @@ void ElfParser::loadSymbols(bool use_debug) {
             }
         }
     }
+
+    parseDebugFrameSection();
 }
 
 const char* ElfParser::getDebuginfodCache() {
