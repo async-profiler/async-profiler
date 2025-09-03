@@ -428,8 +428,8 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
     put16(JVM_OPC_nop);
     put8(JVM_OPC_nop);
 
-    // Low 16 bits: jump base index
-    // High 16 bits: jump offset index
+    // Low 16 bytes: jump base index
+    // High 16 bytes: jump offset index
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
     std::vector<u32> jumps;
     // First scan: fill relocation_table and rewrite code.
@@ -453,11 +453,11 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
         } else if (opcode == JVM_OPC_tableswitch) {
             // 'default' lies after the padding
             u16 default_index = alignUp4(i);
-            // 4 bits: default
+            // 4 bytes: default
             jumps.push_back((u32) default_index << 16 | i);
-            // 4 bits: low
+            // 4 bytes: low
             int32_t l = ntohl(*(u32*)(code + default_index + 4));
-            // 4 bits: high
+            // 4 bytes: high
             int32_t h = ntohl(*(u32*)(code + default_index + 8));
             assert(h - l + 1 >= 0);
             assert(h - l + 1 <= 0xFFFF);
@@ -468,15 +468,15 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
         } else if (opcode == JVM_OPC_lookupswitch) {
             // 'default' lies after the padding
             u16 default_index = alignUp4(i);
-            // 4 bits: default
+            // 4 bytes: default
             jumps.push_back((u32) default_index << 16 | i);
-            // 4 bits: npairs
+            // 4 bytes: npairs
             u16 npairs = (u16) ntohl(*(u32*)(code + default_index + 4));
             u16 branches_base_index = default_index + 12;
             for (u16 c = 0; c < npairs; ++c) {
                 u16 pair_base = branches_base_index + c * 8;
-                // 4 bits: match
-                // 4 bits: offset
+                // 4 bytes: match
+                // 4 bytes: offset
                 jumps.push_back((u32) pair_base << 16 | i);
             }
         }
