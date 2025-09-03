@@ -157,7 +157,7 @@ class BytecodeRewriter {
     const char* _target_signature;
     u16 _target_signature_len;
 
-    bool _latency_profiling = false;
+    bool _latency_profiling;
 
     // Reader
 
