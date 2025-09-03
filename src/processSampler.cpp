@@ -4,7 +4,7 @@
  */
 #include "processSampler.h"
 
-const float MIN_CPU_THRESHOLD = 5.0f;         // Minimum % cpu utilization to include results
+const float MIN_CPU_THRESHOLD = 0.05f;        // Minimum 5% cpu utilization to include results
 const float MIN_RSS_PERCENT_THRESHOLD = 5.0f; // Minimum % rss usage to include results
 
 u64 ProcessSampler::_last_sample_time = 0;
@@ -12,7 +12,7 @@ std::unordered_map<int, ProcessHistory> ProcessSampler::_process_history;
 
 double ProcessSampler::getRssUsagePercent(const ProcessInfo& info) {
     const u64 ram_size = OS::getRamSize();
-    if (ram_size <= 0 || info.vm_rss <= 0) return 0.0;
+    if (ram_size == 0 || info.vm_rss == 0) return 0.0;
 
     return (double)info.vm_rss / ram_size * 100;
 }
@@ -33,14 +33,14 @@ bool ProcessSampler::populateCpuPercent(ProcessInfo& info, const u64 sampling_ti
 
     const float delta_cpu = current_cpu_total - history.prev_cpu_total;
     const u64 delta_time = sampling_time - history.prev_timestamp;
-    info.cpu_percent = (delta_cpu * 1.0e9f / delta_time) * 100.0;
+    info.cpu_percent = delta_cpu * 1e9f / delta_time;
 
     history.prev_cpu_total = current_cpu_total;
     history.prev_timestamp = sampling_time;
     return true;
 }
 
-int ProcessSampler::getSampledProcessCount(u64 wall_time) {
+int ProcessSampler::sampleProcesses(u64 wall_time) {
     const int pid_count = OS::getProcessIds(_pids, MAX_PROCESSES);
     cleanupProcessHistory(pid_count);
     _last_sample_time = wall_time;

@@ -28,11 +28,11 @@ enum ThreadState {
 struct ProcessInfo {
     int pid = 0;
     int ppid = 0;
-    char name[16] = {};      // Process name from /proc/{pid}/stats
-    char cmdline[2048] = {}; // Command line from /proc/{pid}/cmdline
+    char name[16];           // Process name from /proc/{pid}/stats
+    char cmdline[2048];      // Command line from /proc/{pid}/cmdline
     unsigned int uid = 0;    // User ID
     unsigned char state = 0; // Process state (R, S, D, Z, T, etc.)
-    u64 start_time = 0;      // Process start time (seconds since epoch)
+    u64 start_time = 0;      // Process start time (milliseconds since epoch)
 
     // CPU & thread stats
     float cpu_user = 0;    // User CPU time (seconds)
@@ -40,7 +40,7 @@ struct ProcessInfo {
     float cpu_percent = 0; // CPU utilization percentage
     int threads = 0;       // Number of threads
 
-    // Memory stats (in KB)
+    // Memory stats (in bytes)
     u64 vm_size = 0;   // Total virtual memory size
     u64 vm_rss = 0;    // Resident memory size
     u64 rss_anon = 0;  // Resident anonymous memory

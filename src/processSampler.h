@@ -21,7 +21,7 @@ struct ProcessHistory {
 };
 
 class ProcessSampler {
-private:
+  private:
     static u64 _last_sample_time;
     static std::unordered_map<int, ProcessHistory> _process_history;
 
@@ -33,10 +33,10 @@ private:
     static bool populateCpuPercent(ProcessInfo& info, u64 sampling_time);
     void cleanupProcessHistory(int pid_count);
 
-public:
+  public:
     void enable(long sampling_interval);
     bool shouldSample(u64 wall_time) const;
-    int getSampledProcessCount(u64 wall_time);
+    int sampleProcesses(u64 wall_time);
     bool getProcessSample(int pid_index, u64 sampling_time, ProcessInfo& info);
 };
 #endif // _PROCESSSAMPLER_H

@@ -444,10 +444,9 @@ u64 OS::getRamSize() {
         if (!file) return 0;
 
         char line[1024];
-        char key[6];
         while (fgets(line, sizeof(line), file)) {
             if (strncmp(line, "MemTotal:", 9) == 0) {
-                mem_total = strtoull(line + 9, NULL, 10);
+                mem_total = strtoull(line + 9, NULL, 10) * 1024;
                 break;
             }
         }
@@ -598,11 +597,10 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     info->cpu_user = (float)utime / OS::clock_ticks_per_sec;
     info->cpu_system = (float)stime / OS::clock_ticks_per_sec;
     info->threads = threads;
-    // (23) vsize convert from bytes to kB
-    info->vm_size = vsize >> 10;
-    // (24) rss - convert from number of pages to kB
-    info->vm_rss = (rss * OS::page_size) >> 10;
-    info->start_time = OS::getSystemBootTime() + starttime / OS::clock_ticks_per_sec;
+    info->vm_size = vsize;
+    // (24) rss - convert from number of pages to bytes
+    info->vm_rss = rss * OS::page_size;
+    info->start_time = (OS::getSystemBootTime() + starttime / OS::clock_ticks_per_sec) * 1000;
     return true;
 }
 
@@ -628,19 +626,19 @@ bool readProcessStatus(int pid, ProcessInfo* info) {
             info->uid = (unsigned int)value;
         } else if (strncmp(key, "RssAnon", 7) == 0) {
             read_count++;
-            info->rss_anon = value;
+            info->rss_anon = value * 1024;
         } else if (strncmp(key, "RssFile", 7) == 0) {
             read_count++;
-            info->rss_files = value;
+            info->rss_files = value * 1024;
         } else if (strncmp(key, "RssShmem", 8) == 0) {
             read_count++;
-            info->rss_shmem = value;
+            info->rss_shmem = value * 1024;
         } else if (strncmp(key, "VmSize", 6) == 0) {
             read_count++;
-            info->vm_size = value;
+            info->vm_size = value * 1024;
         } else if (strncmp(key, "VmRSS", 5) == 0) {
             read_count++;
-            info->vm_rss = value;
+            info->vm_rss = value * 1024;
         }
     }
 
