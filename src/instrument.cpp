@@ -505,8 +505,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
                 if (index <= 3) {
                     _dst[_dst_len - 1] = opcode + 2;
                 } else {
-                    u8 new_opcode = (opcode <= JVM_OPC_aload_3 ? JVM_OPC_iload : JVM_OPC_istore) +
-                                    (opcode - base) / 4;
+                    u8 new_opcode = base - (JVM_OPC_iload_0 - JVM_OPC_iload) + (opcode - base) / 4;
                     _dst[_dst_len - 1] = new_opcode;
                     put8(index);
                     put8(JVM_OPC_nop);
