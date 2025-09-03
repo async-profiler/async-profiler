@@ -49,7 +49,7 @@ class Instrument : public Engine {
                                           jint* new_class_data_len, u8** new_class_data);
 
     static void JNICALL recordEntry(JNIEnv* jni, jobject unused);
-    static void JNICALL recordExit(JNIEnv* jni, jobject unused, jlong);
+    static void JNICALL recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos);
 };
 
 u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new,
