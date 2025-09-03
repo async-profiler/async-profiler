@@ -5,8 +5,6 @@
 
 #include <assert.h>
 #include <map>
-#include <unordered_map>
-#include <unordered_set>
 #include <string>
 #include <arpa/inet.h>
 #include <errno.h>

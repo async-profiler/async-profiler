@@ -7,7 +7,6 @@
 #define _PROCESSSAMPLER_H
 
 #include <unordered_map>
-#include <unordered_set>
 #include "os.h"
 
 const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
@@ -39,4 +38,5 @@ class ProcessSampler {
     int sampleProcesses(u64 wall_time);
     bool getProcessSample(int pid_index, u64 sampling_time, ProcessInfo& info);
 };
+
 #endif // _PROCESSSAMPLER_H

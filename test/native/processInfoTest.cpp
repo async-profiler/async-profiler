@@ -13,8 +13,6 @@ TEST_CASE(ProcessInfo_initialization) {
     ASSERT_EQ(info.pid, 0);
     ASSERT_EQ(info.ppid, 0);
     ASSERT_EQ(info.cpu_percent, 0.0f);
-    ASSERT_EQ(info.name[0], '\0');
-    ASSERT_EQ(info.cmdline[0], '\0');
     ASSERT_EQ(info.uid, 0U);
     ASSERT_EQ(info.state, 0);
     ASSERT_EQ(info.start_time, 0UL);

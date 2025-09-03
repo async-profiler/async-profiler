@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "processSampler.h"
+#include <unordered_set>
 
 const float MIN_CPU_THRESHOLD = 0.05f;        // Minimum 5% cpu utilization to include results
 const float MIN_RSS_PERCENT_THRESHOLD = 5.0f; // Minimum % rss usage to include results
