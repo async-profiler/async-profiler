@@ -92,6 +92,6 @@ public class StackwalkerTests {
         assert p.exitCode() == 0;
 
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert !output.contains("Java_test_stackwalker_StackGenerator_largeInnerFrame;\\[unknown\\];largeInnerFrameFinal");
+        assert !output.contains("Java_test_stackwalker_StackGenerator_largeInnerFrame;unknown;largeInnerFrameFinal");
     }
 }
