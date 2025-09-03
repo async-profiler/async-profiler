@@ -975,7 +975,10 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
     jclass* classes;
     jvmtiError error;
     if ((error = jvmti->GetLoadedClasses(&class_count, &classes)) != 0) {
-        Log::error("JVMTI error %d occurred while calling GetLoadedClasses, aborting", error);
+        char *error_name;
+        jvmti->GetErrorName(error, &error_name);
+        Log::error("JVMTI error %s occurred while calling GetLoadedClasses, aborting", error_name);
+        jvmti->Deallocate((unsigned char*)error_name);
         return;
     }
 
