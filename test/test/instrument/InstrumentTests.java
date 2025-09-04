@@ -127,8 +127,7 @@ public class InstrumentTests {
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,jfr,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
-        error     = true,
-        jvmVer    = {17, Integer.MAX_VALUE}
+        error     = true
     )
     public void latencyJfr(TestProcess p) throws Exception {
         p.waitForExit();
