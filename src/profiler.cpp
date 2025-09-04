@@ -1724,7 +1724,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
             
             // To be written below in Profile.location_indices
             location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
-            frames_seen++;
+            ++frames_seen;
         }
 
         otlp_buffer.field(Sample::locations_start_index, locations_start_index);
@@ -1733,7 +1733,6 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         if (thread_name_idx != 0) {
             otlp_buffer.field(Sample::attribute_indices, thread_name_idx);
         }
-        
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
         otlp_buffer.putVarInt(cts->counter);
