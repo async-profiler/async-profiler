@@ -310,22 +310,24 @@ class BytecodeRewriter {
             const char* class_name;
             const char* method_name;
             int out = rewriteClass(&class_name, &method_name);
-            if (out == 0) {
-                *new_class_data = _dst;
-                *new_class_data_len = _dst_len;
-            } else {
-                switch (out) {
+            switch (out) {
+                case 0:
+                    *new_class_data = _dst;
+                    *new_class_data_len = _dst_len;
+                    break;
                 case METHOD_TOO_LARGE:
                     Log::warn("Method too large: %s.%s", class_name, method_name);
+                    VM::jvmti()->Deallocate(_dst);
                     break;
                 case BAD_FULL_FRAME:
-                    Log::warn("Bad full frame: %s.%s", class_name, method_name);
+                    Log::warn("Unsupported full frame: %s.%s", class_name, method_name);
+                    VM::jvmti()->Deallocate(_dst);
                     break;
                 case JUMP_OVERFLOW:
                     Log::warn("Jump overflow: %s.%s", class_name, method_name);
+                    VM::jvmti()->Deallocate(_dst);
                     break;
                 }
-                VM::jvmti()->Deallocate(_dst);
             }
         }
     }
