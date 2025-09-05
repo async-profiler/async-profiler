@@ -398,6 +398,12 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_non_static;
         relocation = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
+        if (relocation == 0) {
+            // Code rewriting was unsuccessful, restore the original code
+            _dst_len = code_start;
+            put(code, code_length);
+            memset(relocation_table, 0, sizeof(relocation_table[0]) * (code_length + 1));
+        }
     } else {
         // invokestatic "one/profiler/Instrument.recordEntry()V"
         put8(JVM_OPC_invokestatic);
@@ -558,9 +564,6 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
 
     if (current_relocation > MAX_CODE_LENGTH - code_length) {
         Log::warn("Method %s.%s is too large for instrumentation", _target_class, _target_method);
-        _dst_len = code_start;
-        put(code, code_length);
-        memset(relocation_table, 0, sizeof(relocation_table[0]) * (code_length + 1));
         return 0;
     }
 
@@ -589,9 +592,6 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
         if (is_narrow) {
             if (new_offset != (int16_t)new_offset) {
                 Log::warn("Jump overflow, aborting instrumentation of %s.%s", _target_class, _target_method);
-                _dst_len = code_start;
-                put(code, code_length);
-                memset(relocation_table, 0, sizeof(relocation_table[0]) * (code_length + 1));
                 return 0;
             }
             put16(new_jump_offset_ptr, new_offset);
