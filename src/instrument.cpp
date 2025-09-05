@@ -317,6 +317,10 @@ class BytecodeRewriter {
         if (VM::jvmti()->Allocate(_dst_capacity, &_dst) != 0) {
             return;
         }
+
+        _class_name = nullptr;
+        _method_name = nullptr;
+
         int out = rewriteClass();
         if (out == 0) {
             *new_class_data = _dst;
@@ -325,9 +329,12 @@ class BytecodeRewriter {
         }
 
         VM::jvmti()->Deallocate(_dst);
+        if (out == CLASS_DOES_NOT_MATCH) return;
 
-        std::string class_name = std::string(_class_name, _class_name_len);
-        std::string method_name = std::string(_method_name, _method_name_len);
+        std::string class_name = _class_name ? std::string(_class_name, _class_name_len)
+                                             : "?";
+        std::string method_name = _method_name ? std::string(_method_name, _method_name_len)
+                                               : "?";
         switch (out) {
             case METHOD_TOO_LARGE:
                 Log::warn("Method too large: %s.%s", class_name.c_str(), method_name.c_str());
