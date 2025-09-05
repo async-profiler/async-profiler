@@ -68,6 +68,10 @@ class Constant {
         return (u16)_info[0] << 8 | (u16)_info[1];
     }
 
+    const char* utf8() const {
+        return (const char*) (_info + 2);
+    }
+
     int length() {
         switch (_tag) {
             case JVM_CONSTANT_Utf8:
@@ -98,23 +102,14 @@ class Constant {
     }
 
     bool equals(const char* value, u16 len) {
-        return _tag == JVM_CONSTANT_Utf8 && info() == len && memcmp(_info + 2, value, len) == 0;
+        return _tag == JVM_CONSTANT_Utf8 && info() == len && memcmp(utf8(), value, len) == 0;
     }
 
     bool matches(const char* value, u16 len) {
         if (len > 0 && value[len - 1] == '*') {
-            return _tag == JVM_CONSTANT_Utf8 && info() >= len - 1 && memcmp(_info + 2, value, len - 1) == 0;
+            return _tag == JVM_CONSTANT_Utf8 && info() >= len - 1 && memcmp(utf8(), value, len - 1) == 0;
         }
         return equals(value, len);
-    }
-
-    const char* getSignature() const {
-        const char* name_and_signature = (const char*) (_info + 2);
-        u32 i = 0;
-        while (name_and_signature[i] != 0 && name_and_signature[i] != '(') {
-            ++i;
-        }
-        return name_and_signature[i] == 0 ? nullptr : name_and_signature + i;
     }
 };
 
@@ -388,7 +383,11 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     int new_local_index = -1;
     u16 relocation;
     if (_latency_profiling) {
-        u8 parameters_count = parameterSlots(_cpool[descriptor_index]->getSignature());
+        // Find function signature (parameters + return value)
+        const char* sig = _cpool[descriptor_index]->utf8();
+        while (*sig != 0 && *sig != '(') sig++;
+
+        u8 parameters_count = parameterSlots(sig);
         bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_non_static;
         relocation = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
