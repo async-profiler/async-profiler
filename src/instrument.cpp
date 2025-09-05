@@ -44,15 +44,15 @@ class Constant {
     u8 _info[2];
 
   public:
-    u8 tag() {
+    u8 tag() const {
         return _tag;
     }
 
-    int slots() {
+    int slots() const {
         return _tag == JVM_CONSTANT_Long || _tag == JVM_CONSTANT_Double ? 2 : 1;
     }
 
-    u16 info() {
+    u16 info() const {
         return (u16)_info[0] << 8 | (u16)_info[1];
     }
 
@@ -144,10 +144,8 @@ class BytecodeRewriter {
     const u8* _src;
     const u8* _src_limit;
 
-    const char* _class_name;
-    u16 _class_name_len;
-    const char* _method_name;
-    u16 _method_name_len;
+    const Constant* _class_name;
+    const Constant* _method_name;
 
     u8* _dst;
     u32 _dst_len;
@@ -328,8 +326,8 @@ class BytecodeRewriter {
         VM::jvmti()->Deallocate(_dst);
         if (out == CLASS_DOES_NOT_MATCH) return;
 
-        std::string class_name = std::string(_class_name, _class_name_len);
-        std::string method_name = std::string(_method_name, _method_name_len);
+        std::string class_name = std::string(_class_name->utf8(), _class_name->info());
+        std::string method_name = std::string(_method_name->utf8(), _method_name->info());
         switch (out) {
             case METHOD_TOO_LARGE:
                 Log::warn("Method too large: %s.%s", class_name.c_str(), method_name.c_str());
@@ -863,8 +861,7 @@ int BytecodeRewriter::rewriteMembers(Scope scope) {
         assert(_cpool[descriptor_index]->tag() == JVM_CONSTANT_Utf8);
 
         if (scope == SCOPE_METHOD) {
-            _method_name = _cpool[name_index]->utf8();
-            _method_name_len = _cpool[name_index]->info();
+            _method_name = _cpool[name_index];
         }
 
         bool need_rewrite = scope == SCOPE_METHOD
@@ -924,8 +921,7 @@ int BytecodeRewriter::rewriteClass() {
     put16(this_class);
 
     u16 class_name_index = _cpool[this_class]->info();
-    _class_name = _cpool[class_name_index]->utf8();
-    _class_name_len = _cpool[class_name_index]->info();
+    _class_name = _cpool[class_name_index];
     if (!_cpool[class_name_index]->matches(_target_class, _target_class_len)) {
         return CLASS_DOES_NOT_MATCH;
     }
