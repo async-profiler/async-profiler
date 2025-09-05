@@ -639,7 +639,7 @@ class Recording {
         }
 
         writeBoolSetting(buf, T_METHOD_TRACE, "enabled", args._latency >= 0);
-        if (args._interval >= 0) {
+        if (args._latency >= 0) {
             writeIntSetting(buf, T_METHOD_TRACE, "latency", args._latency);
         }
 
