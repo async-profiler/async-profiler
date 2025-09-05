@@ -21,25 +21,6 @@ constexpr u16 MAX_CODE_LENGTH = 65534;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
-u8 parameterSlots(const char* method_sig) {
-    u8 count = 0;
-    for (const char* c = method_sig + 1; *c != ')'; ++c) {
-        if (*c == 'L') {
-            ++count;
-            while (*(++c) != ';');
-        } else if (*c == '[') {
-            ++count;
-            while (*(++c) == '[');
-            if (*c == 'L') while (*(++c) != ';');
-        } else if (*c == 'J' || *c == 'D') {
-            count += 2;
-        } else {
-            ++count;
-        }
-    }
-    return count;
-}
-
 static inline u16 alignUp4(u16 i) {
     return (i & ~3) + 4;
 }
@@ -110,6 +91,25 @@ class Constant {
             return _tag == JVM_CONSTANT_Utf8 && info() >= len - 1 && memcmp(utf8(), value, len - 1) == 0;
         }
         return equals(value, len);
+    }
+
+    static u8 parameterSlots(const char* method_sig) {
+        u8 count = 0;
+        for (const char* c = method_sig + 1; *c != ')'; ++c) {
+            if (*c == 'L') {
+                ++count;
+                while (*(++c) != ';');
+            } else if (*c == '[') {
+                ++count;
+                while (*(++c) == '[');
+                if (*c == 'L') while (*(++c) != ';');
+            } else if (*c == 'J' || *c == 'D') {
+                count += 2;
+            } else {
+                ++count;
+            }
+        }
+        return count;
     }
 };
 
@@ -260,32 +260,6 @@ class BytecodeRewriter {
         put16(ref2);
     }
 
-    // Utilities
-
-    static inline u16 instructionBytes(const u8* code, u16 index) {
-        static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
-        u8 opcode = code[index];
-        switch (opcode) {
-            case JVM_OPC_wide:
-                return code[index + 1] == JVM_OPC_iinc ? 6 : 4;
-            case JVM_OPC_tableswitch: {
-                u16 default_index = alignUp4(index);
-                int32_t l = get32(code + default_index + 4);
-                int32_t h = get32(code + default_index + 8);
-                u16 branches_count = h - l + 1;
-                return default_index - index + (3 + branches_count) * 4;
-            }
-            case JVM_OPC_lookupswitch: {
-                u16 default_index = alignUp4(index);
-                u16 npairs = (u16) get32(code + default_index + 4);
-                return default_index - index + (npairs + 1) * 8;
-            }
-            default:
-                assert(opcode < JVM_OPC_MAX+1);
-                return OPCODE_LENGTH[opcode];
-        }
-    }
-
     // BytecodeRewriter
 
     void rewriteCode(u16 access_flags, u16 descriptor_index);
@@ -337,6 +311,39 @@ class BytecodeRewriter {
             }
         }
     }
+
+    static u16 instructionBytes(const u8* code, u16 index) {
+        static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
+        u8 opcode = code[index];
+        switch (opcode) {
+            case JVM_OPC_wide:
+                return code[index + 1] == JVM_OPC_iinc ? 6 : 4;
+            case JVM_OPC_tableswitch: {
+                u16 default_index = alignUp4(index);
+                int32_t l = get32(code + default_index + 4);
+                int32_t h = get32(code + default_index + 8);
+                u16 branches_count = h - l + 1;
+                return default_index - index + (3 + branches_count) * 4;
+            }
+            case JVM_OPC_lookupswitch: {
+                u16 default_index = alignUp4(index);
+                u16 npairs = (u16) get32(code + default_index + 4);
+                return default_index - index + (npairs + 1) * 8;
+            }
+            default:
+                assert(opcode < JVM_OPC_MAX+1);
+                return OPCODE_LENGTH[opcode];
+        }
+    }
+
+    // Return the new offset delta
+    static u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new, 
+                        u16 offset_delta_old, const u16* relocation_table) {
+        current_frame_old += offset_delta_old + 1;
+        long previous_frame_new = current_frame_new;
+        current_frame_new = current_frame_old + relocation_table[current_frame_old];
+        return current_frame_new - previous_frame_new - 1;
+    }
 };
 
 static inline bool isFunctionExit(u8 opcode) {
@@ -387,7 +394,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         const char* sig = _cpool[descriptor_index]->utf8();
         while (*sig != 0 && *sig != '(') sig++;
 
-        u8 parameters_count = parameterSlots(sig);
+        u8 parameters_count = Constant::parameterSlots(sig);
         bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_non_static;
         relocation = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
@@ -637,15 +644,6 @@ void BytecodeRewriter::rewriteLocalVariableTable(const u16* relocation_table, in
         }
         put16(index);
     }
-}
-
-// Return the new offset delta
-u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new, 
-                       u16 offset_delta_old, const u16* relocation_table) {
-    current_frame_old += offset_delta_old + 1;
-    long previous_frame_new = current_frame_new;
-    current_frame_new = current_frame_old + relocation_table[current_frame_old];
-    return current_frame_new - previous_frame_new - 1;
 }
 
 // new_local_index is the byte index, considering that long and double take two slots

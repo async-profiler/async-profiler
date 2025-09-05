@@ -8,11 +8,6 @@
 #include "classfile_constants.h"
 #include "instrument.h"
 
-u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new,
-                       u16 offset_delta_old, const u16* relocation_table);
-u8 parameterSlots(const char* method_sig);
-u16 instructionBytes(const u8* code, u16 index);
-
 TEST_CASE(Instrument_test_updateCurrentFrame_start) {
     int32_t current_frame_old = -1;
     int32_t current_frame_new = -1;
@@ -20,7 +15,7 @@ TEST_CASE(Instrument_test_updateCurrentFrame_start) {
     relocation_table[2] = 4;
     u16 offset_delta_old = 2;
 
-    u16 offset_delta_new = updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
+    u16 offset_delta_new = BytecodeRewriter::updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
     CHECK_EQ(current_frame_old, 2);
     CHECK_EQ(current_frame_new, 6);
     CHECK_EQ(offset_delta_new, 6);
@@ -33,7 +28,7 @@ TEST_CASE(Instrument_test_updateCurrentFrame_newEntry) {
     relocation_table[2] = 4;
     u16 offset_delta_old = 2;
 
-    u16 offset_delta_new = updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
+    u16 offset_delta_new = BytecodeRewriter::updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
     CHECK_EQ(current_frame_old, 2);
     CHECK_EQ(current_frame_new, 6);
     // offset from first StackMapTable entry to the next
@@ -47,53 +42,53 @@ TEST_CASE(Instrument_test_updateCurrentFrame_mid) {
     relocation_table[2] = 4;
     u16 offset_delta_old = 0;
 
-    u16 offset_delta_new = updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
+    u16 offset_delta_new = BytecodeRewriter::updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
     CHECK_EQ(current_frame_old, 2);
     CHECK_EQ(current_frame_new, 6);
     CHECK_EQ(offset_delta_new, 3);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_reference) {
-    CHECK_EQ(parameterSlots("(Ljava/time/Duration;)"), 1);
+    CHECK_EQ(Constant::parameterSlots("(Ljava/time/Duration;)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_referenceArray) {
-    CHECK_EQ(parameterSlots("([Ljava/time/Duration;)"), 1);
+    CHECK_EQ(Constant::parameterSlots("([Ljava/time/Duration;)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_2darray) {
-    CHECK_EQ(parameterSlots("([[I)"), 1);
+    CHECK_EQ(Constant::parameterSlots("([[I)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_2slots) {
-    CHECK_EQ(parameterSlots("(D)"), 2);
-    CHECK_EQ(parameterSlots("(J)"), 2);
+    CHECK_EQ(Constant::parameterSlots("(D)"), 2);
+    CHECK_EQ(Constant::parameterSlots("(J)"), 2);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_1slot) {
-    CHECK_EQ(parameterSlots("(Z)"), 1);
-    CHECK_EQ(parameterSlots("(I)"), 1);
-    CHECK_EQ(parameterSlots("(F)"), 1);
+    CHECK_EQ(Constant::parameterSlots("(Z)"), 1);
+    CHECK_EQ(Constant::parameterSlots("(I)"), 1);
+    CHECK_EQ(Constant::parameterSlots("(F)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_doubleArray) {
-    CHECK_EQ(parameterSlots("([D)"), 1);
+    CHECK_EQ(Constant::parameterSlots("([D)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_mix) {
-    CHECK_EQ(parameterSlots("(ZD[I)"), 4);
+    CHECK_EQ(Constant::parameterSlots("(ZD[I)"), 4);
 }
 
 TEST_CASE(Instrument_test_instructionBytes) {
     u8 code[1];
     code[0] = JVM_OPC_invokevirtual;
-    CHECK_EQ(instructionBytes(code, 0), 3);
+    CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 3);
 
     code[0] = JVM_OPC_istore;
-    CHECK_EQ(instructionBytes(code, 0), 2);
+    CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 2);
     
     code[0] = JVM_OPC_istore_2;
-    CHECK_EQ(instructionBytes(code, 0), 1);
+    CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 1);
 }
 
 TEST_CASE(Instrument_test_instructionBytes_lookupswitch) {
@@ -103,7 +98,7 @@ TEST_CASE(Instrument_test_instructionBytes_lookupswitch) {
     u32 pairs = 3;
     *(u32*)(code+8) = htonl(pairs);
 
-    CHECK_EQ(instructionBytes(code, 0), 12 + pairs * 4 * 2);
+    CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 12 + pairs * 4 * 2);
 }
 
 TEST_CASE(Instrument_test_instructionBytes_largeLookupswitch) {
@@ -113,7 +108,7 @@ TEST_CASE(Instrument_test_instructionBytes_largeLookupswitch) {
     u32 pairs = 0xFFF;
     *(u32*)(code+8) = htonl(pairs);
 
-    CHECK_EQ(instructionBytes(code, 0), 12 + pairs * 4 * 2);
+    CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 12 + pairs * 4 * 2);
 }
 
 TEST_CASE(Instrument_test_instructionBytes_tableswitch) {
@@ -125,7 +120,7 @@ TEST_CASE(Instrument_test_instructionBytes_tableswitch) {
     int32_t high = 10;
     *(u32*)(code+12) = htonl(high);
 
-    CHECK_EQ(instructionBytes(code, 0), 16 + (high - low + 1) * 4);
+    CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 16 + (high - low + 1) * 4);
 }
 
 TEST_CASE(Instrument_test_instructionBytes_largeTableswitch) {
@@ -137,5 +132,5 @@ TEST_CASE(Instrument_test_instructionBytes_largeTableswitch) {
     int32_t high = 0xFFF;
     *(u32*)(code+12) = htonl(high);
 
-    CHECK_EQ(instructionBytes(code, 0), 16 + (high - low + 1) * 4);
+    CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 16 + (high - low + 1) * 4);
 }
