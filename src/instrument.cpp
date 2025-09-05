@@ -397,6 +397,9 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         u8 parameters_count = Constant::parameterSlots(sig);
         bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_non_static;
+
+        u32 code_start = _dst_len;
+
         relocation = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
         if (relocation == 0) {
             // Code rewriting was unsuccessful, restore the original code
