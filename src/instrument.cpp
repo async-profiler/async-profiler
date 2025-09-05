@@ -317,19 +317,19 @@ class BytecodeRewriter {
             return;
         }
 
-        Result out = rewriteClass();
-        if (out == Result::OK) {
+        Result res = rewriteClass();
+        if (res == Result::OK) {
             *new_class_data = _dst;
             *new_class_data_len = _dst_len;
             return;
         }
 
         VM::jvmti()->Deallocate(_dst);
-        if (out == Result::CLASS_DOES_NOT_MATCH) return;
+        if (res == Result::CLASS_DOES_NOT_MATCH) return;
 
         std::string class_name = std::string(_class_name->utf8(), _class_name->info());
         std::string method_name = std::string(_method_name->utf8(), _method_name->info());
-        switch (out) {
+        switch (res) {
             case Result::METHOD_TOO_LARGE:
                 Log::warn("Method too large: %s.%s", class_name.c_str(), method_name.c_str());
                 break;
@@ -368,7 +368,7 @@ class BytecodeRewriter {
 
     // Return the new offset delta
     static u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new, 
-                        u16 offset_delta_old, const u16* relocation_table) {
+                                  u16 offset_delta_old, const u16* relocation_table) {
         current_frame_old += offset_delta_old + 1;
         long previous_frame_new = current_frame_new;
         current_frame_new = current_frame_old + relocation_table[current_frame_old];
@@ -381,8 +381,8 @@ static inline bool isFunctionExit(u8 opcode) {
 }
 
 static inline bool isNarrowJump(u8 opcode) {
-    return (opcode >= JVM_OPC_ifeq && opcode <= JVM_OPC_jsr) || opcode == JVM_OPC_ifnull ||
-            opcode == JVM_OPC_ifnonnull || opcode == JVM_OPC_goto;
+    return (opcode >= JVM_OPC_ifeq && opcode <= JVM_OPC_jsr) ||
+            opcode == JVM_OPC_ifnull || opcode == JVM_OPC_ifnonnull || opcode == JVM_OPC_goto;
 }
 
 static inline bool isWideJump(u8 opcode) {
@@ -407,7 +407,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
     const u8* code = get(code_length);
     u32 code_length_idx = _dst_len;
-    put32(code_length); // to be fixed later
+    put32(code_length); // to be patched later
 
     // For each index in the (original) bytecode, this holds the rightwards offset
     // in the modified bytecode.
@@ -418,7 +418,6 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
     // This contains the byte index, considering that long and double take two slots
     int new_local_index = -1;
-    u16 relocation;
     if (_latency_profiling) {
         // Find function signature (parameters + return value)
         const char* sig = _cpool[descriptor_index]->utf8();
@@ -430,26 +429,25 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
         u32 code_start = _dst_len;
 
-        Result out = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
-        if (out != Result::OK) {
-            return out;
+        Result res = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
+        if (res != Result::OK) {
+            delete[] relocation_table;
+            return res;
         }
-        relocation = relocation_table[code_length];
     } else {
         // invokestatic "one/profiler/Instrument.recordEntry()V"
         put8(JVM_OPC_invokestatic);
         put16(_cpool_len);
         // nop ensures that tableswitch/lookupswitch needs no realignment
         put8(JVM_OPC_nop);
-        relocation = EXTRA_BYTECODES_SIMPLE_ENTRY;
 
         // The rest of the code is unchanged
         put(code, code_length);
-        for (u16 i = 0; i <= code_length; ++i) relocation_table[i] = relocation;
+        for (u16 i = 0; i <= code_length; ++i) relocation_table[i] = EXTRA_BYTECODES_SIMPLE_ENTRY;
     }
 
     // Fix code length, we now know the real relocation
-    put32(_dst + code_length_idx, code_length + relocation);
+    put32(_dst + code_length_idx, code_length + relocation_table[code_length]);
 
     u16 exception_table_length = get16();
     put16(exception_table_length);
@@ -465,9 +463,9 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         put16(catch_type);
     }
 
-    Result out = rewriteCodeAttributes(relocation_table, new_local_index);
+    Result res = rewriteCodeAttributes(relocation_table, new_local_index);
     delete[] relocation_table;
-    if (out != Result::OK) return out;
+    if (res != Result::OK) return res;
 
     // Patch attribute length
     put32(_dst + code_begin - 4, _dst_len - code_begin);
@@ -804,8 +802,8 @@ Result BytecodeRewriter::rewriteAttributes(Scope scope, u16 access_flags, u16 de
 
         Constant* attribute_name = _cpool[attribute_name_index];
         if (scope == SCOPE_REWRITE_METHOD && attribute_name->equals("Code", 4)) {
-            Result out = rewriteCode(access_flags, descriptor_index);
-            if (out != Result::OK) return out;
+            Result res = rewriteCode(access_flags, descriptor_index);
+            if (res != Result::OK) return res;
             continue;
         }
 
@@ -833,8 +831,8 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
             rewriteLocalVariableTable(relocation_table, new_local_index);
             continue;
         } else if (attribute_name->equals("StackMapTable", 13)) {
-            Result out = rewriteStackMapTable(relocation_table, new_local_index);
-            if (out != Result::OK) return out;
+            Result res = rewriteStackMapTable(relocation_table, new_local_index);
+            if (res != Result::OK) return res;
             continue;
         }
 
@@ -870,8 +868,8 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
             && _cpool[name_index]->matches(_target_method, _target_method_len)
             && (_target_signature == NULL || _cpool[descriptor_index]->matches(_target_signature, _target_signature_len));
 
-        Result out = rewriteAttributes(need_rewrite ? SCOPE_REWRITE_METHOD : SCOPE_METHOD, access_flags, descriptor_index);
-        if (out != Result::OK) return out;
+        Result res = rewriteAttributes(need_rewrite ? SCOPE_REWRITE_METHOD : SCOPE_METHOD, access_flags, descriptor_index);
+        if (res != Result::OK) return res;
     }
     return Result::OK;
 }
@@ -923,7 +921,7 @@ Result BytecodeRewriter::rewriteClass() {
 
     u16 class_name_index = _cpool[this_class]->info();
     _class_name = _cpool[class_name_index];
-    if (!_cpool[class_name_index]->matches(_target_class, _target_class_len)) {
+    if (!_class_name->matches(_target_class, _target_class_len)) {
         return Result::CLASS_DOES_NOT_MATCH;
     }
 
@@ -934,13 +932,13 @@ Result BytecodeRewriter::rewriteClass() {
     put16(interfaces_count);
     put(get(interfaces_count * 2), interfaces_count * 2);
 
-    Result out = rewriteMembers(SCOPE_FIELD);
-    if (out != Result::OK) return out;
-    out = rewriteMembers(SCOPE_METHOD);
-    if (out != Result::OK) return out;
-    out = rewriteAttributes(SCOPE_CLASS);
+    Result res = rewriteMembers(SCOPE_FIELD);
+    if (res != Result::OK) return res;
+    res = rewriteMembers(SCOPE_METHOD);
+    if (res != Result::OK) return res;
+    res = rewriteAttributes(SCOPE_CLASS);
 
-    return out;
+    return res;
 }
 
 
@@ -1090,8 +1088,8 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
 void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
     if (!_enabled) return;
 
-    u64 duration_ns = OS::nanotime() - (u64) startTimeNanos;
     u64 now_ticks = TSC::ticks();
+    u64 duration_ns = OS::nanotime() - (u64) startTimeNanos;
     if (duration_ns >= _latency && shouldRecordSample()) {
         u64 duration_ticks = (u64) ((double) duration_ns * TSC::frequency() / NANOTIME_FREQ);
         MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks);
