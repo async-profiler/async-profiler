@@ -333,7 +333,7 @@ class BytecodeRewriter {
                 Log::warn("Method too large: %s.%s", class_name.c_str(), method_name.c_str());
                 break;
             case BAD_FULL_FRAME:
-                Log::warn("Unsupported full frame: %s.%s", class_name.c_str(), method_name.c_str());
+                Log::warn("Unsupported full_frame: %s.%s", class_name.c_str(), method_name.c_str());
                 break;
             case JUMP_OVERFLOW:
                 Log::warn("Jump overflow: %s.%s", class_name.c_str(), method_name.c_str());
