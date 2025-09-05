@@ -61,7 +61,7 @@ class Constant {
         return (const char*) (_info + 2);
     }
 
-    int length() {
+    int length() const {
         switch (_tag) {
             case JVM_CONSTANT_Utf8:
                 return 2 + info();
@@ -90,11 +90,11 @@ class Constant {
         }
     }
 
-    bool equals(const char* value, u16 len) {
+    bool equals(const char* value, u16 len) const {
         return _tag == JVM_CONSTANT_Utf8 && info() == len && memcmp(utf8(), value, len) == 0;
     }
 
-    bool matches(const char* value, u16 len) {
+    bool matches(const char* value, u16 len) const {
         if (len > 0 && value[len - 1] == '*') {
             return _tag == JVM_CONSTANT_Utf8 && info() >= len - 1 && memcmp(utf8(), value, len - 1) == 0;
         }
@@ -426,8 +426,6 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         u8 parameters_count = Constant::parameterSlots(sig);
         bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_non_static;
-
-        u32 code_start = _dst_len;
 
         Result res = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
         if (res != Result::OK) {
