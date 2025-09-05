@@ -226,22 +226,22 @@ class BytecodeRewriter {
     }
 
     void put16(u16 v) {
-        put16(v, alloc(2));
+        put16(alloc(2), v);
     }
 
     void put32(u32 v) {
-        put32(v, alloc(4));
+        put32(alloc(4), v);
     }
 
     void put64(u64 v) {
         *(u64*)alloc(8) = OS::hton64(v);
     }
 
-    static void put16(u16 v, u8* ptr) {
+    static void put16(u8* ptr, u16 v) {
         *(u16*)ptr = htons(v);
     }
 
-    static void put32(u32 v, u8* ptr) {
+    static void put32(u8* ptr, u32 v) {
         *(u32*)ptr = htonl(v);
     }
 
@@ -406,7 +406,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     }
 
     // Fix code length, we now know the real relocation
-    put32(code_length + relocation, _dst + code_length_idx);
+    put32(_dst + code_length_idx, code_length + relocation);
 
     u16 exception_table_length = get16();
     put16(exception_table_length);
@@ -426,7 +426,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     delete[] relocation_table;
 
     // Patch attribute length
-    put32(_dst_len - code_begin, _dst + code_begin - 4);
+    put32(_dst + code_begin - 4, _dst_len - code_begin);
 }
 
 // Return the relocation after the last byte of code
@@ -545,7 +545,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
             u16 index = get16(code + i - back);
             if (index >= start_time_loc_index) {
                 index += 2;
-                put16(index, _dst + _dst_len - back);
+                put16(_dst + _dst_len - back, index);
             }
         }
     }
@@ -588,9 +588,9 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
                 memset(relocation_table, 0, sizeof(relocation_table[0]) * (code_length + 1));
                 return 0;
             }
-            put16(new_offset, new_jump_offset_ptr);
+            put16(new_jump_offset_ptr, new_offset);
         } else {
-            put32((u32) new_offset, new_jump_offset_ptr);
+            put32(new_jump_offset_ptr, (u32) new_offset);
         }
     }
 
@@ -749,7 +749,7 @@ void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, int new
     }
 
     // Patch attribute length and number of entries
-    put32(_dst_len - attribute_start_idx, _dst + attribute_start_idx - 4);
+    put32(_dst + attribute_start_idx - 4, _dst_len - attribute_start_idx);
 }
 
 u8 BytecodeRewriter::rewriteVerificationTypeInfo(const u16* relocation_table) {
