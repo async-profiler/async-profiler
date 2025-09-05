@@ -203,20 +203,19 @@ public class InstrumentTests {
         
         // recursive(3) is filtered out
         Duration duration = Duration.ZERO;
-        assert !out.contains(String.format("%s%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, 
-                RECURSIVE_METHOD_SEGMENT));
+        assert !out.contains("" + MAIN_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + " ");
         
         // recursive(2) is filtered out
         duration = duration.plus(Duration.ofMillis(200));
-        assert !out.contains(String.format("%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT));
+        assert !out.contains("" + MAIN_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + " ");
 
         // recursive(1)
         duration = duration.plus(Duration.ofMillis(400));
-        assert out.samples(String.format("%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
+        assert out.samples("" + MAIN_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + " ") >= duration.toNanos();
 
         // recursive(0)
         duration = duration.plus(Duration.ofMillis(600));
-        assert out.samples(String.format("%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
+        assert out.samples("" + MAIN_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + " ") >= duration.toNanos();
     }
 
     private static void assertNoVerificationErrors(TestProcess p) throws IOException {
