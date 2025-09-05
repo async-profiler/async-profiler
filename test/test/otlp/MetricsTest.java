@@ -25,7 +25,6 @@ public class MetricsTest {
             Math.sqrt(i);
             CpuBurner.burn();
         }
-        Thread.sleep(10000);
         profiler.stop();
         
         int[] metrics2 = new int[5];
