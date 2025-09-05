@@ -513,7 +513,15 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
         }
 
         u16 bc = instructionBytes(code, i);
-        for (u16 j = 0; j < bc; ++j) relocation_table[i + j] = current_relocation;
+        // Is jump?
+        if (isNarrowJump(opcode) || isWideJump(opcode) || opcode == JVM_OPC_tableswitch ||
+            opcode == JVM_OPC_lookupswitch) {
+            // We need the relocation for the arguments too, it's used below to compute
+            // the new offset.
+            for (u16 j = 0; j < bc; ++j) relocation_table[i + j] = current_relocation;
+        } else {
+            relocation_table[i] = current_relocation;
+        }
         put(code + i, bc);
         i += bc;
 
