@@ -21,6 +21,10 @@ class Instrument : public Engine {
     static volatile u64 _calls;
     static volatile bool _running;
 
+    static bool shouldRecordSample() {
+        return _interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0;
+    }
+
   public:
     const char* type() {
         return "instrument";
@@ -32,10 +36,6 @@ class Instrument : public Engine {
 
     const char* units() {
         return "calls";
-    }
-
-    static bool shouldRecordSample() {
-        return _interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0;
     }
 
     Error check(Arguments& args);
