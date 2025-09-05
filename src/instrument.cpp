@@ -432,9 +432,8 @@ int BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         int out = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
         if (out < 0) {
             return out;
-        } else {
-            relocation = (u16) out;
         }
+        relocation = relocation_table[code_length];
     } else {
         // invokestatic "one/profiler/Instrument.recordEntry()V"
         put8(JVM_OPC_invokestatic);
@@ -474,7 +473,6 @@ int BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     return 0;
 }
 
-// Return the relocation after the last byte of code
 int BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table) {
     // Method start is relocated
     u16 current_relocation = EXTRA_BYTECODES_ENTRY;
@@ -632,7 +630,7 @@ int BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
     }
 
     relocation_table[code_length] = current_relocation;
-    return current_relocation;
+    return 0;
 }
 
 void BytecodeRewriter::rewriteLineNumberTable(const u16* relocation_table) {
