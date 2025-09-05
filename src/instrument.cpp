@@ -17,13 +17,16 @@
 #include "vmEntry.h"
 #include "instrument.h"
 
-constexpr u16 MAX_CODE_LENGTH = 65534;
-constexpr int METHOD_TOO_LARGE = -1;
-constexpr int JUMP_OVERFLOW = -2;
-constexpr int CLASS_DOES_NOT_MATCH = -3;
-constexpr int BAD_FULL_FRAME = -4;
-
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
+
+constexpr u16 MAX_CODE_LENGTH = 65534;
+
+enum {
+    METHOD_TOO_LARGE = -1,
+    JUMP_OVERFLOW = -2,
+    CLASS_DOES_NOT_MATCH = -3,
+    BAD_FULL_FRAME = -4
+};
 
 static inline u16 alignUp4(u16 i) {
     return (i & ~3) + 4;
@@ -327,7 +330,6 @@ class BytecodeRewriter {
                     Log::warn("Jump overflow: %s.%s", class_name, method_name);
                     VM::jvmti()->Deallocate(_dst);
                     break;
-                }
             }
         }
     }
