@@ -55,7 +55,7 @@ enum {
 };
 
 
-FrameDesc FrameDesc::empty_frame = {0, DW_REG_SP | EMPTY_FRAME_SIZE << 8, DW_SAME_FP, DEFAULT_PC_OFF};
+FrameDesc FrameDesc::empty_frame = {0, DW_REG_SP | EMPTY_FRAME_SIZE << 8, DW_SAME_FP, INITIAL_PC_OFFSET};
 FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | LINKED_FRAME_SIZE << 8, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT};
 
 
@@ -136,12 +136,12 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
     u32 cfa_reg = DW_REG_SP;
     int cfa_off = EMPTY_FRAME_SIZE;
     int fp_off = DW_SAME_FP;
-    int pc_off = DEFAULT_PC_OFF;
+    int pc_off = INITIAL_PC_OFFSET;
 
     u32 rem_cfa_reg = DW_REG_SP;
     int rem_cfa_off = EMPTY_FRAME_SIZE;
     int rem_fp_off = DW_SAME_FP;
-    int rem_pc_off = DEFAULT_PC_OFF;
+    int rem_pc_off = INITIAL_PC_OFFSET;
 
     while (_ptr < end) {
         u8 op = get8();
@@ -271,7 +271,7 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                 if ((op & 0x3f) == DW_REG_FP) {
                     fp_off = DW_SAME_FP;
                 } else if ((op & 0x3f) == DW_REG_PC) {
-                    pc_off = DEFAULT_PC_OFF;
+                    pc_off = INITIAL_PC_OFFSET;
                 }
                 break;
         }
