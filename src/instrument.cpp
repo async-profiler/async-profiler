@@ -330,13 +330,13 @@ class BytecodeRewriter {
         std::string method_name = std::string(_method_name, _method_name_len);
         switch (out) {
             case METHOD_TOO_LARGE:
-                Log::warn("Method too large: %s.%s", class_name, method_name);
+                Log::warn("Method too large: %s.%s", class_name.c_str(), method_name.c_str());
                 break;
             case BAD_FULL_FRAME:
-                Log::warn("Unsupported full frame: %s.%s", class_name, method_name);
+                Log::warn("Unsupported full frame: %s.%s", class_name.c_str(), method_name.c_str());
                 break;
             case JUMP_OVERFLOW:
-                Log::warn("Jump overflow: %s.%s", class_name, method_name);
+                Log::warn("Jump overflow: %s.%s", class_name.c_str(), method_name.c_str());
                 break;
         }
     }
