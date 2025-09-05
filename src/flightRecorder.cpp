@@ -638,6 +638,11 @@ class Recording {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
+        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", args._latency >= 0);
+        if (args._interval >= 0) {
+            writeIntSetting(buf, T_METHOD_TRACE, "latency", args._latency);
+        }
+
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VM::loaded() && VMStructs::libjvm()->hasDebugSymbols());
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "kernelSymbols", Symbols::haveKernelSymbols());
     }
