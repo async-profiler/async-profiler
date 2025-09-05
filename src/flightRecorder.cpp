@@ -464,7 +464,7 @@ class Recording {
             ProcessInfo info;
             if (_process_sampler.getProcessInfo(pid_index, current_time, info)) {
                 flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
-                recordProcessSample(&_proc_buf, &info, current_time / 1000000);
+                recordProcessSample(&_proc_buf, &info, TSC::ticks());
             }
         }
 
@@ -1110,10 +1110,10 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
-    void recordProcessSample(Buffer* buf, const ProcessInfo* info, u64 sampling_time) {
+    void recordProcessSample(Buffer* buf, const ProcessInfo* info, u64 event_start_time) {
         int start = buf->skip(5);
         buf->put8(T_PROCESS_SAMPLE);
-        buf->putVar64(sampling_time);
+        buf->putVar64(event_start_time);
 
         buf->putVar32(info->pid);
         buf->putVar32(info->ppid);
