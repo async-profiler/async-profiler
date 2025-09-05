@@ -144,6 +144,11 @@ class BytecodeRewriter {
     const u8* _src;
     const u8* _src_limit;
 
+    const char* _class_name;
+    u16 _class_name_len;
+    const char* _method_name;
+    u16 _method_name_len;
+
     u8* _dst;
     u32 _dst_len;
     u32 _dst_capacity;
@@ -277,8 +282,8 @@ class BytecodeRewriter {
     u8 rewriteVerificationTypeInfo(const u16* relocation_table);
     int rewriteAttributes(Scope scope, u16 access_flags = 0, u16 descriptor_index = 0);
     int rewriteCodeAttributes(const u16* relocation_table, int new_local_index);
-    int rewriteMembers(Scope scope, const char** method_name);
-    int rewriteClass(const char** class_name, const char** method_name);
+    int rewriteMembers(Scope scope);
+    int rewriteClass();
 
   public:
     BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency_profiling) :
@@ -309,28 +314,30 @@ class BytecodeRewriter {
     }
 
     void rewrite(u8** new_class_data, int* new_class_data_len) {
-        if (VM::jvmti()->Allocate(_dst_capacity, &_dst) == 0) {
-            const char* class_name;
-            const char* method_name;
-            int out = rewriteClass(&class_name, &method_name);
-            switch (out) {
-                case 0:
-                    *new_class_data = _dst;
-                    *new_class_data_len = _dst_len;
-                    break;
-                case METHOD_TOO_LARGE:
-                    Log::warn("Method too large: %s.%s", class_name, method_name);
-                    VM::jvmti()->Deallocate(_dst);
-                    break;
-                case BAD_FULL_FRAME:
-                    Log::warn("Unsupported full frame: %s.%s", class_name, method_name);
-                    VM::jvmti()->Deallocate(_dst);
-                    break;
-                case JUMP_OVERFLOW:
-                    Log::warn("Jump overflow: %s.%s", class_name, method_name);
-                    VM::jvmti()->Deallocate(_dst);
-                    break;
-            }
+        if (VM::jvmti()->Allocate(_dst_capacity, &_dst) != 0) {
+            return;
+        }
+        int out = rewriteClass();
+        if (out == 0) {
+            *new_class_data = _dst;
+            *new_class_data_len = _dst_len;
+            return;
+        }
+
+        VM::jvmti()->Deallocate(_dst);
+
+        std::string class_name = std::string(_class_name, _class_name_len);
+        std::string method_name = std::string(_method_name, _method_name_len);
+        switch (out) {
+            case METHOD_TOO_LARGE:
+                Log::warn("Method too large: %s.%s", class_name, method_name);
+                break;
+            case BAD_FULL_FRAME:
+                Log::warn("Unsupported full frame: %s.%s", class_name, method_name);
+                break;
+            case JUMP_OVERFLOW:
+                Log::warn("Jump overflow: %s.%s", class_name, method_name);
+                break;
         }
     }
 
@@ -839,7 +846,7 @@ int BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int new
     return 0;
 }
 
-int BytecodeRewriter::rewriteMembers(Scope scope, const char** method_name) {
+int BytecodeRewriter::rewriteMembers(Scope scope) {
     u16 members_count = get16();
     put16(members_count);
 
@@ -856,7 +863,8 @@ int BytecodeRewriter::rewriteMembers(Scope scope, const char** method_name) {
         assert(_cpool[descriptor_index]->tag() == JVM_CONSTANT_Utf8);
 
         if (scope == SCOPE_METHOD) {
-            *method_name = _cpool[name_index]->utf8();
+            _method_name = _cpool[name_index]->utf8();
+            _method_name_len = _cpool[name_index]->info();
         }
 
         bool need_rewrite = scope == SCOPE_METHOD
@@ -870,7 +878,7 @@ int BytecodeRewriter::rewriteMembers(Scope scope, const char** method_name) {
     return 0;
 }
 
-int BytecodeRewriter::rewriteClass(const char** class_name, const char** method_name) {
+int BytecodeRewriter::rewriteClass() {
     u32 magic = get32();
     put32(magic);
 
@@ -916,7 +924,8 @@ int BytecodeRewriter::rewriteClass(const char** class_name, const char** method_
     put16(this_class);
 
     u16 class_name_index = _cpool[this_class]->info();
-    *class_name = _cpool[class_name_index]->utf8();
+    _class_name = _cpool[class_name_index]->utf8();
+    _class_name_len = _cpool[class_name_index]->info();
     if (!_cpool[class_name_index]->matches(_target_class, _target_class_len)) {
         return CLASS_DOES_NOT_MATCH;
     }
@@ -928,9 +937,9 @@ int BytecodeRewriter::rewriteClass(const char** class_name, const char** method_
     put16(interfaces_count);
     put(get(interfaces_count * 2), interfaces_count * 2);
 
-    int out = rewriteMembers(SCOPE_FIELD, nullptr);
+    int out = rewriteMembers(SCOPE_FIELD);
     if (out < 0) return out;
-    out = rewriteMembers(SCOPE_METHOD, method_name);
+    out = rewriteMembers(SCOPE_METHOD);
     if (out < 0) return out;
     out = rewriteAttributes(SCOPE_CLASS);
 
