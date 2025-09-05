@@ -453,7 +453,7 @@ class Recording {
         if (!_process_sampler.shouldSample(wall_time)) return false;
 
         const u64 deadline_ns = OS::nanotime() + MAX_TIME_NS;
-        const int process_count = _process_sampler.sampleProcesses(wall_time);
+        const int process_count = _process_sampler.sample(wall_time);
         for (int pid_index = 0; pid_index < process_count; pid_index++) {
             const u64 current_time = OS::nanotime();
             if (current_time > deadline_ns) {
@@ -462,7 +462,7 @@ class Recording {
             }
 
             ProcessInfo info;
-            if (_process_sampler.getProcessSample(pid_index, current_time, info)) {
+            if (_process_sampler.getProcessInfo(pid_index, current_time, info)) {
                 flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
                 recordProcessSample(&_proc_buf, &info, current_time / 1000000);
             }
