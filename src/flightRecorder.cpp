@@ -1015,7 +1015,7 @@ class Recording {
         buf->putVar64(event->_duration);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
-        buf->putVar32(0); // TODO
+        buf->putVar32(0); // TODO: method
         buf->put8(start, buf->offset() - start);
     }
 

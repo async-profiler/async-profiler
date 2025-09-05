@@ -73,7 +73,7 @@ static const char USAGE_STRING[] =
     "  --live              build allocation profile from live objects only\n"
     "  --nativemem bytes   native allocation profiling interval in bytes\n"
     "  --nofree            do not collect free calls in native allocation profiling\n"
-    "  --latency duration  JVM method threshold duration for latency profiling\n"
+    "  --latency duration  Java method latency profiling threshold\n"
     "  --lock duration     lock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
     "  --all               shorthand for enabling cpu, wall, alloc, live,\n"

@@ -65,8 +65,8 @@ public class JfrReader implements Closeable {
 
     private int executionSample;
     private int nativeMethodSample;
-    private int methodTrace;
     private int wallClockSample;
+    private int methodTrace;
     private int allocationInNewTLAB;
     private int allocationOutsideTLAB;
     private int allocationSample;
@@ -175,10 +175,10 @@ public class JfrReader implements Closeable {
 
             if (type == executionSample || type == nativeMethodSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(false);
-            } else if (type == methodTrace) {
-                if (cls == null || cls == MethodTrace.class) return (E) readMethodTrace();
             } else if (type == wallClockSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(true);
+            } else if (type == methodTrace) {
+                if (cls == null || cls == MethodTrace.class) return (E) readMethodTrace();
             } else if (type == allocationInNewTLAB) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
@@ -563,8 +563,8 @@ public class JfrReader implements Closeable {
     private void cacheEventTypes() {
         executionSample = getTypeId("jdk.ExecutionSample");
         nativeMethodSample = getTypeId("jdk.NativeMethodSample");
-        methodTrace = getTypeId("jdk.MethodTrace");
         wallClockSample = getTypeId("profiler.WallClockSample");
+        methodTrace = getTypeId("jdk.MethodTrace");
         allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
         allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
         allocationSample = getTypeId("jdk.ObjectAllocationSample");
