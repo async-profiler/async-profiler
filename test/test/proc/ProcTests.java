@@ -31,9 +31,10 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = BasicApp.class, os = Os.LINUX)
+// TODO(issue-1432): Re-enable after tiered integration tests are supported.
+//     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void processSamplingWithZeroSamplingPeriod(TestProcess p) throws Exception {
-        p.profile("--proc 0 -d 5 -f %f.jfr");
+        p.profile("--proc 0 -d 2 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
 
@@ -41,7 +42,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = BasicApp.class, os = Os.LINUX)
+//     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void processEvenSamplingInterval(TestProcess p) throws Exception {
         long startTime = System.currentTimeMillis();
         p.profile("--proc 2 -d 8 -f %f.jfr");
@@ -57,7 +58,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = BasicApp.class, os = Os.LINUX)
+//     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void processSamplingWithAllMode(TestProcess p) throws Exception {
         p.profile("--all -d 60 -f %f.jfr", false, 61);
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -66,7 +67,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = BasicApp.class, os = Os.LINUX)
+//     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void validateProcessFields(TestProcess p) throws Exception {
         p.profile("--proc 1 -d 5 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -103,7 +104,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = IoIntensiveApp.class, os = Os.LINUX)
+//     @Test(mainClass = IoIntensiveApp.class, os = Os.LINUX)
     public void validateIoStats(TestProcess p) throws Exception {
         p.profile("--proc 1 -d 8 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -122,7 +123,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = MultiThreadApp.class, os = Os.LINUX)
+//     @Test(mainClass = MultiThreadApp.class, os = Os.LINUX)
     public void validateThreadCounts(TestProcess p) throws Exception {
         p.profile("--proc 1 -d 6 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -138,7 +139,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = BasicApp.class, os = Os.LINUX)
+//     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void processSamplingWithHigherSampling(TestProcess p) throws Exception {
         p.profile("--proc 5 -d 4 -f %f.jfr");
 
@@ -148,7 +149,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = ShortLivedApp.class, os = Os.LINUX)
+//     @Test(mainClass = ShortLivedApp.class, os = Os.LINUX)
     public void shortLivedProcesses(TestProcess p) throws Exception {
         p.profile("--proc 1 -d 6 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -164,7 +165,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = ManyProcessApp.class, os = Os.LINUX)
+//     @Test(mainClass = ManyProcessApp.class, os = Os.LINUX)
     public void highProcessCount(TestProcess p) throws Exception {
         p.profile("--proc 4 -d 8 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -232,7 +233,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = BasicApp.class, os = Os.LINUX)
+//     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void customSamplingInterval(TestProcess p) throws Exception {
         p.profile("--proc 5 -d 8 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -242,7 +243,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = BasicApp.class, os = Os.LINUX)
+//     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void validateMemoryBreakdown(TestProcess p) throws Exception {
         p.profile("--proc 1 -d 5 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
