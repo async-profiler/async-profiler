@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifdef __linux__
+
 #include <arpa/inet.h>
 #include "testRunner.hpp"
 #include "classfile_constants.h"
@@ -134,3 +136,5 @@ TEST_CASE(Instrument_test_instructionBytes_largeTableswitch) {
 
     CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 16 + (high - low + 1) * 4);
 }
+
+#endif // __linux__
