@@ -512,8 +512,8 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
             }
         }
 
-        u16 bc = instructionBytes(code, i);
         relocation_table[i] = current_relocation;
+        u16 bc = instructionBytes(code, i);
         put(code + i, bc);
         i += bc;
 
