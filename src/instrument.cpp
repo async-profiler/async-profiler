@@ -1047,8 +1047,8 @@ void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTime
     if (!_enabled) return;
 
     u64 duration_ns = OS::nanotime() - (u64) startTimeNanos;
+    u64 now_ticks = TSC::ticks();
     if (duration_ns >= _latency && shouldRecordSample()) {
-        u64 now_ticks = TSC::ticks();
         u64 duration_ticks = (u64) ((double) duration_ns * TSC::frequency() / NANOTIME_FREQ);
         MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks);
         Profiler::instance()->recordSample(NULL, duration_ns, METHOD_TRACE, &event);
