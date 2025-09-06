@@ -162,6 +162,7 @@ class Arguments {
     const char* _event;
     int _timeout;
     long _interval;
+    long _latency;
     long _alloc;
     long _nativemem;
     long _lock;
@@ -220,6 +221,7 @@ class Arguments {
         _event(NULL),
         _timeout(0),
         _interval(0),
+        _latency(-1),
         _alloc(-1),
         _nativemem(-1),
         _lock(-1),
