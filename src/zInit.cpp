@@ -28,7 +28,8 @@ static void resolveSymbols() {
     sink = (intptr_t)p0 | (intptr_t)p1 | (intptr_t)p2 | (intptr_t)p3 | (intptr_t)p4;
 
     // This condition will never be true, but the compiler won't optimize it out
-    // This is done to call pthread_exit in a safe manner to make sure it's included in the GOT entries of the shared object
+    // Here symbols can be called in a safe manner to make sure they're included in the GOT entries of the shared object
+    // Any newer symbols needed by the profiler can be called here
     if (!sink) {
         pthread_exit(NULL);
     }
