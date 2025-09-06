@@ -281,6 +281,17 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
     }
 
+    /**
+     * Get profiler metrics into provided array in bytes
+     * @return Array with: call_trace_storage, flight_recording, dictionaries, code_cache, discarded_samples
+     */
+    public void getMetrics(int[] metrics) {
+        if (metrics == null || metrics.length < 5) {
+            throw new IllegalArgumentException("Metrics array must have at least 5 elements");
+        }
+        getMetrics0(metrics);
+    }
+
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
 
     private native void stop0() throws IllegalStateException;
@@ -290,4 +301,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native byte[] execute1(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
+
+    private native void getMetrics0(int[] metrics);
 }
