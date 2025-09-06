@@ -175,21 +175,21 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
             if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
                 fp = (uintptr_t)SafeAccess::load((void**)(sp + f->fp_off));
             }
-            if (EMPTY_FRAME_SIZE > 0 || cfa_off != 0) {
-                // x86 or AArch64 non-default frame
+
+            if (EMPTY_FRAME_SIZE > 0 || f->pc_off != DW_LINK_REGISTER) {
                 pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
-            } else if (f->fp_off != DW_SAME_FP) {
+            } else if (depth == 1) {
+                pc = (const void*)frame.link();
+            } else {
+                break;
+            }
+
+            if (EMPTY_FRAME_SIZE == 0 && cfa_off == 0 && f->fp_off != DW_SAME_FP) {
                 // AArch64 default_frame
-                pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
                 sp = defaultSenderSP(sp, fp);
                 if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
                     break;
                 }
-            } else if (depth <= 1) {
-                pc = (const void*)frame.link();
-            } else {
-                // Stack bottom
-                break;
             }
         }
 
@@ -269,6 +269,10 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 fillFrame(frames[depth++], type, 0, nm->method()->id());
 
                 if (nm->isFrameCompleteAt(pc)) {
+                    if (depth == 1 && frame.unwindEpilogue(nm, (uintptr_t&)pc, sp, fp)) {
+                        continue;
+                    }
+
                     int scope_offset = nm->findScopeOffset(pc);
                     if (scope_offset > 0) {
                         depth--;
@@ -290,7 +294,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                     fp = ((uintptr_t*)sp)[-FRAME_PC_SLOT - 1];
                     pc = ((const void**)sp)[-FRAME_PC_SLOT];
                     continue;
-                } else if (frame.unwindCompiled(nm, (uintptr_t&)pc, sp, fp) && profiler->isAddressInCode(pc)) {
+                } else if (frame.unwindPrologue(nm, (uintptr_t&)pc, sp, fp)) {
                     continue;
                 }
 
@@ -418,21 +422,21 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
             if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
                 fp = *(uintptr_t*)(sp + f->fp_off);
             }
-            if (EMPTY_FRAME_SIZE > 0 || cfa_off != 0) {
-                // x86 or AArch64 non-default frame
+
+            if (EMPTY_FRAME_SIZE > 0 || f->pc_off != DW_LINK_REGISTER) {
                 pc = stripPointer(*(void**)(sp + f->pc_off));
-            } else if (f->fp_off != DW_SAME_FP) {
+            } else if (depth == 1) {
+                pc = (const void*)frame.link();
+            } else {
+                break;
+            }
+
+            if (EMPTY_FRAME_SIZE == 0 && cfa_off == 0 && f->fp_off != DW_SAME_FP) {
                 // AArch64 default_frame
-                pc = stripPointer(*(void**)(sp + f->pc_off));
                 sp = defaultSenderSP(sp, fp);
                 if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
                     break;
                 }
-            } else if (depth <= 1) {
-                pc = (const void*)frame.link();
-            } else {
-                // Stack bottom
-                break;
             }
         }
 

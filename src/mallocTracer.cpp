@@ -18,7 +18,7 @@
 #ifdef __clang__
 #  define NO_OPTIMIZE __attribute__((optnone))
 #else
-#  define NO_OPTIMIZE __attribute__((optimize("O1")))
+#  define NO_OPTIMIZE __attribute__((optimize("-fno-omit-frame-pointer,-fno-optimize-sibling-calls")))
 #endif
 
 #define SAVE_IMPORT(FUNC) \

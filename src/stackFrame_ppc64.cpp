@@ -127,6 +127,16 @@ bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintp
     return true;
 }
 
+bool StackFrame::unwindPrologue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    // Not yet implemented
+    return false;
+}
+
+bool StackFrame::unwindEpilogue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    // Not yet implemented
+    return false;
+}
+
 bool StackFrame::unwindAtomicStub(const void*& pc) {
     // Not needed
     return false;

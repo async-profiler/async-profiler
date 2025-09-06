@@ -1,6 +1,5 @@
 Checks: >
   -*,
-  google-readability-braces-around-statements,
   bugprone-assert-side-effect,
   bugprone-bool-pointer-implicit-conversion,
   bugprone-chained-comparison,
@@ -96,7 +95,6 @@ Checks: >
   readability-static-definition-in-anonymous-namespace,
   readability-string-compare,
   readability-uniqueptr-delete-release,
-  readability-uppercase-literal-suffix,
   readability-use-anyofallof,
 # TODO: Consider these
 # bugprone-switch-missing-default-case
@@ -130,5 +128,5 @@ CheckOptions:
     value: '(KB|Thread|setDaemon|klassOop|nVMs|loadLibrary|getTicksFrequency|counterTime|System|M|R|s_)'
   - key: readability-identifier-naming.PrivateMemberPrefix
     value: _
-  - key: google-readability-braces-around-statements.ShortStatementLines
-    value: '1'
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: UPPER_CASE

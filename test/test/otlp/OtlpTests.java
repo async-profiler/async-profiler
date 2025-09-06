@@ -5,27 +5,25 @@
 
 package test.otlp;
 
-import java.io.File;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.KeyValue;
 import one.profiler.test.*;
 import io.opentelemetry.proto.profiles.v1development.*;
 
 public class OtlpTests {
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
-    public void testOtlpReadable(TestProcess p) throws Exception {
+    public void readable(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
         assert getFirstProfile(profilesData) != null;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
-    public void testSampleType(TestProcess p) throws Exception {
+    public void sampleType(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
         Profile profile = getFirstProfile(profilesData);
@@ -42,15 +40,39 @@ public class OtlpTests {
         assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
     }
 
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,threads,file=%f.pb")
+    public void threadName(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        assert profile.getSampleTypeList().size() == 2;
+
+        Set<String> threadNames = new HashSet<>();
+        for (Sample sample: profile.getSampleList()) {
+            Optional<AnyValue> threadName = getAttribute(sample, profilesData.getDictionary(), "thread.name");
+            if (!threadName.isPresent()) continue;
+            threadNames.add(threadName.get().getStringValue());
+        }
+        assert threadNames.contains("CpuBurnerWorker") : "CpuBurner thread not found: " + threadNames;
+    }
+
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
-    public void testSamples(TestProcess p) throws Exception {
+    public void samples(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
         Profile profile = getFirstProfile(profilesData);
         ProfilesDictionary dictionary = profilesData.getDictionary();
 
         Output collapsed = toCollapsed(profile, dictionary);
-        assert collapsed.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn");
+        assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
+    }
+
+    @Test(mainClass = OtlpTemporalityTest.class, jvmArgs = "-Djava.library.path=build/lib")
+    public void aggregationTemporality(TestProcess p) throws Exception {
+        classpathCheck();
+
+        p.waitForExit();
+        assert p.exitCode() == 0;
     }
 
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
@@ -101,8 +123,21 @@ public class OtlpTests {
         return scopeProfiles.getProfiles(0);
     }
 
-    private static void assertCloseTo(long value, long target, String message) {
-        Assert.isGreaterOrEqual(value, target * 0.75, message);
-        Assert.isLessOrEqual(value, target * 1.25, message);
+    private static Optional<AnyValue> getAttribute(Sample sample, ProfilesDictionary dictionary, String name) {
+        for (int index : sample.getAttributeIndicesList()) {
+            KeyValue kv = dictionary.getAttributeTable(index);
+            if (name.equals(kv.getKey())) {
+                return Optional.of(kv.getValue());
+            }
+        }
+        return Optional.empty();
+    }
+
+    // Simple check to make sure the classpath contains the required dependencies.
+    // If not, it will throw a NoClassDefFoundError, which will be caught by the test runner.
+    // It's useful to anticipate the same NoClassDefFoundError to happen in the child process,
+    // where it's harder to detect.
+    private static void classpathCheck() {
+        ProfilesData.newBuilder();
     }
 }
