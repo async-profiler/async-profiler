@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include "hooks.h"
 #include "profiler.h"
+#include "symbols.h"
 #include "vmStructs.h"
 
 
@@ -34,7 +35,7 @@ class LateInitializer {
   private:
     bool checkJvmLoaded() {
         Profiler* profiler = Profiler::instance();
-        profiler->updateSymbols(false);
+        Symbols::parseLibraries(profiler->nativeLibs(), false, true);
 
         CodeCache* libjvm = profiler->findLibraryByName(OS::isLinux() ? "libjvm.so" : "libjvm.dylib");
         if (libjvm != NULL && libjvm->findSymbol("AsyncGetCallTrace") != NULL) {
