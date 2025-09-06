@@ -64,6 +64,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     lock[=DURATION]    - profile contended locks overflowing the DURATION ns bucket (default: 10us)
 //     wall[=NS]          - run wall clock profiling together with CPU profiling
 //     nobatch            - legacy wall clock sampling without batch events
+//     proc[=S]           - collect process stats (default: 30s)
 //     collapsed          - dump collapsed stacks (the format used by FlameGraph script)
 //     flamegraph         - produce Flame Graph in HTML format
 //     tree               - produce call tree in HTML format
@@ -268,6 +269,9 @@ Error Arguments::parse(const char* args) {
             CASE("wall")
                 _wall = value == NULL ? 0 : parseUnits(value, NANOS);
 
+            CASE("proc")
+                _proc = value == NULL ? DEFAULT_PROC_INTERVAL : parseUnits(value, SECONDS);
+
             CASE("cpu")
                 if (_event != NULL) {
                     msg = "Duplicate event argument";
@@ -290,6 +294,11 @@ Error Arguments::parse(const char* args) {
                 if (_nativemem < 0) {
                     _nativemem = DEFAULT_ALLOC_INTERVAL;
                 }
+
+                if (_proc < 0 && OS::isLinux()) {
+                    _proc = DEFAULT_PROC_INTERVAL;
+                }
+
                 if (_event == NULL && OS::isLinux()) {
                     _event = EVENT_CPU;
                 }
@@ -380,7 +389,7 @@ Error Arguments::parse(const char* args) {
 
             CASE("sched")
                 _sched = true;
-            
+
             CASE("record-cpu")
                 _record_cpu = true;
 

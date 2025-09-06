@@ -76,6 +76,7 @@ static const char USAGE_STRING[] =
     "  --latency duration  Java method latency profiling threshold\n"
     "  --lock duration     lock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
+    "  --proc interval     process sampling interval (default: 30s)\n"
     "  --all               shorthand for enabling cpu, wall, alloc, live,\n"
     "                      nativemem and lock profiling simultaneously\n"
     "  --total             accumulate the total value (time, bytes, etc.)\n"
@@ -506,7 +507,7 @@ int main(int argc, const char** argv) {
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
                    arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
-                   arg == "--target-cpu") {
+                   arg == "--target-cpu" || arg == "--proc") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {
