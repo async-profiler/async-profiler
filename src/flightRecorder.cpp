@@ -20,8 +20,8 @@
 #include "jfrMetadata.h"
 #include "lookup.h"
 #include "os.h"
-#include "profiler.h"
 #include "processSampler.h"
+#include "profiler.h"
 #include "spinLock.h"
 #include "symbols.h"
 #include "threadFilter.h"
@@ -36,6 +36,7 @@ INCLUDE_HELPER_CLASS(JFR_SYNC_NAME, JFR_SYNC_CLASS, "one/profiler/JfrSync")
 static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
     Profiler::instance()->stop();
 }
+
 
 const int SMALL_BUFFER_SIZE = 1024;
 const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
@@ -449,26 +450,24 @@ class Recording {
         _last_gc_id = gc_id;
     }
 
-    bool processMonitorCycle(const u64 wall_time) {
-        if (!_process_sampler.shouldSample(wall_time)) return false;
+    void processMonitorCycle(const u64 wall_time) {
+        if (!_process_sampler.shouldSample(wall_time)) return;
 
         const u64 deadline_ns = OS::nanotime() + MAX_TIME_NS;
         const int process_count = _process_sampler.sample(wall_time);
         for (int pid_index = 0; pid_index < process_count; pid_index++) {
             const u64 current_time = OS::nanotime();
             if (current_time > deadline_ns) {
-                Log::debug("Incomplete process sampling cycle");
+                Log::debug("Sampled %d of %d processes due to time limit", pid_index, process_count);
                 break;
             }
 
             ProcessInfo info;
             if (_process_sampler.getProcessInfo(pid_index, current_time, info)) {
                 flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
-                recordProcessSample(&_proc_buf, &info, TSC::ticks());
+                recordProcessSample(&_proc_buf, &info);
             }
         }
-
-        return true;
     }
 
     bool hasMasterRecording() const {
@@ -1126,10 +1125,10 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
-    void recordProcessSample(Buffer* buf, const ProcessInfo* info, u64 event_start_time) {
+    void recordProcessSample(Buffer* buf, const ProcessInfo* info) {
         int start = buf->skip(5);
         buf->put8(T_PROCESS_SAMPLE);
-        buf->putVar64(event_start_time);
+        buf->putVar64(TSC::ticks());
 
         buf->putVar32(info->pid);
         buf->putVar32(info->ppid);

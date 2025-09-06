@@ -2,11 +2,12 @@
  * Copyright The async-profiler authors
  * SPDX-License-Identifier: Apache-2.0
  */
+
 #include "processSampler.h"
 #include <unordered_set>
 
-const float MIN_CPU_THRESHOLD = 0.05f;        // Minimum 5% cpu utilization to include results
-const float MIN_RSS_THRESHOLD = 0.05f; // Minimum 5% rss usage to include results
+const float MIN_CPU_THRESHOLD = 0.05f;  // Minimum 5% cpu utilization to include results
+const float MIN_RSS_THRESHOLD = 0.05f;  // Minimum 5% rss usage to include results
 
 u64 ProcessSampler::_last_sample_time = 0;
 std::unordered_map<int, ProcessHistory> ProcessSampler::_process_history;

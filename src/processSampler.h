@@ -30,6 +30,7 @@ class ProcessSampler {
     static double getRssUsageRatio(const ProcessInfo& info);
     static bool shouldIncludeProcess(const ProcessInfo& info);
     static bool populateCpuPercent(ProcessInfo& info, u64 sampling_time);
+
     void cleanupProcessHistory(int pid_count);
 
   public:

@@ -496,11 +496,12 @@ int OS::getProcessIds(int* pids, int max_pids) {
             pids[count++] = pid;
         }
     }
+
     closedir(proc);
     return count;
 }
 
-bool readProcessCmdline(int pid, ProcessInfo* info) {
+static bool readProcessCmdline(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
 
@@ -544,7 +545,7 @@ bool readProcessCmdline(int pid, ProcessInfo* info) {
     return true;
 }
 
-bool readProcessStats(int pid, ProcessInfo* info) {
+static bool readProcessStats(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
 
@@ -611,7 +612,7 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     return true;
 }
 
-bool readProcessStatus(int pid, ProcessInfo* info) {
+static bool readProcessStatus(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
     FILE* file = fopen(path, "r");
@@ -653,7 +654,7 @@ bool readProcessStatus(int pid, ProcessInfo* info) {
     return true;
 }
 
-bool readProcessIO(int pid, ProcessInfo* info) {
+static bool readProcessIO(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/io", pid);
     FILE* file = fopen(path, "r");
