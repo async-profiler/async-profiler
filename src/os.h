@@ -102,6 +102,7 @@ class OS {
     static u64 micros();
     static u64 processStartTime();
     static void sleep(u64 nanos);
+    static void uninterruptibleSleep(u64 nanos, volatile bool* flag);
     static u64 overrun(siginfo_t* siginfo);
 
     static u64 hton64(u64 x);

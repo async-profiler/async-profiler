@@ -224,6 +224,107 @@ bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintp
     return true;
 }
 
+static inline bool isFrameComplete(instruction_t* entry, instruction_t* ip) {
+    // Frame is fully constructed after sp is decremented by the frame size.
+    // Check if there is such an instruction anywhere between
+    // the method entry and the current instruction pointer.
+    while (--ip >= entry) {
+        if ((*ip & 0xff8003ff) == 0xd10003ff) {  // sub sp, sp, #frame_size
+            return true;
+        }
+    }
+    return false;
+}
+
+bool StackFrame::unwindPrologue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    // C1/C2 methods:
+    //   {stack_bang}
+    //   sub  sp, sp, #0x40
+    //   stp  x29, x30, [sp, #48]
+    //
+    // Native wrappers:
+    //   {stack_bang}
+    //   stp  x29, x30, [sp, #-16]!
+    //   mov  x29, sp
+    //   sub  sp, sp, #0x50
+    //
+    instruction_t* ip = (instruction_t*)pc;
+    instruction_t* entry = (instruction_t*)nm->entry();
+    if (ip <= entry) {
+        pc = link();
+    } else if ((*ip & 0xffe07fff) == 0xa9007bfd) {
+        // stp  x29, x30, [sp, #offset]
+        // SP has been adjusted, but FP not yet stored in a new frame
+        unsigned int offset = (*ip >> 12) & 0x1f8;
+        sp += offset + 16;
+        pc = link();
+    } else if (ip[0] == 0x910003fd && ip[-1] == 0xa9bf7bfd) {
+        // stp  x29, x30, [sp, #-16]!
+        // mov  x29, sp
+        sp += 16;
+        pc = ((uintptr_t*)sp)[-1];
+    } else if (ip <= entry + 16 && isFrameComplete(entry, ip)) {
+        sp += nm->frameSize() * sizeof(void*);
+        fp = ((uintptr_t*)sp)[-2];
+        pc = ((uintptr_t*)sp)[-1];
+    } else {
+        pc = link();
+    }
+    return true;
+}
+
+static inline bool isPollReturn(instruction_t* ip) {
+    // JDK 17+
+    //   add  sp, sp, #0x30
+    //   ldr  x8, [x28, #832]
+    //   cmp  sp, x8
+    //   b.hi offset
+    //   ret
+    //
+    // JDK 11
+    //   add  sp, sp, #0x30
+    //   ldr  x8, [x28, #264]
+    //   ldr  wzr, [x8]
+    //   ret
+    //
+    // JDK 8
+    //   add  sp, sp, #0x30
+    //   adrp x8, polling_page
+    //   ldr  wzr, [x8]
+    //   ret
+    //
+    if ((ip[0] & 0xffc003ff) == 0xf9400388 && (ip[-1] & 0xff8003ff) == 0x910003ff) {
+        // ldr x8, preceded by add sp
+        return true;
+    } else if ((ip[0] & 0x9f00001f) == 0x90000008 && (ip[-1] & 0xff8003ff) == 0x910003ff) {
+        // adrp x8, preceded by add sp
+        return true;
+    } else if (ip[0] == 0xeb2863ff && ip[2] == 0xd65f03c0) {
+        // cmp sp, x8, followed by ret
+        return true;
+    } else if ((ip[0] & 0xff000010) == 0x54000000 && ip[1] == 0xd65f03c0) {
+        // b.cond, followed by ret
+        return true;
+    } else if (ip[0] == 0xb940011f && ip[1] == 0xd65f03c0) {
+        // ldr wzr, followed by ret
+        return true;
+    }
+    return false;
+}
+
+bool StackFrame::unwindEpilogue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    //  ldp  x29, x30, [sp, #32]
+    //  add  sp, sp, #0x30
+    //  {poll_return}
+    //  ret
+    instruction_t* ip = (instruction_t*)pc;
+    if (*ip == 0xd65f03c0 || isPollReturn(ip)) {  // ret
+        pc = link();
+        return true;
+    }
+    return false;
+}
+
 bool StackFrame::unwindAtomicStub(const void*& pc) {
     // VM threads may call generated atomic stubs, which are not normally walkable
     const void* lr = (const void*)link();

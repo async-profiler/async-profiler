@@ -58,7 +58,7 @@ void ProtoBuffer::field(protobuf_index_t index, const char* s) {
 }
 
 void ProtoBuffer::field(protobuf_index_t index, const char* s, size_t len) {
-    field(index, (const unsigned char*) s, strlen(s));
+    field(index, (const unsigned char*) s, len);
 }
 
 void ProtoBuffer::field(protobuf_index_t index, const unsigned char* s, size_t len) {

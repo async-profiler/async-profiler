@@ -674,7 +674,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
-        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : 0;
+        int start_depth = (event_type == INSTRUMENTED_METHOD || event_type == METHOD_TRACE) ? 1 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
     }
 
@@ -808,6 +808,11 @@ Error Profiler::installTraps(const char* begin, const char* end, bool nostop) {
     const void* end_addr = NULL;
     if (end != NULL && (end_addr = resolveSymbol(end)) == NULL) {
         return Error("End address not found");
+    }
+
+    // Having 'begin' and 'end' traps at the same address would result in an infinite loop
+    if (begin_addr && begin_addr == end_addr) {
+        return Error("begin and end symbols should not resolve to the same address");
     }
 
     _begin_trap.assign(begin_addr);
@@ -1412,7 +1417,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
 void Profiler::printUsedMemory(Writer& out) {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
-    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory();
+    size_t dictionaries = _class_map.usedMemory() + _thread_filter.usedMemory();
 
     size_t code_cache = _runtime_stubs.usedMemory();
     int native_lib_count = _native_libs.count();
@@ -1661,6 +1666,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
     Index strings;
     Index functions;
+    // Eventually this is going to be Index<Attribute>, for now we keep it simple
+    Index thread_names;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
@@ -1690,17 +1697,32 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
         otlp_buffer.field(Sample::locations_length, trace->num_frames);
+
+        u32 thread_name_idx = 0;
+        for (int j = 0; j < trace->num_frames; j++) {
+            if (trace->frames[j].bci == BCI_THREAD_ID) {
+                int tid = (int)(uintptr_t) trace->frames[j].method_id;
+                MutexLocker ml(_thread_names_lock);
+                ThreadMap::iterator it = _thread_names.find(tid);
+                if (it != _thread_names.end()) {
+                    thread_name_idx = thread_names.indexOf(it->second);
+                }
+                continue;
+            }
+
+            // To be written below in Profile.location_indices
+            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
+            ++frames_seen;
+        }
+        if (thread_name_idx != 0) {
+            otlp_buffer.field(Sample::attribute_indices, thread_name_idx);
+        }
+
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
         otlp_buffer.putVarInt(cts->counter);
         otlp_buffer.commitMessage(sample_value_mark);
         otlp_buffer.commitMessage(sample_mark);
-
-        for (int j = 0; j < trace->num_frames; j++) {
-            // To be written below in Profile.location_indices
-            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
-        }
-        frames_seen += trace->num_frames;
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
@@ -1742,6 +1764,16 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Write string_table
     strings.forEachOrdered([&] (size_t idx, const std::string& s) {
         otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
+    });
+
+    // Write attribute_table (only threads for now)
+    thread_names.forEachOrdered([&] (size_t idx, const std::string& s) {
+        protobuf_mark_t attr_mark = otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
+        otlp_buffer.field(Key::key, OTLP_THREAD_NAME);
+        protobuf_mark_t value_mark = otlp_buffer.startMessage(Key::value);
+        otlp_buffer.field(AnyValue::string_value, s.data(), s.length());
+        otlp_buffer.commitMessage(value_mark);
+        otlp_buffer.commitMessage(attr_mark);
     });
 
     otlp_buffer.commitMessage(dictionary_mark);
