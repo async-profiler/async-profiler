@@ -112,6 +112,7 @@ jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
 jfieldID VMStructs::_klass = NULL;
 int VMStructs::_tls_index = -1;
+void* VMStructs::_java_thread_vtbl[6];
 
 VMStructs::LockFunc VMStructs::_lock_func;
 VMStructs::LockFunc VMStructs::_unlock_func;
@@ -626,6 +627,7 @@ void VMStructs::initThreadBridge() {
         if (vm_thread != NULL) {
             _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
             initTLS(vm_thread);
+            memcpy(_java_thread_vtbl, vm_thread->vtable(), sizeof(_java_thread_vtbl));
         }
     }
 }

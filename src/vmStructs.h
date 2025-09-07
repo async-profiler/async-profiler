@@ -118,6 +118,7 @@ class VMStructs {
     static jfieldID _tid;
     static jfieldID _klass;
     static int _tls_index;
+    static void* _java_thread_vtbl[6];
 
     typedef void (*LockFunc)(void*);
     static LockFunc _lock_func;
@@ -351,6 +352,21 @@ class VMThread : VMStructs {
     static int nativeThreadId(JNIEnv* jni, jthread thread);
 
     int osThreadId();
+
+    const void** vtable() {
+        return *(const void***)this;
+    }
+
+    // Carefully chosen heuristics: we consider this thread a JavaThread
+    // if at least 2 of the selected 3 vtable entries match those of a known
+    // JavaThread (which is either application thread or AttachListener).
+    // Verified on OpenJDK 8 to 25: product, fastdebug and slowdebug builds.
+    bool isJavaThread() {
+        const void** vtbl = vtable();
+        return (vtbl[1] == _java_thread_vtbl[1]) +
+               (vtbl[3] == _java_thread_vtbl[3]) +
+               (vtbl[5] == _java_thread_vtbl[5]) >= 2;
+    }
 
     int state() {
         return _thread_state_offset >= 0 ? *(int*) at(_thread_state_offset) : 0;
