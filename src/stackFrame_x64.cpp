@@ -144,6 +144,100 @@ bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintp
     return false;
 }
 
+static inline bool isFrameComplete(instruction_t* entry, instruction_t* ip) {
+    // Frame is fully constructed after rsp is decremented by the frame size.
+    // Check if there is such an instruction anywhere between
+    // the method entry and the current instruction pointer.
+    for (ip -= 4; ip >= entry; ip--) {
+        if (ip[0] == 0x48 && ip[2] == 0xec && (ip[1] & 0xfd) == 0x81) {  // sub rsp, frame_size
+            return true;
+        }
+    }
+    return false;
+}
+
+bool StackFrame::unwindPrologue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    //  0:   mov    %eax,-0x14000(%rsp)
+    //  7:   push   %rbp
+    //  8:   mov    %rsp,%rbp  ; for native methods only
+    // 11:   sub    $0x50,%rsp
+    instruction_t* ip = (instruction_t*)pc;
+    instruction_t* entry = (instruction_t*)nm->entry();
+    if (ip <= entry || *ip == 0x55 || nm->frameSize() == 0) {  // push rbp
+        pc = ((uintptr_t*)sp)[0] - 1;
+        sp += 8;
+        return true;
+    } else if (ip <= entry + 15 && ip[-1] == 0x55) {  // right after push rbp
+        pc = ((uintptr_t*)sp)[1] - 1;
+        sp += 16;
+        return true;
+    } else if (ip <= entry + 31 && isFrameComplete(entry, ip)) {
+        sp += nm->frameSize() * sizeof(void*);
+        fp = ((uintptr_t*)sp)[-2];
+        pc = ((uintptr_t*)sp)[-1];
+        return true;
+    }
+    return false;
+}
+
+static inline bool isPollReturn(instruction_t* ip) {
+    // JDK 17+
+    //   pop    %rbp
+    //   cmp    0x348(%r15),%rsp
+    //   ja     offset_32
+    //   ret
+    if (ip[0] == 0x49 && ip[1] == 0x3b && (ip[2] == 0x67 || ip[2] == 0xa7) && ip[-1] == 0x5d) {
+        // cmp, preceded by pop rbp
+        return true;
+    } else if (ip[0] == 0x0f && ip[1] == 0x87 && ip[6] == 0xc3) {
+        // ja, followed by ret
+        return true;
+    }
+
+    // JDK 11
+    //   pop    %rbp
+    //   mov    0x108(%r15),%r10
+    //   test   %eax,(%r10)
+    //   ret
+    if (ip[0] == 0x4d && ip[1] == 0x8b && ip[2] == 0x97 && ip[-1] == 0x5d) {
+        // mov, preceded by pop rbp
+        return true;
+    } else if (ip[0] == 0x41 && ip[1] == 0x85 && ip[2] == 0x02 && ip[3] == 0xc3) {
+        // test, followed by ret
+        return true;
+    }
+
+    // JDK 8
+    //   pop    %rbp
+    //   test   %eax,offset(%rip)
+    //   ret
+    if (ip[0] == 0x85 && ip[1] == 0x05 && ip[6] == 0xc3) {
+        // test, followed by ret
+        return true;
+    }
+
+    return false;
+}
+
+bool StackFrame::unwindEpilogue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    //  add    $0x40,%rsp
+    //  pop    %rbp
+    //  {poll_return}
+    //  ret
+    instruction_t* ip = (instruction_t*)pc;
+    if (*ip == 0xc3 || isPollReturn(ip)) {  // ret
+        pc = ((uintptr_t*)sp)[0] - 1;
+        sp += 8;
+        return true;
+    } else if (*ip == 0x5d) {  // pop rbp
+        fp = ((uintptr_t*)sp)[0];
+        pc = ((uintptr_t*)sp)[1] - 1;
+        sp += 16;
+        return true;
+    }
+    return false;
+}
+
 bool StackFrame::unwindAtomicStub(const void*& pc) {
     // Not needed
     return false;

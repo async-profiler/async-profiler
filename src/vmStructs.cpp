@@ -485,12 +485,15 @@ void VMStructs::resolveOffsets() {
             && _klass != NULL
             && _lock_func != NULL && _unlock_func != NULL;
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__i386__)
     _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -8 : VM::hotspot_version() == 8 ? -7 : 0;
 #elif defined(__aarch64__)
     _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -9 : VM::hotspot_version() == 8 ? -7 : 0;
     // The constant is missing on ARM, but fortunately, it has been stable for years across all JDK versions
     _entry_frame_call_wrapper_offset = -64;
+#elif defined(__arm__) || defined(__thumb__)
+    _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -8 : 0;
+    _entry_frame_call_wrapper_offset = 0;
 #endif
 
     // JDK-8292758 has slightly changed ScopeDesc encoding

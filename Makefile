@@ -94,7 +94,7 @@ ifeq ($(OS),Darwin)
     MERGE=false
   endif
 else
-  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections -ggdb
+  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections -ggdb -Wunused-variable
   ifeq ($(MERGE),true)
     CXXFLAGS += -fwhole-program
   endif
@@ -129,10 +129,6 @@ endif
 STATIC_BINARY=$(findstring musl-gcc,$(CC))
 ifneq (,$(STATIC_BINARY))
   CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
-endif
-
-ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
-  CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
 

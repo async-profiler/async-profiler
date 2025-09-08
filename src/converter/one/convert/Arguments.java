@@ -31,6 +31,7 @@ public class Arguments {
     public boolean leak;
     public boolean live;
     public boolean lock;
+    public boolean trace;
     public boolean threads;
     public boolean classify;
     public boolean total;
