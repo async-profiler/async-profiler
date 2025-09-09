@@ -106,14 +106,15 @@ struct StackWalkFeatures {
     unsigned short stats         : 1;
 
     // Additional HotSpot-specific features
+    unsigned short jnienv        : 1;
     unsigned short probe_sp      : 1;
     unsigned short vtable_target : 1;
     unsigned short comp_task     : 1;
     unsigned short pc_addr       : 1;
-    unsigned short _reserved     : 5;
+    unsigned short _reserved     : 4;
 
     StackWalkFeatures() : unknown_java(1), unwind_stub(1), unwind_comp(1), unwind_native(1), java_anchor(1), gc_traces(1),
-                          stats(0), probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
+                          stats(0), jnienv(0), probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
     }
 };
 
