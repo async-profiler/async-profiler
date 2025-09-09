@@ -173,8 +173,8 @@ jobs:
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2023
             asprof-binaries-job: linux-x64
           - runson:
-              display: amazonlinux2023-liberica
-              name: ubuntu-latest
+              display: alpqauita-liberica
+              name: bell-sw/alpaquita-linux-gcc
             java-version: 21
             java-distribution: liberica
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2023
