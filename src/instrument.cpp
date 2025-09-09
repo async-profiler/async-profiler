@@ -34,6 +34,8 @@ static inline u16 alignUp4(u16 i) {
 }
 
 enum ConstantTag {
+    // Available since JDK 11
+    CONSTANT_Dynamic = 17,
     // Available since JDK 17
     CONSTANT_Module = 19,
     CONSTANT_Package = 20
@@ -71,7 +73,7 @@ class Constant {
             case JVM_CONSTANT_Methodref:
             case JVM_CONSTANT_InterfaceMethodref:
             case JVM_CONSTANT_NameAndType:
-            case JVM_CONSTANT_Dynamic:
+            case CONSTANT_Dynamic:
             case JVM_CONSTANT_InvokeDynamic:
                 return 4;
             case JVM_CONSTANT_Long:
