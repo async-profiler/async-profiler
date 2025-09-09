@@ -136,7 +136,7 @@ enum PatchConstants {
     EXTRA_BYTECODES_SIMPLE_ENTRY = 4,
     // System.nanoTime and lstore
     EXTRA_BYTECODES_ENTRY = 8,
-    // lload and recordExit(startTime)
+    // lload and recordExit0(startTime)
     EXTRA_BYTECODES_EXIT = 8,
     // *load_i or *store_i to *load/*store
     EXTRA_BYTECODES_INDEXED = 4
@@ -502,7 +502,7 @@ Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, 
             put8(start_time_loc_index);
             put16(JVM_OPC_nop);
 
-            // invokestatic "one/profiler/Instrument.recordExit(J)V"
+            // invokestatic "one/profiler/Instrument.recordExit0(J)V"
             put8(JVM_OPC_invokestatic);
             put16(_cpool_len + 6);
             put8(JVM_OPC_nop);
@@ -903,7 +903,7 @@ Result BytecodeRewriter::rewriteClass() {
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
-    putConstant("recordExit");
+    putConstant("recordExit0");
     putConstant("(J)V");
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 11, _cpool_len + 12);
@@ -958,7 +958,7 @@ Error Instrument::check(Arguments& args) {
         JNIEnv* jni = VM::jni();
         JNINativeMethod native_method[2];
         native_method[0] = {(char*)"recordEntry", (char*)"()V", (void*)recordEntry};
-        native_method[1] = {(char*)"recordExit", (char*)"(J)V", (void*)recordExit};
+        native_method[1] = {(char*)"recordExit0", (char*)"(J)V", (void*)recordExit0};
 
         jclass cls = jni->DefineClass(INSTRUMENT_NAME, NULL, (const jbyte*)INSTRUMENT_CLASS, INCBIN_SIZEOF(INSTRUMENT_CLASS));
         if (cls == NULL || jni->RegisterNatives(cls, native_method, 2) != 0) {
@@ -1085,7 +1085,7 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
     }
 }
 
-void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
+void JNICALL Instrument::recordExit0(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
     if (!_enabled) return;
 
     u64 now_ticks = TSC::ticks();
