@@ -173,12 +173,16 @@ jobs:
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2023
             asprof-binaries-job: linux-x64
           - runson:
-              display: alpqauita-liberica
+              display: alpqauita-liberica-alpine
               name: ubuntu-latest
             java-version: 21
             java-distribution: liberica
-            image: public.ecr.aws/bellsoft/alpaquita-linux-gcc:15.2-glibc
+            image: public.ecr.aws/bellsoft/alpaquita-linux-gcc:15.2-musl
             asprof-binaries-job: linux-x64
+            before-checkout: |
+              apk add liberica21-jdk
+              gcc -v
+              java -version
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
@@ -191,11 +195,14 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
-        if: matrix.runson.display != 'alpine'
+        if: ${{ !contains(matrix.runson.display, 'alpine') }}
         with:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
           architecture: ${{ matrix.architecture }}
+      - name: Run before-checkout script
+        if: ${{ matrix.before-checkout }}
+        run: ${{ matrix.before-checkout }}
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Set variables
