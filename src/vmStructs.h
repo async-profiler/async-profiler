@@ -360,10 +360,9 @@ class VMThread : VMStructs {
         return *(const void***)this;
     }
 
-    // Carefully chosen heuristics: we consider this thread a JavaThread
-    // if at least 2 of the selected 3 vtable entries match those of a known
-    // JavaThread (which is either application thread or AttachListener).
-    // Verified on OpenJDK 8 to 25: product, fastdebug and slowdebug builds.
+    // This thread is considered a JavaThread if at least 2 of the selected 3 vtable entries
+    // match those of a known JavaThread (which is either application thread or AttachListener).
+    // Indexes were carefully chosen to work on OpenJDK 8 to 25, both product an debug builds.
     bool isJavaThread() {
         const void** vtbl = vtable();
         return (vtbl[1] == _java_thread_vtbl[1]) +
