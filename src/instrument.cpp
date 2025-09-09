@@ -164,7 +164,7 @@ class BytecodeRewriter {
     const char* _target_signature;
     u16 _target_signature_len;
 
-    bool _latency_profiling;
+    long _latency;
 
     // Reader
 
@@ -287,14 +287,14 @@ class BytecodeRewriter {
     Result rewriteClass();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency_profiling) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, long latency) :
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
         _dst_len(0),
         _dst_capacity(class_data_len + 400),
         _cpool(NULL),
-        _latency_profiling(latency_profiling) {
+        _latency(latency) {
 
         _target_class = target_class;
         _target_class_len = strlen(_target_class);
@@ -398,10 +398,10 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     int code_begin = _dst_len;
 
     u16 max_stack = get16();
-    put16(max_stack + (_latency_profiling ? 2 : 0));
+    put16(max_stack + (_latency >= 0 ? 2 : 0));
 
     u16 max_locals = get16();
-    put16(max_locals + (_latency_profiling ? 2 : 0));
+    put16(max_locals + (_latency >= 0 ? 2 : 0));
 
     u32 code_length_32 = get32();
     assert(code_length_32 <= MAX_CODE_LENGTH);
@@ -420,7 +420,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
     // This contains the byte index, considering that long and double take two slots
     int new_local_index = -1;
-    if (_latency_profiling) {
+    if (_latency >= 0) {
         // Find function signature (parameters + return value)
         const char* sig = _cpool[descriptor_index]->utf8();
         while (*sig != 0 && *sig != '(') sig++;
@@ -1071,7 +1071,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 
     bool wildcard_class = _target_class[0] == '*' && strlen(_target_class) == 1;
     if (name == NULL || wildcard_class || strcmp(name, _target_class) == 0) {
-        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency >= 0);
+        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
 }
