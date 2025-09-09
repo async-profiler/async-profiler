@@ -337,7 +337,6 @@ class BytecodeRewriter {
         }
 
         VM::jvmti()->Deallocate(_dst);
-        if (res == Result::CLASS_DOES_NOT_MATCH) return;
 
         std::string class_name = std::string(_class_name->utf8(), _class_name->info());
         std::string method_name = _method_name ? std::string(_method_name->utf8(), _method_name->info()) : "n/a";
@@ -350,6 +349,12 @@ class BytecodeRewriter {
                 break;
             case Result::JUMP_OVERFLOW:
                 Log::warn("Jump overflow: %s.%s", class_name.c_str(), method_name.c_str());
+                break;
+            case Result::CLASS_DOES_NOT_MATCH:
+                Log::debug("Skipping instrumentation of %s: class does not match");
+                break;
+            case Result::PROFILER_CLASS:
+                Log::debug("Skipping instrumentation of %s: internal profiler class");
                 break;
         }
     }
