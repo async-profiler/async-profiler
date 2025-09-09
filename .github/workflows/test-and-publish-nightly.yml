@@ -180,7 +180,7 @@ jobs:
             image: public.ecr.aws/bellsoft/alpaquita-linux-gcc:15.2-musl
             asprof-binaries-job: linux-x64
             before-checkout: |
-              apk add liberica21-jdk
+              apk add liberica21-jdk util-linux-misc
               gcc -v
               java -version
     runs-on: ${{ matrix.runson.name }}
