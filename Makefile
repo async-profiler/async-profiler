@@ -98,6 +98,7 @@ else
   ifeq ($(MERGE),true)
     CXXFLAGS += -fwhole-program
   endif
+  CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
   SOEXT=so
@@ -128,7 +129,7 @@ endif
 
 STATIC_BINARY=$(findstring musl-gcc,$(CC))
 ifneq (,$(STATIC_BINARY))
-  CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
+  CFLAGS += -static
 endif
 
 
