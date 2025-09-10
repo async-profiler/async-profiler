@@ -354,7 +354,7 @@ class BytecodeRewriter {
                 Log::debug("Skipping instrumentation of %s: class does not match");
                 break;
             case Result::PROFILER_CLASS:
-                Log::debug("Skipping instrumentation of %s: internal profiler class");
+                Log::trace("Skipping instrumentation of %s: internal profiler class");
                 break;
         }
     }
@@ -946,6 +946,7 @@ Result BytecodeRewriter::rewriteClass() {
     if (!_class_name->matches(_target_class, _target_class_len)) {
         return Result::CLASS_DOES_NOT_MATCH;
     }
+    // We should not instrument classes from one.profiler.* to avoid infinite recursion
     if (_class_name->info() >= PROFILER_PACKAGE_LEN &&
         strncmp(_class_name->utf8(), PROFILER_PACKAGE, PROFILER_PACKAGE_LEN) == 0) {
         return Result::PROFILER_CLASS;
