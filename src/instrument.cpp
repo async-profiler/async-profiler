@@ -18,7 +18,7 @@
 #include "instrument.h"
 
 #define PROFILER_PACKAGE "one/profiler/"
-static constexpr u32 PROFILER_PACKAGE_LEN = strlen(PROFILER_PACKAGE);
+static constexpr u32 PROFILER_PACKAGE_LEN = 13;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, PROFILER_PACKAGE "Instrument")
 
