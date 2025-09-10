@@ -15,8 +15,8 @@ public class Instrument {
 
     public static native void recordEntry();
 
-    public static void recordExit(long startTimeNanos, long minLatency) {
-        long durationNs = System.nanoTime() - startTimeNanos;
+    public static void recordExit(long startTimeNs, long minLatency) {
+        long durationNs = System.nanoTime() - startTimeNs;
         if (durationNs >= minLatency) {
             recordExit0(durationNs);
         }
