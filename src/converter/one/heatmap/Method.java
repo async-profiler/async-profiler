@@ -9,25 +9,20 @@ import one.convert.Frame;
 
 public class Method {
 
+    public static final Method EMPTY = new Method(0, 0, -1, (byte) 0, false);
+
     public final int className;
     public final int methodName;
     public final int location;
     public final byte type;
     public final boolean start;
 
-    final long originalMethodId;
-
-    Method next;
-
-    public int frequencyOrNewMethodId;
+    public int frequency;
+    // An identifier based on frequency ordering, more frequent methods will get a lower ID
+    public int frequencyBasedId;
     public int index;
 
-    Method(int className, int methodName) {
-        this(0, className, methodName, 0, Frame.TYPE_NATIVE, true);
-    }
-
-    Method(long originalMethodId, int className, int methodName, int location, byte type, boolean start) {
-        this.originalMethodId = originalMethodId;
+    Method(int className, int methodName, int location, byte type, boolean start) {
         this.className = className;
         this.methodName = methodName;
         this.location = location;

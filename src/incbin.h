@@ -18,10 +18,10 @@
     extern "C" const char NAME[];\
     extern "C" const char NAME##_END[];\
     asm(INCBIN_SECTION "\n"\
-        ".global " INCBIN_SYMBOL #NAME "\n"\
+        ".globl " INCBIN_SYMBOL #NAME "\n"\
         INCBIN_SYMBOL #NAME ":\n"\
         ".incbin \"" FILE "\"\n"\
-        ".global " INCBIN_SYMBOL #NAME "_END\n"\
+        ".globl " INCBIN_SYMBOL #NAME "_END\n"\
         INCBIN_SYMBOL #NAME "_END:\n"\
         ".byte 0x00\n"\
         ".previous\n"\

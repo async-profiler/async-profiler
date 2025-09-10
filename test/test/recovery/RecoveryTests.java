@@ -24,6 +24,10 @@ public class RecoveryTests {
         out = p.profile("-d 3 -e cpu -o collapsed --safe-mode 2");
         Assert.isLess(out.ratio("StringBuilder.delete;"), 0.1);
         Assert.isGreater(out.ratio("unknown_Java"), 0.5);
+
+        out = p.profile("-d 2 -e cpu -i 1ms --cstack vm -o collapsed");
+        Assert.isGreater(out.ratio("StringBuilderTest.main;java/lang/StringBuilder.delete;"), 0.8);
+        Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
     }
 
     @Test(mainClass = StringBuilderTest.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.ARM32})
@@ -34,6 +38,10 @@ public class RecoveryTests {
         out = p.profile("-d 3 -e cpu -o collapsed --safe-mode 2");
         Assert.isLess(out.ratio("StringBuilder.delete;"), 0.1);
         Assert.isGreater(out.ratio("unknown_Java"), 0.5);
+
+        out = p.profile("-d 2 -e cpu -i 1ms --cstack vm -o collapsed");
+        Assert.isGreater(out.ratio("StringBuilderTest.main;java/lang/StringBuilder.delete;"), 0.8);
+        Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
     }
 
     @Test(mainClass = Numbers.class, debugNonSafepoints = true)
@@ -44,6 +52,11 @@ public class RecoveryTests {
 
         out = p.profile("-d 3 -e cpu -o collapsed --safe-mode 31");
         Assert.isGreater(out.ratio("unknown_Java"), 0.05);
+
+        out = p.profile("-d 2 -e cpu -i 1ms --cstack vm -o collapsed");
+        Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop"), 0.8);
+        Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop;test/recovery/Numbers.avg"), 0.5);
+        Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
     }
 
     @Test(mainClass = Suppliers.class, debugNonSafepoints = true)
@@ -54,5 +67,24 @@ public class RecoveryTests {
         out = p.profile("-d 3 -e cpu -o collapsed");
         Assert.isGreater(out.ratio("itable stub"), 0.01);
         Assert.isGreater(out.ratio("Suppliers.loop"), 0.5);
+
+        out = p.profile("-d 2 -e cpu -i 1ms --cstack vm -o collapsed");
+        Assert.isGreater(out.ratio("Suppliers.main;test/recovery/Suppliers.loop"), 0.5);
+        Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
+    }
+
+    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64})
+    public void intrinsics(TestProcess p) throws Exception {
+        Output out = p.profile("-d 3 -e cpu -i 1ms -o collapsed");
+        Assert.isLess(out.ratio("^\\[unknown"), 0.02, "No more than 2% of unknown frames");
+        Assert.isLess(out.ratio("^[^ ;]+(;[^ ;]+)? "), 0.02, "No more than 2% of short stacks");
+    }
+
+    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64})
+    public void intrinsicsVM(TestProcess p) throws Exception {
+        // cstack=vm should yield less unknown frames than AsyncGetCallTrace
+        Output out = p.profile("-d 3 -e cpu -i 1ms -o collapsed --cstack vm");
+        Assert.isLess(out.ratio("^\\[unknown"), 0.01, "No more than 1% of unknown frames");
+        Assert.isLess(out.ratio("^[^ ;]+(;[^ ;]+)? "), 0.01, "No more than 1% of short stacks");
     }
 }

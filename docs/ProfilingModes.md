@@ -127,7 +127,7 @@ Tail length can be altered with `--tail` option that accepts `ratio` or `percent
 For example, to ignore allocations in the last 2 minutes of a 10 minutes profile, use
 
 ```
-jfrconf --nativemem --leak --tail 20% app.jfr app-leak.html
+jfrconv --nativemem --leak --tail 20% app.jfr app-leak.html
 ```
 
 The overhead of `nativemem` profiling depends on the number of native allocations,
@@ -188,6 +188,12 @@ of a non-native Java method may cause the [deoptimization](https://github.com/op
 of all compiled methods. The subsequent instrumentation flushes only the _dependent code_.
 
 The massive CodeCache flush doesn't occur if attaching async-profiler as an agent.
+
+### Latency profiling
+
+In the context of _Java method profiling_, async-profiler supports latency profiling. Users may
+specify a threshold latency with the parameter `latency`. Only the calls exceeding this threshold
+in total runtime will be profiled. Method calls resulting in an exception are ignored.
 
 ## Native function profiling
 

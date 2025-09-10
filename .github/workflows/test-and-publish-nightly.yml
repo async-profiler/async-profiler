@@ -104,6 +104,7 @@ jobs:
   integration-tests:
     needs: build-and-upload-binaries
     strategy:
+      fail-fast: false
       matrix:
         runson:
           - display: linux-x64
@@ -123,9 +124,18 @@ jobs:
             # ARM MacOS should take fat binaries built on ARM
             asprof-binaries-job: macos
           - runson:
+              display: macos-arm64
+              name: macos-15
+            java-version: 21
+            java-distribution: corretto
+            # Not using container for mac-os as we have images only for linux
+            image: ""
+            # ARM MacOS should take fat binaries built on ARM
+            asprof-binaries-job: macos
+          - runson:
               display: macos-x64
               name: macos-13
-            java-version: 11
+            java-version: 17
             java-distribution: corretto
             architecture: x64
             image: ""
@@ -213,6 +223,13 @@ jobs:
           esac
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+      - name: Download Protobuf Java runtime
+        run: |
+          mkdir -p test/deps
+          cd test/deps
+          curl -L -O "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$PB_JAVA_VERSION/protobuf-java-$PB_JAVA_VERSION.jar"
+        env:
+          PB_JAVA_VERSION: "4.31.1"
       - name: Run integration tests
         run: |
           mkdir -p build/jar

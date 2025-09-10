@@ -36,7 +36,7 @@ public class TestProcess implements Closeable {
 
     private static final String JAVA_HOME = System.getProperty("java.home");
 
-    private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
+    private static final Pattern filePattern = Pattern.compile("(%[a-z][a-z0-9_]*)(\\.[a-z]+)?");
 
     private static final MethodHandle pid = getPidHandle();
 
@@ -141,6 +141,7 @@ public class TestProcess implements Closeable {
                 cmd.add("-XX:+DebugNonSafepoints");
             }
             cmd.add("-Djava.library.path=" + System.getProperty("java.library.path"));
+            cmd.add("-ea");
             addArgs(cmd, test.jvmArgs());
             if (!test.agentArgs().isEmpty()) {
                 cmd.add("-agentpath:" + profilerLibPath() + "=" +
@@ -241,14 +242,14 @@ public class TestProcess implements Closeable {
         try {
             Files.createDirectories(Paths.get(logDir));
 
-            File stdout = tmpFiles.getOrDefault(PROFOUT, tmpFiles.get(STDOUT));
-            moveLog(stdout, "stdout", true);
+            moveLog(tmpFiles.get(STDOUT), "stdout", true);
+            moveLog(tmpFiles.get(STDERR), "stderr", false);
 
-            File stderr = tmpFiles.getOrDefault(PROFERR, tmpFiles.get(STDERR));
-            moveLog(stderr, "stderr", false);
-
-            File profile = tmpFiles.get("%f");
-            moveLog(profile, "profile", true);
+            for (String key : tmpFiles.keySet()) {
+                if (!key.equals(STDERR) && !key.equals(STDOUT)) {
+                    moveLog(tmpFiles.get(key), key.substring(1), true);
+                }
+            }
         } catch (IOException e) {
             log.log(Level.WARNING, "Failed to move logs", e);
         }
@@ -307,10 +308,14 @@ public class TestProcess implements Closeable {
     }
 
     public Output profile(String args) throws IOException, TimeoutException, InterruptedException {
-        return profile(args, false);
+        return profile(args, false, 10);
     }
 
     public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException {
+        return profile(args, sudo, 10);
+    }
+
+    public Output profile(String args, boolean sudo, int timeout) throws IOException, TimeoutException, InterruptedException {
         List<String> cmd = new ArrayList<>();
         if (sudo && (new File("/usr/bin/sudo").exists() || !isRoot())) {
             cmd.add("/usr/bin/sudo");
@@ -325,7 +330,7 @@ public class TestProcess implements Closeable {
                 .redirectError(createTempFile(PROFERR))
                 .start();
 
-        waitForExit(p, 10);
+        waitForExit(p, timeout);
         int exitCode = p.waitFor();
         if (exitCode != 0) {
             throw new IOException("Profiling call failed: " + readFile(PROFERR));

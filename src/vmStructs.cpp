@@ -485,12 +485,15 @@ void VMStructs::resolveOffsets() {
             && _klass != NULL
             && _lock_func != NULL && _unlock_func != NULL;
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__i386__)
     _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -8 : VM::hotspot_version() == 8 ? -7 : 0;
 #elif defined(__aarch64__)
     _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -9 : VM::hotspot_version() == 8 ? -7 : 0;
     // The constant is missing on ARM, but fortunately, it has been stable for years across all JDK versions
     _entry_frame_call_wrapper_offset = -64;
+#elif defined(__arm__) || defined(__thumb__)
+    _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -8 : 0;
+    _entry_frame_call_wrapper_offset = 0;
 #endif
 
     // JDK-8292758 has slightly changed ScopeDesc encoding
@@ -579,7 +582,7 @@ void VMStructs::patchSafeFetch() {
     } else if (WX_MEMORY && VM::hotspot_version() == 11) {
         void** entry = (void**)_libjvm->findSymbol("_ZN12StubRoutines17_safefetchN_entryE");
         if (entry != NULL) {
-            *entry = (void*)SafeAccess::loadPtr;
+            *entry = (void*)SafeAccess::load;
         }
     }
 }
@@ -643,7 +646,7 @@ int VMThread::osThreadId() {
     const char* osthread = *(const char**) at(_thread_osthread_offset);
     if (osthread != NULL) {
         // Java thread may be in the middle of termination, and its osthread structure just released
-        return SafeAccess::load32((u32*)(osthread + _osthread_id_offset), (u32)-1);
+        return SafeAccess::load32((int32_t*)(osthread + _osthread_id_offset), -1);
     }
     return -1;
 }
@@ -671,10 +674,8 @@ jmethodID VMMethod::id() {
 
 jmethodID VMMethod::validatedId() {
     jmethodID method_id = id();
-    if (goodPtr(method_id)) {
-        if (!_can_dereference_jmethod_id || *(VMMethod**)method_id == this) {
-            return method_id;
-        }
+    if (!_can_dereference_jmethod_id || (goodPtr(method_id) && *(VMMethod**)method_id == this)) {
+        return method_id;
     }
     return NULL;
 }

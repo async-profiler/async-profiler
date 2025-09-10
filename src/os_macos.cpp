@@ -5,6 +5,8 @@
 
 #ifdef __APPLE__
 
+#include <dlfcn.h>
+#include <errno.h>
 #include <libkern/OSByteOrder.h>
 #include <libproc.h>
 #include <mach/mach.h>
@@ -12,7 +14,9 @@
 #include <mach/mach_time.h>
 #include <mach/processor_info.h>
 #include <mach/vm_map.h>
+#include <mach-o/dyld.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
@@ -94,9 +98,12 @@ JitWriteProtection::~JitWriteProtection() {
 
 
 static SigAction installed_sigaction[32];
+static SigAction orig_sigbus_handler;
+static SigAction orig_sigsegv_handler;
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const long OS::clock_ticks_per_sec = sysconf(_SC_CLK_TCK);
 
 static mach_timebase_info_data_t timebase = {0, 0};
 
@@ -116,6 +123,11 @@ u64 OS::micros() {
 void OS::sleep(u64 nanos) {
     struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
     nanosleep(&ts, NULL);
+}
+
+void OS::uninterruptibleSleep(u64 nanos, volatile bool* flag) {
+    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
+    while (*flag && nanosleep(&ts, &ts) < 0 && errno == EINTR);
 }
 
 u64 OS::overrun(siginfo_t* siginfo) {
@@ -224,13 +236,32 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
     return oldsa.sa_sigaction;
 }
 
+static void restoreSignalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    signal(signo, SIG_DFL);
+}
+
 SigAction OS::replaceCrashHandler(SigAction action) {
+    // It is not well specified when macOS raises SIGBUS and when SIGSEGV.
+    // HotSpot handles both similarly, so do we.
     struct sigaction sa;
+
     sigaction(SIGBUS, NULL, &sa);
-    SigAction old_action = sa.sa_sigaction;
+    orig_sigbus_handler = sa.sa_handler == SIG_DFL ? restoreSignalHandler : sa.sa_sigaction;
     sa.sa_sigaction = action;
+    sa.sa_flags |= SA_SIGINFO | SA_RESTART;
     sigaction(SIGBUS, &sa, NULL);
-    return old_action;
+
+    sigaction(SIGSEGV, NULL, &sa);
+    orig_sigsegv_handler = sa.sa_handler == SIG_DFL ? restoreSignalHandler : sa.sa_sigaction;
+    sa.sa_sigaction = action;
+    sa.sa_flags |= SA_SIGINFO | SA_RESTART;
+    sigaction(SIGSEGV, &sa, NULL);
+
+    // Return an action that dispatches to one of the original handlers depending on signo,
+    // so that the caller does not need to deal with multiple handlers
+    return [](int signo, siginfo_t* siginfo, void* ucontext) {
+        (signo == SIGBUS ? orig_sigbus_handler : orig_sigsegv_handler)(signo, siginfo, ucontext);
+    };
 }
 
 int OS::getProfilingSignal(int mode) {
@@ -365,6 +396,61 @@ void OS::freePageCache(int fd, off_t start_offset) {
 int OS::mprotect(void* addr, size_t size, int prot) {
     if (prot & PROT_WRITE) prot |= VM_PROT_COPY;
     return vm_protect(mach_task_self(), (vm_address_t)addr, size, 0, prot);
+}
+
+// Checks if async-profiler is preloaded through the DYLD_INSERT_LIBRARIES mechanism.
+// This is done by analyzing the order of loaded dynamic libraries.
+bool OS::checkPreloaded() {
+    if (getenv("DYLD_INSERT_LIBRARIES") == NULL) {
+        return false;
+    }
+
+    // Find async-profiler shared object
+    Dl_info libprofiler;
+    if (dladdr((const void*)OS::checkPreloaded, &libprofiler) == 0) {
+        return false;
+    }
+
+    // Find libc shared object
+    Dl_info libc;
+    if (dladdr((const void*)exit, &libc) == 0) {
+        return false;
+    }
+
+    uint32_t images = _dyld_image_count();
+    for (uint32_t i = 0; i < images; i++) {
+        void* image_base = (void*)_dyld_get_image_header(i);
+
+        if (image_base == libprofiler.dli_fbase) {
+            // async-profiler found first
+            return true;
+        } else if (image_base == libc.dli_fbase) {
+            // libc found first
+            return false;
+        }
+    }
+
+    return false;
+}
+
+u64 OS::getSystemBootTime() {
+    return 0;
+}
+
+u64 OS::getRamSize() {
+    return 0;
+}
+
+int OS::getProcessIds(int* pids, int max_pids) {
+    return 0;
+}
+
+bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
+    return false;
+}
+
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {
+    return false;
 }
 
 #endif // __APPLE__
