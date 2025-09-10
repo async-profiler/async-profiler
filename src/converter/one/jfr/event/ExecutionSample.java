@@ -5,7 +5,7 @@
 
 package one.jfr.event;
 
-public class ExecutionSample extends Event {
+public class ExecutionSample extends Event implements IThreadState {
     public final int threadState;
     public final int samples;
 
@@ -23,5 +23,9 @@ public class ExecutionSample extends Event {
     @Override
     public long value() {
         return samples;
+    }
+
+    @Override public final int threadState() {
+        return threadState;
     }
 }

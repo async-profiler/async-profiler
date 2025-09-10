@@ -24,7 +24,7 @@ public class Arguments {
     public boolean help;
     public boolean reverse;
     public boolean inverted;
-    public boolean cpu;
+    public CpuSampleType cpu;
     public boolean wall;
     public boolean alloc;
     public boolean nativemem;
@@ -76,6 +76,18 @@ public class Arguments {
                     f.setLong(this, parseTimestamp(args[++i]));
                 } else if (type == Pattern.class) {
                     f.set(this, Pattern.compile(args[++i]));
+                } else if (type.isEnum()) {
+                    boolean hasNextArg = args.length > i + 1;
+                    try {
+                        f.set(this, hasNextArg ? Enum.valueOf((Class<Enum>) type, args[++i]) : CpuSampleType.ExecutionSample);
+                    } catch (IllegalArgumentException e) {
+                        f.set(this, CpuSampleType.ExecutionSample);
+
+                        // Next arg was not a valid value for the enum
+                        if (hasNextArg) {
+                            i--;
+                        }
+                    }
                 }
             } catch (NoSuchFieldException | IllegalAccessException e) {
                 throw new IllegalArgumentException(arg);

@@ -61,6 +61,7 @@ public abstract class JfrConverter extends Classifier {
                 : args.alloc ? AllocationSample.class
                 : args.lock ? ContendedLock.class
                 : args.trace ? MethodTrace.class
+                : args.cpu == CpuSampleType.CPUTimeSample ? CPUTimeSample.class
                 : ExecutionSample.class;
 
         BitSet threadStates = null;
@@ -69,10 +70,10 @@ public abstract class JfrConverter extends Classifier {
             for (String state : args.state.toUpperCase().split(",")) {
                 threadStates.set(toThreadState(state));
             }
-        } else if (args.cpu) {
-            threadStates = getThreadStates(true);
+        } else if (args.cpu != null) {
+            threadStates = getThreadStates(args.cpu);
         } else if (args.wall) {
-            threadStates = getThreadStates(false);
+            threadStates = getThreadStates(null);
         }
 
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
@@ -80,7 +81,7 @@ public abstract class JfrConverter extends Classifier {
 
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
-                if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
+                if (threadStates == null || ((event instanceof IThreadState) && threadStates.get(((IThreadState) event).threadState()))) {
                     collector.collect(event);
                 }
             }
@@ -103,12 +104,17 @@ public abstract class JfrConverter extends Classifier {
         throw new IllegalArgumentException("Unknown thread state: " + name);
     }
 
-    protected BitSet getThreadStates(boolean cpu) {
+    protected BitSet getThreadStates(CpuSampleType cpu) {
         BitSet set = new BitSet();
         Map<Integer, String> threadStates = jfr.enums.get("jdk.types.ThreadState");
+
         if (threadStates != null) {
             for (Map.Entry<Integer, String> entry : threadStates.entrySet()) {
-                set.set(entry.getKey(), "STATE_DEFAULT".equals(entry.getValue()) == cpu);
+                if (cpu == CpuSampleType.CPUTimeSample) {
+                    set.set(entry.getKey(), "STATE_RUNNABLE".equals(entry.getValue()));
+                } else {
+                    set.set(entry.getKey(), "STATE_DEFAULT".equals(entry.getValue()) == (cpu != null));
+                }
             }
         }
         return set;
