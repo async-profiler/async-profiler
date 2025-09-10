@@ -351,10 +351,10 @@ class BytecodeRewriter {
                 Log::warn("Jump overflow: %s.%s", class_name.c_str(), method_name.c_str());
                 break;
             case Result::CLASS_DOES_NOT_MATCH:
-                Log::debug("Skipping instrumentation of %s: class does not match");
+                Log::debug("Skipping instrumentation of %s: class does not match", class_name.c_str());
                 break;
             case Result::PROFILER_CLASS:
-                Log::trace("Skipping instrumentation of %s: internal profiler class");
+                Log::trace("Skipping instrumentation of %s: internal profiler class", class_name.c_str());
                 break;
         }
     }
