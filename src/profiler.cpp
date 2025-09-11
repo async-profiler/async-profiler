@@ -676,15 +676,15 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         // Skip Instrument.recordSample() method
         int start_depth;
         switch (event_type) {
-        case INSTRUMENTED_METHOD:
-            start_depth = 1;
-            break;
-        case METHOD_TRACE:
-            start_depth = 2;
-            break;
-        default:
-            start_depth = 0;
-            break;
+            case INSTRUMENTED_METHOD:
+                start_depth = 1;
+                break;
+            case METHOD_TRACE:
+                start_depth = 2;
+                break;
+            default:
+                start_depth = 0;
+                break;
         }
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
     }
