@@ -8,6 +8,7 @@
 
 #ifdef __linux__
 
+#include <unistd.h>
 #include "fdtransfer.h"
 
 class FdTransferClient {

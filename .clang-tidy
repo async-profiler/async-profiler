@@ -132,3 +132,5 @@ CheckOptions:
     value: UPPER_CASE
   - key: misc-include-cleaner.MissingIncludes
     value: false
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: "sys/time.h" # https://github.com/llvm/llvm-project/issues/157876

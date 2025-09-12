@@ -11,6 +11,9 @@
 #include <unistd.h>
 #include "ctimer.h"
 #include "j9StackTraces.h"
+#include "log.h"
+#include "os.h"
+#include "vmEntry.h"
 
 
 #ifndef SIGEV_THREAD_ID
