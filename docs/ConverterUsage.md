@@ -45,7 +45,7 @@ Conversion options:
 
 
 JFR options:
-    --cpu              Generate only CPU profile during conversion
+    --cpu [EVENT]      Generate only CPU profile during conversion. EVENT is CPUTimeSample if specified, otherwise ExecutionSample
     --wall             Generate only Wall clock profile during conversion
     --alloc            Generate only Allocation profile during conversion
     --live             Build allocation profile from live objects only during conversion
