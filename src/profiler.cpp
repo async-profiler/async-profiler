@@ -674,18 +674,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
-        int start_depth;
-        switch (event_type) {
-            case INSTRUMENTED_METHOD:
-                start_depth = 1;
-                break;
-            case METHOD_TRACE:
-                start_depth = 2;
-                break;
-            default:
-                start_depth = 0;
-                break;
-        }
+        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : event_type == METHOD_TRACE ? 2 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
     }
 
