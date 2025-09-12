@@ -4,7 +4,6 @@
  */
 
 #include <stdlib.h>
-#include <sys/time.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -12,7 +11,6 @@
 #include "j9StackTraces.h"
 #include "j9Ext.h"
 #include "profiler.h"
-#include "perfEvents.h"
 #include "tsc.h"
 
 
