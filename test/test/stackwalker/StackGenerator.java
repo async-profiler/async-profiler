@@ -13,6 +13,8 @@ public class StackGenerator {
 
     public static native double leafFrame();
 
+    public static native double largeInnerFrame();
+
     static {
         System.loadLibrary("jninativestacks");
     }
@@ -29,6 +31,8 @@ public class StackGenerator {
             deepFrame();
         } else if (args[0].equals("leafFrame")) {
             leafFrame();
+        } else if (args[0].equals("largeInnerFrame")) {
+            largeInnerFrame();
         } else {
             System.err.println("Unknown test: " + args[0]);
             System.exit(1);

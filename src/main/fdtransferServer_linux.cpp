@@ -15,7 +15,11 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/sendfile.h>
 #include <sys/syscall.h>
+#include <sys/wait.h>
 
 #include "fdtransferServer.h"
 #include "../jattach/psutil.h"

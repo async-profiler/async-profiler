@@ -18,6 +18,7 @@ enum EventType {
     WALL_CLOCK_SAMPLE,
     MALLOC_SAMPLE,
     INSTRUMENTED_METHOD,
+    METHOD_TRACE,
     ALLOC_SAMPLE,
     ALLOC_OUTSIDE_TLAB,
     LIVE_OBJECT,
@@ -41,6 +42,14 @@ class ExecutionEvent : public Event {
     ThreadState _thread_state;
 
     ExecutionEvent(u64 start_time) : _start_time(start_time), _thread_state(THREAD_UNKNOWN) {}
+};
+
+class MethodTraceEvent : public Event {
+  public:
+    u64 _start_time;
+    u64 _duration;
+
+    MethodTraceEvent(u64 start_time, u64 duration) : _start_time(start_time), _duration(duration) {}
 };
 
 class WallClockEvent : public Event {

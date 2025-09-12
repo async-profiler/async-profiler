@@ -34,6 +34,7 @@
 #  define MMAP_SYSCALL __NR_mmap2
 #endif
 
+#define COMM_LEN 16
 
 class LinuxThreadList : public ThreadList {
   private:
@@ -100,6 +101,7 @@ static SigAction installed_sigaction[64];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const long OS::clock_ticks_per_sec = sysconf(_SC_CLK_TCK);
 
 
 u64 OS::nanotime() {
@@ -439,6 +441,252 @@ bool OS::checkPreloaded() {
 
     Dl_info info[2] = {libprofiler, libc};
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
+}
+
+u64 OS::getRamSize() {
+    static u64 mem_total = 0;
+
+    if (mem_total == 0) {
+        FILE* file = fopen("/proc/meminfo", "r");
+        if (!file) return 0;
+
+        char line[1024];
+        while (fgets(line, sizeof(line), file)) {
+            if (strncmp(line, "MemTotal:", 9) == 0) {
+                mem_total = strtoull(line + 9, NULL, 10) * 1024;
+                break;
+            }
+        }
+
+        fclose(file);
+    }
+
+    return mem_total;
+}
+
+u64 OS::getSystemBootTime() {
+    static u64 system_boot_time = 0;
+
+    if (system_boot_time == 0) {
+        FILE* file = fopen("/proc/stat", "r");
+        if (!file) return 0;
+
+        char line[1024];
+        while (fgets(line, sizeof(line), file)) {
+            if (strncmp(line, "btime", 5) == 0) {
+                system_boot_time = strtoull(line + 5, NULL, 10);
+                break;
+            }
+        }
+
+        fclose(file);
+    }
+
+    return system_boot_time;
+}
+
+int OS::getProcessIds(int* pids, int max_pids) {
+    int count = 0;
+    DIR* proc = opendir("/proc");
+    if (!proc) return 0;
+
+    for (dirent* de; (de = readdir(proc)) && count < max_pids;) {
+        int pid = atoi(de->d_name);
+        if (pid > 0) {
+            pids[count++] = pid;
+        }
+    }
+
+    closedir(proc);
+    return count;
+}
+
+static bool readProcessCmdline(int pid, ProcessInfo* info) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
+
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        return false;
+    }
+
+    const size_t max_read = sizeof(info->cmdline) - 1;
+    size_t len = 0;
+
+    ssize_t r;
+    while (r = read(fd, info->cmdline + len, max_read - len)) {
+        if (r > 0) {
+            len += (size_t)r;
+            if (len == max_read) break;
+        } else {
+            if (errno == EINTR) continue;
+            close(fd);
+            return false;
+        }
+    }
+
+    close(fd);
+
+    // Replace null bytes with spaces (arguments are separated by null bytes)
+    for (size_t i = 0; i < len; i++) {
+        if (info->cmdline[i] == '\0') {
+            info->cmdline[i] = ' ';
+        }
+    }
+
+    // Ensure null termination
+    info->cmdline[len] = '\0';
+
+    // Remove trailing space if present
+    while (len > 0 && info->cmdline[len - 1] == ' ') {
+        info->cmdline[--len] = '\0';
+    }
+
+    return true;
+}
+
+static bool readProcessStats(int pid, ProcessInfo* info) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) return false;
+
+    char buffer[4096];
+    size_t len = 0;
+
+    ssize_t r;
+    while (r = read(fd, buffer + len, sizeof(buffer) - 1 - len)) {
+        if (r > 0) {
+            len += (size_t)r;
+            if (len == sizeof(buffer) - 1) break;
+        } else {
+            if (errno == EINTR) continue;
+            close(fd);
+            return false;
+        }
+    }
+    close(fd);
+
+    if (len == 0) return false;
+    buffer[len] = '\0';
+
+    int parsed_pid, ppid;
+    char comm[COMM_LEN] = {0};
+    char state;
+    u64 minflt, majflt, utime, stime;
+    u64 starttime;
+    u64 vsize, rss;
+    int threads;
+    int parsed =
+        sscanf(buffer,
+               "%d "                    /*  1 pid                                   */
+               "(%15[^)]) "             /*  2 comm (read until ')')                 */
+               "%c %d "                 /*  3 state, 4 ppid                         */
+               "%*d %*d %*d %*d %*u "   /*  5-9 skip                                */
+               "%llu %*u %llu %*u "     /* 10-13 minflt,-,majflt,-                  */
+               "%llu %llu "             /* 14-15 utime, stime                       */
+               "%*d %*d %*d %*d "       /* 16-19 skip                               */
+               "%d "                    /* 20 threads                               */
+               "%*d "                   /* 21 skip                                  */
+               "%llu "                  /* 22 starttime                             */
+               "%llu "                  /* 23 vsize                                 */
+               "%llu",                  /* 24 rss                                   */
+               &parsed_pid, comm, &state, &ppid, &minflt, &majflt, &utime, &stime, &threads, &starttime, &vsize, &rss);
+
+    if (parsed < 12) return false;
+
+    memcpy(info->name, comm, COMM_LEN);
+    info->pid = parsed_pid;
+    info->ppid = ppid;
+    info->state = (unsigned char)state;
+    info->minor_faults = minflt;
+    info->major_faults = majflt;
+    info->cpu_user = (float)utime / OS::clock_ticks_per_sec;
+    info->cpu_system = (float)stime / OS::clock_ticks_per_sec;
+    info->threads = threads;
+    info->vm_size = vsize;
+    // (24) rss - convert from number of pages to bytes
+    info->vm_rss = rss * OS::page_size;
+    info->start_time = (OS::getSystemBootTime() + starttime / OS::clock_ticks_per_sec) * 1000;
+    return true;
+}
+
+static bool readProcessStatus(int pid, ProcessInfo* info) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+    FILE* file = fopen(path, "r");
+    if (!file) {
+        return false;
+    }
+
+    int read_count = 0;
+    char line[1024];
+    char key[32];
+    u64 value;
+    while (fgets(line, sizeof(line), file) && read_count < 6) {
+        if (sscanf(line, "%31s %llu", key, &value) != 2) {
+            continue;
+        }
+
+        if (strncmp(key, "Uid", 3) == 0) {
+            read_count++;
+            info->uid = (unsigned int)value;
+        } else if (strncmp(key, "RssAnon", 7) == 0) {
+            read_count++;
+            info->rss_anon = value * 1024;
+        } else if (strncmp(key, "RssFile", 7) == 0) {
+            read_count++;
+            info->rss_files = value * 1024;
+        } else if (strncmp(key, "RssShmem", 8) == 0) {
+            read_count++;
+            info->rss_shmem = value * 1024;
+        } else if (strncmp(key, "VmSize", 6) == 0) {
+            read_count++;
+            info->vm_size = value * 1024;
+        } else if (strncmp(key, "VmRSS", 5) == 0) {
+            read_count++;
+            info->vm_rss = value * 1024;
+        }
+    }
+
+    fclose(file);
+    return true;
+}
+
+static bool readProcessIO(int pid, ProcessInfo* info) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/io", pid);
+    FILE* file = fopen(path, "r");
+    if (!file) return false;
+
+    int read_count = 0;
+    char line[1024];
+    while (fgets(line, sizeof(line), file) && read_count < 2) {
+        if (strncmp(line, "read_bytes:", 11) == 0) {
+            u64 read_bytes = strtoull(line + 11, NULL, 10);
+            info->io_read = read_bytes >> 10;
+            read_count++;
+        } else if (strncmp(line, "write_bytes:", 12) == 0) {
+            u64 write_bytes = strtoull(line + 12, NULL, 10);
+            info->io_write = write_bytes >> 10;
+            read_count++;
+        }
+    }
+
+    fclose(file);
+    return true;
+}
+
+bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
+    return readProcessStats(pid, info);
+}
+
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {
+    readProcessStatus(info->pid, info);
+    readProcessIO(info->pid, info);
+    readProcessCmdline(info->pid, info);
+    return true;
 }
 
 #endif // __linux__

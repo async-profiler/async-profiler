@@ -128,5 +128,7 @@ CheckOptions:
     value: '(KB|Thread|setDaemon|klassOop|nVMs|loadLibrary|getTicksFrequency|counterTime|System|M|R|s_)'
   - key: readability-identifier-naming.PrivateMemberPrefix
     value: _
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: UPPER_CASE
   - key: misc-include-cleaner.MissingIncludes
     value: false

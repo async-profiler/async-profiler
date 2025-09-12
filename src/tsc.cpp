@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <jvmti.h>
 #include "tsc.h"
 #include "vmEntry.h"
 

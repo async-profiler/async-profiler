@@ -40,6 +40,10 @@ public class Output {
         return stream(regex).findAny().isPresent();
     }
 
+    public boolean containsExact(String string) {
+        return stream().anyMatch(s -> s.contains(string));
+    }
+
     public long samples(String regex) {
         return stream(regex).mapToLong(Output::extractSamples).sum();
     }

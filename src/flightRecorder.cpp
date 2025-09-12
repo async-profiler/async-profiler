@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 #include "flightRecorder.h"
@@ -19,6 +20,7 @@
 #include "jfrMetadata.h"
 #include "lookup.h"
 #include "os.h"
+#include "processSampler.h"
 #include "profiler.h"
 #include "spinLock.h"
 #include "symbols.h"
@@ -70,7 +72,6 @@ struct CpuTimes {
     CpuTime proc;
     CpuTime total;
 };
-
 
 class Buffer {
   private:
@@ -178,6 +179,15 @@ class Buffer {
         put(v, len);
     }
 
+    void putByteString(const char* v) {
+        if (v == NULL) {
+            put8(0);
+        } else {
+            size_t len = strlen(v);
+            putByteString(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
+        }
+    }
+
     void put8(int offset, char v) {
         _data[offset] = v;
     }
@@ -244,6 +254,8 @@ class Recording {
     u32 _last_gc_id;
     CpuTimes _last_times;
     SmallBuffer _monitor_buf;
+    RecordingBuffer _proc_buf;
+    ProcessSampler _process_sampler;
 
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -296,6 +308,10 @@ class Recording {
 
         _heap_monitor_enabled = !args.hasOption(NO_HEAP_SUMMARY) && VM::_totalMemory != NULL && VM::_freeMemory != NULL;
         _last_gc_id = 0;
+
+        if (args._proc > 0) {
+            _process_sampler.enable(args._proc * 1000000);
+        }
     }
 
     ~Recording() {
@@ -315,6 +331,7 @@ class Recording {
 
     off_t finishChunk() {
         flush(&_monitor_buf);
+        flush(&_proc_buf);
 
         writeNativeLibraries(_buf);
 
@@ -431,6 +448,26 @@ class Recording {
         flushIfNeeded(&_monitor_buf, SMALL_BUFFER_LIMIT);
 
         _last_gc_id = gc_id;
+    }
+
+    void processMonitorCycle(const u64 wall_time) {
+        if (!_process_sampler.shouldSample(wall_time)) return;
+
+        const u64 deadline_ns = OS::nanotime() + MAX_TIME_NS;
+        const int process_count = _process_sampler.sample(wall_time);
+        for (int pid_index = 0; pid_index < process_count; pid_index++) {
+            const u64 current_time = OS::nanotime();
+            if (current_time > deadline_ns) {
+                Log::debug("Sampled %d of %d processes due to time limit", pid_index, process_count);
+                break;
+            }
+
+            ProcessInfo info;
+            if (_process_sampler.getProcessInfo(pid_index, current_time, info)) {
+                flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
+                recordProcessSample(&_proc_buf, &info);
+            }
+        }
     }
 
     bool hasMasterRecording() const {
@@ -635,6 +672,16 @@ class Recording {
         writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock >= 0);
         if (args._lock >= 0) {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
+        }
+
+        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", args._latency >= 0);
+        if (args._latency >= 0) {
+            writeIntSetting(buf, T_METHOD_TRACE, "latency", args._latency);
+        }
+
+        writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
+        if (args._proc > 0) {
+            writeIntSetting(buf, T_PROCESS_SAMPLE, "proc", args._proc);
         }
 
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VM::loaded() && VMStructs::libjvm()->hasDebugSymbols());
@@ -1002,6 +1049,17 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordMethodTrace(Buffer* buf, int tid, u32 call_trace_id, MethodTraceEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_METHOD_TRACE);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_duration);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(0); // TODO: method
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordWallClockSample(Buffer* buf, int tid, u32 call_trace_id, WallClockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_WALL_CLOCK_SAMPLE);
@@ -1064,6 +1122,41 @@ class Recording {
         buf->putVar32(event->_type);
         buf->putByteString((const char*)event->_data,
             event->_len > ASPROF_MAX_JFR_EVENT_LENGTH ? ASPROF_MAX_JFR_EVENT_LENGTH : event->_len);
+        buf->putVar32(start, buf->offset() - start);
+    }
+
+    void recordProcessSample(Buffer* buf, const ProcessInfo* info) {
+        int start = buf->skip(5);
+        buf->put8(T_PROCESS_SAMPLE);
+        buf->putVar64(TSC::ticks());
+
+        buf->putVar32(info->pid);
+        buf->putVar32(info->ppid);
+        buf->putByteString(info->name);
+        buf->putByteString(info->cmdline);
+
+        buf->putVar32(info->uid);
+        buf->put8(info->state);
+
+        buf->putVar64(info->start_time);
+        buf->putFloat(info->cpu_user);
+        buf->putFloat(info->cpu_system);
+        buf->putFloat(info->cpu_percent);
+        buf->putVar32(info->threads);
+
+        buf->putVar64(info->vm_size);
+        buf->putVar64(info->vm_rss);
+
+        buf->putVar64(info->rss_anon);
+        buf->putVar64(info->rss_files);
+        buf->putVar64(info->rss_shmem);
+
+        buf->putVar64(info->minor_faults);
+        buf->putVar64(info->major_faults);
+
+        buf->putVar64(info->io_read);
+        buf->putVar64(info->io_write);
+
         buf->putVar32(start, buf->offset() - start);
     }
 
@@ -1234,6 +1327,8 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
 
     _rec->cpuMonitorCycle();
     _rec->heapMonitorCycle(gc_id);
+    _rec->processMonitorCycle(wall_time);
+
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
 
     _rec_lock.unlockShared();
@@ -1289,6 +1384,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     int event_mask = (args._event != NULL ? 1 : 0) |
                      (args._alloc >= 0 ? 2 : 0) |
                      (args._lock >= 0 ? 4 : 0) |
+                     (args._latency >= 0 ? 8 : 0) |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << 4);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
@@ -1320,6 +1416,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
             case EXECUTION_SAMPLE:
             case INSTRUMENTED_METHOD:
                 _rec->recordExecutionSample(buf, tid, call_trace_id, (ExecutionEvent*)event);
+                break;
+            case METHOD_TRACE:
+                _rec->recordMethodTrace(buf, tid, call_trace_id, (MethodTraceEvent*)event);
                 break;
             case WALL_CLOCK_SAMPLE:
                 _rec->recordWallClockSample(buf, tid, call_trace_id, (WallClockEvent*)event);
