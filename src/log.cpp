@@ -86,7 +86,7 @@ void Log::writeRaw(LogLevel level, const char* msg, size_t len) {
 }
 
 void Log::log(LogLevel level, const char* msg, va_list args) {
-    if (_level > level && FlightRecorder::MIN_LOG_LEVEL > level) {
+    if (level < _level && level < FlightRecorder::MIN_LOG_LEVEL) {
         // Nothing to do
         return;
     }
@@ -101,7 +101,7 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
     }
     buf[prefix_len + msg_len] = '\n';
 
-    if (level >= FlightRecorder::MIN_LOG_LEVEL) {
+    if (level < LOG_ERROR && level >= FlightRecorder::MIN_LOG_LEVEL) {
         Profiler::instance()->writeLog(level, buf + prefix_len, msg_len);
     }
 
