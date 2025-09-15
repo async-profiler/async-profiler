@@ -52,7 +52,7 @@ class Instrument : public Engine {
                                           jint* new_class_data_len, u8** new_class_data);
 
     static void JNICALL recordEntry(JNIEnv* jni, jobject unused);
-    static void JNICALL recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos);
+    static void JNICALL recordExit0(JNIEnv* jni, jobject unused, jlong startTimeNs);
 };
 
 #endif // _INSTRUMENT_H
