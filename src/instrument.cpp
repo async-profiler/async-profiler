@@ -20,7 +20,7 @@
 #define PROFILER_PACKAGE "one/profiler/"
 static constexpr u32 PROFILER_PACKAGE_LEN = 13;
 
-INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, PROFILER_PACKAGE "Instrument")
+INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
 constexpr u16 MAX_CODE_LENGTH = 65534;
 
@@ -275,10 +275,10 @@ class BytecodeRewriter {
         put16(ref2);
     }
 
-    void putLongConstant(u32 high_bytes, u32 low_bytes) {
+    void putLongConstant(u64 l) {
         put8(JVM_CONSTANT_Long);
-        put32(high_bytes);
-        put32(low_bytes);
+        put32((u32) (l >> 32));
+        put32((u32) l);
     }
 
     // BytecodeRewriter
@@ -355,6 +355,8 @@ class BytecodeRewriter {
                 break;
             case Result::PROFILER_CLASS:
                 Log::trace("Skipping instrumentation of %s: internal profiler class", class_name.c_str());
+                break;
+            default:
                 break;
         }
     }
@@ -913,7 +915,7 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
     putConstant(JVM_CONSTANT_Class, _cpool_len + 3);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 4, _cpool_len + 5);
-    putConstant(PROFILER_PACKAGE "Instrument");
+    putConstant("one/profiler/Instrument");
     putConstant("recordEntry");
     putConstant("()V");
 
@@ -929,11 +931,7 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant("nanoTime");
     putConstant("()J");
 
-    if (_latency >= 0) {
-        putLongConstant((u32) (_latency >> 32), (u32) _latency);
-    } else {
-        putLongConstant(0, 0);
-    }
+    putLongConstant(_latency >= 0 ? (u64) _latency : 0);
 
     u16 access_flags = get16();
     put16(access_flags);
@@ -1115,9 +1113,9 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
 void JNICALL Instrument::recordExit0(JNIEnv* jni, jobject unused, jlong startTimeNs) {
     if (!_enabled) return;
 
-    u64 now_ticks = TSC::ticks();
-    u64 duration_ns = OS::nanotime() - (u64) startTimeNs;
     if (shouldRecordSample()) {
+        u64 now_ticks = TSC::ticks();
+        u64 duration_ns = OS::nanotime() - (u64) startTimeNs;
         u64 duration_ticks = (u64) ((double) duration_ns * TSC::frequency() / NANOTIME_FREQ);
         MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks);
         Profiler::instance()->recordSample(NULL, duration_ns, METHOD_TRACE, &event);
