@@ -518,8 +518,14 @@ Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, 
             put8(JVM_OPC_lload);
             put8(start_time_loc_index);
 
-            put8(JVM_OPC_ldc2_w);
-            put16(_cpool_len + 16);
+            if (_latency > 0) {
+                put8(JVM_OPC_ldc2_w);
+                put16(_cpool_len + 16);
+            } else {
+                put8(JVM_OPC_nop);
+                put8(JVM_OPC_nop);
+                put8(JVM_OPC_nop);
+            }
 
             // invokestatic "one/profiler/Instrument.recordExit(JJ)V"
             put8(JVM_OPC_invokestatic);
@@ -922,7 +928,7 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
     putConstant("recordExit");
-    putConstant("(JJ)V");
+    putConstant(_latency > 0 ? "(JJ)V" : "(J)V");
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 11, _cpool_len + 12);
     putConstant(JVM_CONSTANT_Class, _cpool_len + 13);
