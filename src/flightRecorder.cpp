@@ -1021,7 +1021,7 @@ class Recording {
     void writeLogLevels(Buffer* buf) {
         buf->putVar32(T_LOG_LEVEL);
         buf->putVar32(LOG_ERROR - FlightRecorder::MIN_LOG_LEVEL + 1);
-        for (int i = LOG_TRACE; i <= LOG_ERROR; i++) {
+        for (int i = FlightRecorder::MIN_LOG_LEVEL; i <= LOG_ERROR; i++) {
             buf->putVar32(i);
             buf->putUtf8(Log::LEVEL_NAME[i]);
         }
