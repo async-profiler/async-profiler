@@ -5,6 +5,7 @@
 
 package test.wall;
 
+import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Assert;
 import one.profiler.test.Test;
@@ -12,7 +13,7 @@ import one.profiler.test.TestProcess;
 
 public class WallTests {
 
-    @Test(mainClass = SocketTest.class)
+    @Test(mainClass = SocketTest.class, os = Os.LINUX)
     public void cpuWall(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed");
         Assert.isGreater(out.ratio("test/wall/SocketTest.main"), 0.25);
