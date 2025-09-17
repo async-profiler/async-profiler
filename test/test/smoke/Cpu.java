@@ -24,7 +24,7 @@ public class Cpu {
 
     private static void method3() throws Exception {
         long startTime = System.nanoTime();
-        while (System.nanoTime() - startTime < 2.7E6) {
+        while (System.nanoTime() - startTime < 2_700_000) {
             for (String s : new File("/").list()) {
                 value += s.hashCode();
             }
