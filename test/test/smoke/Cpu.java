@@ -11,20 +11,20 @@ public class Cpu {
     private static volatile int value;
 
     private static void method1() {
-        for (int i = 0; i < 314159; i++) {
+        for (int i = 0; i < 1000000; i++) {
             value++;
         }
     }
 
     private static void method2() {
-        for (int i = 0; i < 271828; i++) {
+        for (int i = 0; i < 1000000; i++) {
             value++;
         }
     }
 
     private static void method3() throws Exception {
-        long startTime = System.currentTimeMillis();
-        while (System.currentTimeMillis() - startTime < 10) {
+        long startTime = System.nanoTime();
+        while (System.nanoTime() - startTime < 2.7E6) {
             for (String s : new File("/").list()) {
                 value += s.hashCode();
             }
