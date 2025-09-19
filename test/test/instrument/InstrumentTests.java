@@ -143,12 +143,12 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,event=ctimer,instrument=test.instrument.CpuBurner.burn,nativemem,latency=0ms,jfr,file=%f",
+        agentArgs = "start,event=cpu,instrument=test.instrument.CpuBurner.burn,nativemem,latency=0ms,jfr,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
     )
-    public void latencyAndCpu(TestProcess p) throws Exception {
+    public void manyEngines(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assertNoVerificationErrors(p);
         assert p.exitCode() == 0;
