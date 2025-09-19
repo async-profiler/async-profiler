@@ -12,6 +12,7 @@ import jdk.jfr.consumer.RecordingFile;
 import java.time.Duration;
 import java.io.*;
 import java.nio.file.Files;
+import java.util.HashMap;
 
 
 // Append '-Xlog:redefine+class+exceptions*' to jvmArgs for more detailed
@@ -138,6 +139,30 @@ public class InstrumentTests {
         assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") == 3;
         assert out.samples("\\[thread3 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$2;test\\/instrument\\/CpuBurner\\.burn") == 1;
         assert out.samples("\\[thread4 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$3;test\\/instrument\\/CpuBurner\\.burn") == 1;
+    }
+
+    @Test(
+        mainClass = CpuBurner.class,
+        agentArgs = "start,event=ctimer,instrument=test.instrument.CpuBurner.burn,nativemem,latency=0ms,jfr,file=%f",
+        jvmArgs   = "-Xverify:all",
+        output    = true,
+        error     = true
+    )
+    public void latencyAndCpu(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p);
+        assert p.exitCode() == 0;
+
+        HashMap<String, Long> eventsCount = new HashMap<>();
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                eventsCount.compute(event.getEventType().getName(), (key, old) -> old == null ? 1 : old + 1);
+            }
+        }
+        assert eventsCount.get("jdk.MethodTrace") == 7 : eventsCount;
+        assert eventsCount.get("profiler.Malloc") != null : eventsCount;
+        assert eventsCount.get("jdk.ExecutionSample") != null : eventsCount;
     }
 
     @Test(
