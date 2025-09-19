@@ -162,6 +162,7 @@ class Arguments {
     Action _action;
     Counter _counter;
     const char* _event;
+    const char* _instrument;
     int _timeout;
     long _interval;
     long _latency;
@@ -222,6 +223,7 @@ class Arguments {
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _event(NULL),
+        _instrument(NULL),
         _timeout(0),
         _interval(0),
         _latency(-1),

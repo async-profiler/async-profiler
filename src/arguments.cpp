@@ -60,6 +60,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     live               - build allocation profile from live objects only
 //     nativemem[=BYTES]  - profile native allocations with BYTES interval
 //     nofree             - do not collect free calls in native allocation profiling
+//     instrument=C.M     - class (C) and method (M) to be instrumented, equivalent to event=C.M
 //     latency[=DURATION] - Java method latency profiling threshold
 //     lock[=DURATION]    - profile contended locks overflowing the DURATION ns bucket (default: 10us)
 //     wall[=NS]          - run wall clock profiling together with CPU profiling
@@ -259,6 +260,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("nofree")
                 _nofree = true;
+
+            CASE("instrument")
+                _instrument = value;
 
             CASE("latency")
                 _latency = value == NULL ? 0 : parseUnits(value, NANOS);
