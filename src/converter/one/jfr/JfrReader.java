@@ -185,7 +185,7 @@ public class JfrReader implements Closeable {
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
             } else if (type == cpuTimeSample) {
-                if (cls == null || cls == CPUTimeSample.class) return (E) readCPUTimeSample();
+                if (cls == null || cls == ExecutionSample.class) return (E) readCPUTimeSample();
             } else if (type == malloc) {
                 if (cls == null || cls == MallocEvent.class) return (E) readMallocEvent(true);
             } else if (type == free) {
@@ -246,14 +246,14 @@ public class JfrReader implements Closeable {
         return new AllocationSample(time, tid, stackTraceId, classId, allocationSize, tlabSize);
     }
 
-    private CPUTimeSample readCPUTimeSample() {
+    private ExecutionSample readCPUTimeSample() {
         long time = getVarlong();
         int stackTraceId = getVarint();
         int tid = getVarint();
-        boolean failed = getBoolean();
-        long samplingPeriod = getVarlong();
-        boolean biased = getBoolean();
-        return new CPUTimeSample(time, tid, stackTraceId, failed, samplingPeriod, biased);
+        boolean _failed = getBoolean();
+        long _samplingPeriod = getVarlong();
+        boolean _biased = getBoolean();
+        return new ExecutionSample(time, tid, stackTraceId, ExecutionSample.CpuTimeSample, 1);
     }
 
     private MallocEvent readMallocEvent(boolean hasSize) {

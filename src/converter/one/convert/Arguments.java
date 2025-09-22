@@ -24,7 +24,8 @@ public class Arguments {
     public boolean help;
     public boolean reverse;
     public boolean inverted;
-    public CpuSampleType cpu;
+    public boolean cpu;
+    public boolean cpuTime;
     public boolean wall;
     public boolean alloc;
     public boolean nativemem;
@@ -49,7 +50,7 @@ public class Arguments {
             String arg = args[i];
             String fieldName;
             if (arg.startsWith("--")) {
-                fieldName = arg.substring(2);
+                fieldName = toCamelCase(arg.substring(2));
             } else if (arg.startsWith("-") && arg.length() == 2) {
                 fieldName = alias(arg.charAt(1));
             } else {
@@ -76,18 +77,6 @@ public class Arguments {
                     f.setLong(this, parseTimestamp(args[++i]));
                 } else if (type == Pattern.class) {
                     f.set(this, Pattern.compile(args[++i]));
-                } else if (type.isEnum()) {
-                    boolean hasNextArg = args.length > i + 1;
-                    try {
-                        f.set(this, hasNextArg ? Enum.valueOf((Class<Enum>) type, args[++i]) : CpuSampleType.ExecutionSample);
-                    } catch (IllegalArgumentException e) {
-                        f.set(this, CpuSampleType.ExecutionSample);
-
-                        // Next arg was not a valid value for the enum
-                        if (hasNextArg) {
-                            i--;
-                        }
-                    }
                 }
             } catch (NoSuchFieldException | IllegalAccessException e) {
                 throw new IllegalArgumentException(arg);
@@ -116,6 +105,20 @@ public class Arguments {
             default:
                 return String.valueOf(c);
         }
+    }
+
+    private static String toCamelCase(String name) {
+        StringBuilder camel = new StringBuilder();
+        boolean flip = false;
+        for (char c : name.toCharArray()) {
+            if (c == '-') {
+                flip = true;
+            } else {
+                camel.append(flip ? Character.toUpperCase(c) : c);
+                flip = false;
+            }
+        }
+        return camel.toString();
     }
 
     // Absolute floating point value or percentage followed by %

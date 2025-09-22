@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package one.jfr.event;
+package one.convert;
 
-public interface IThreadState {
-    int threadState();
+public enum ThreadStateFilter {
+    Wall, Cpu, CpuTime, Default
 }
