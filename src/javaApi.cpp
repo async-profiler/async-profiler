@@ -148,11 +148,9 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     }
 }
 
-extern "C" DLLEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_getMetrics0(JNIEnv* env, jobject unused, jintArray metrics) {
-    int buffer[5];
-    Profiler::instance()->getMetrics(buffer);
-    env->SetIntArrayRegion(metrics, 0, 5, buffer);
+extern "C" DLLEXPORT jobject JNICALL
+Java_one_profiler_AsyncProfiler_getMetricsBuffer(JNIEnv* env, jclass unused) {
+    return env->NewDirectByteBuffer(Profiler::metricsBuffer(), 20);
 }
 
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
@@ -164,7 +162,7 @@ static const JNINativeMethod profiler_natives[] = {
     F(execute1,      "(Ljava/lang/String;)[B"),
     F(getSamples,    "()J"),
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
-    F(getMetrics0,   "([I)V"),
+    F(getMetricsBuffer,   "()Ljava/nio/ByteBuffer;"),
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];

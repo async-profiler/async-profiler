@@ -4,6 +4,7 @@
  */
 
 #include <algorithm>
+#include <climits>
 #include <dlfcn.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -64,6 +65,7 @@ static ITimer itimer;
 static Instrument instrument;
 
 static ProfilingWindow profiling_window;
+uint8_t Profiler::_metrics_buffer[20] = {0};
 
 
 // The same constants are used in JfrSync
@@ -1237,7 +1239,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _start_time = OS::micros();
     _epoch++;
 
-    if (args._timeout != 0 || args._output == OUTPUT_JFR) {
+    if (args._timeout != 0 || args._output == OUTPUT_JFR || _state == RUNNING) {
         _stop_time = addTimeout(_start_time, args._timeout);
         startTimer();
     }
@@ -1430,7 +1432,7 @@ void Profiler::printUsedMemory(Writer& out) {
     out << buf;
 }
 
-void Profiler::getMetrics(int* metrics) {
+void Profiler::updateMetricsBuffer() {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
     size_t dictionaries = (_class_map.usedMemory() + _symbol_map.usedMemory() + 
@@ -1443,12 +1445,24 @@ void Profiler::getMetrics(int* metrics) {
     }
     code_cache = (code_cache + native_lib_count * sizeof(CodeCache));
     
-    metrics[0] = (int)call_trace_storage;
-    metrics[1] = (int)flight_recording;
-    metrics[2] = (int)dictionaries;
-    metrics[3] = (int)code_cache;
-    metrics[4] = (int)_failures[-ticks_skipped];
+    // printf("Call trace storage: %zu\n", call_trace_storage);
+    // printf("Flight recording: %zu\n", flight_recording);
+    // printf("Dictionaries: %zu\n", dictionaries);
+    // printf("Code cache: %zu\n", code_cache);
+    // printf("Discarded samples: %d\n", _failures[-ticks_skipped]);
+
+    *((int*)(_metrics_buffer + 0)) = (int)call_trace_storage;
+    *((int*)(_metrics_buffer + 4)) = (int)flight_recording;
+    *((int*)(_metrics_buffer + 8)) = (int)dictionaries;
+    *((int*)(_metrics_buffer + 12)) = (int)code_cache;
+    *((int*)(_metrics_buffer + 16)) = (int)_failures[-ticks_skipped];
+
+    // printf("Metrics buffer: %d %d %d %d %d\n", *((int*)(_metrics_buffer + 0)),
+    //        *((int*)(_metrics_buffer + 4)), *((int*)(_metrics_buffer + 8)),
+    //        *((int*)(_metrics_buffer + 12)), *((int*)(_metrics_buffer + 16)));
+
 }
+
 
 void Profiler::logStats() {
     if (!_features.stats) return;
@@ -1869,6 +1883,8 @@ void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
     u64 sleep_until = _jfr.active() ? current_micros + 1000000 : _stop_time;
 
+    updateMetricsBuffer();
+
     while (true) {
         {
             // Release _timer_lock after sleep to avoid deadlock with Profiler::stop
@@ -1889,7 +1905,7 @@ void Profiler::timerLoop(void* timer_id) {
             // Flush under profiler state lock
             flushJfr();
         }
-
+    
         sleep_until = current_micros + 1000000;
     }
 }

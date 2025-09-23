@@ -90,13 +90,13 @@ class Profiler {
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
 
+    static uint8_t _metrics_buffer[20];  // Call trace storage, Flight recording, Dictionaries, Code cache, Discarded Samples
+
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
     CodeCacheArray _native_libs;
     const void* _call_stub_begin;
     const void* _call_stub_end;
-
-    int _metrics[5];  // Call trace storage, Flight recording, Dictionaries, Code cache, Discarded Samples
 
     // dlopen() hook support
     void** _dlopen_entry;
@@ -182,7 +182,7 @@ class Profiler {
             _calltrace_buffer[i] = NULL;
         }
     }
-
+    
     static Profiler* instance() {
         return _instance;
     }
@@ -214,7 +214,8 @@ class Profiler {
     void tryResetCounters();
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
-    void getMetrics(int* metrics);
+    void updateMetricsBuffer();
+    static uint8_t* metricsBuffer() { return _metrics_buffer; }
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
