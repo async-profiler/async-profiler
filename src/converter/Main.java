@@ -39,14 +39,18 @@ public class Main {
             String input = args.files.get(i);
             String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
 
-            System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
-            System.out.flush();
+            if (!args.quiet) {
+                System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
+                System.out.flush();
+            }
 
             long startTime = System.nanoTime();
             convert(input, output, args);
             long endTime = System.nanoTime();
 
-            System.out.print("# " + (endTime - startTime) / 1000000 / 1000.0 + " s\n");
+            if (!args.quiet) {
+                System.out.print("# " + (endTime - startTime) / 1000000 / 1000.0 + " s\n");
+            }
         }
     }
 
