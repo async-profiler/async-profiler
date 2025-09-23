@@ -821,7 +821,7 @@ Error PerfEvents::start(Arguments& args) {
 
     _alluser = args._alluser;
     _kernel_stack = !_alluser && _cstack != CSTACK_NO;
-    if (_kernel_stack && !Symbols::haveKernelSymbols()) {
+    if (!args._quiet && _kernel_stack && !Symbols::haveKernelSymbols()) {
         Log::warn("Kernel symbols are unavailable due to restrictions. Try\n"
                   "  sysctl kernel.perf_event_paranoid=1\n"
                   "  sysctl kernel.kptr_restrict=0");
