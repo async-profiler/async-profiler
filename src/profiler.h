@@ -16,6 +16,7 @@
 #include "engine.h"
 #include "event.h"
 #include "flightRecorder.h"
+#include "linearAllocator.h"
 #include "log.h"
 #include "mutex.h"
 #include "otlp.h"
@@ -61,12 +62,12 @@ class Profiler {
     std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
     Dictionary _symbol_map;
-    Dictionary _trace_context_map;
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
     Engine* _engine;
     Engine* _alloc_engine;
+    LinearAllocator _trace_context_allocator;
     int _event_mask;
 
     u64 _start_time;
@@ -94,7 +95,7 @@ class Profiler {
 
     // Thread-local storage for trace correlation
     static thread_local uint8_t _trace_context_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE];
-    static thread_local u32 _last_trace_context_key;
+    static thread_local void* _last_trace_context_ptr;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
@@ -169,6 +170,7 @@ class Profiler {
         _thread_filter(),
         _call_trace_storage(),
         _jfr(),
+        _trace_context_allocator(1024 * 1024),
         _start_time(0),
         _epoch(0),
         _gc_id(0),

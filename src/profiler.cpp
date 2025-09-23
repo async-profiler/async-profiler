@@ -67,7 +67,7 @@ static Instrument instrument;
 static ProfilingWindow profiling_window;
 
 thread_local uint8_t Profiler::_trace_context_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE] = {0};
-thread_local u32 Profiler::_last_trace_context_key = 0;
+thread_local void* Profiler::_last_trace_context_ptr = NULL;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -697,10 +697,14 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 1) {
         _trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] = 2;
-        _last_trace_context_key = _trace_context_map.lookup((const char*) _trace_context_buffer, Otlp::TRACE_CONTEXT_SIZE);
+        void* trace_ptr = _trace_context_allocator.alloc(24);
+        if (trace_ptr != NULL) {
+            memcpy(trace_ptr, _trace_context_buffer, Otlp::TRACE_CONTEXT_SIZE);
+            _last_trace_context_ptr = trace_ptr;
+        }
     }
-    if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 2) {
-        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, _last_trace_context_key);
+    if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 2 && _last_trace_context_ptr != NULL) {
+        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, (uintptr_t)_last_trace_context_ptr);
     }
 
     if (stack_walk_begin != 0) {
@@ -1127,7 +1131,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         _class_map.clear();
         _thread_filter.clear();
         _call_trace_storage.clear();
-        _trace_context_map.clear();
+        _trace_context_allocator.clear();
         // Make sure frame structure is consistent throughout the entire recording
         _add_event_frame = args._output != OUTPUT_JFR;
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
@@ -1420,7 +1424,7 @@ void Profiler::printUsedMemory(Writer& out) {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
     size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory()
-                        + _trace_context_map.usedMemory();
+                        + _trace_context_allocator.usedMemory();
 
     size_t code_cache = _runtime_stubs.usedMemory();
     int native_lib_count = _native_libs.count();
@@ -1692,9 +1696,6 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     std::vector<size_t> location_indices;
     location_indices.reserve(call_trace_samples.size());
 
-    std::map<u32, const char*> trace_contexts_map;
-    _trace_context_map.collect(trace_contexts_map);
-
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     size_t frames_seen = 0;
     for (const auto& cts : call_trace_samples) {
@@ -1716,8 +1717,9 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
                 continue;
             }
             if (trace->frames[j].bci == BCI_TRACE_CONTEXT) {
-                u32 key = (u32) (u64) trace->frames[j].method_id;
-                size_t link_idx = links.indexOf(trace_contexts_map[key]);
+                void* trace_ptr = (void*)(uintptr_t)trace->frames[j].method_id;
+                std::string trace_context_str((char*)trace_ptr, 24);
+                size_t link_idx = links.indexOf(trace_context_str);
                 otlp_buffer.field(Sample::link_index, link_idx);
                 continue;
             }
@@ -1780,8 +1782,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     links.forEachOrdered([&] (size_t idx, const std::string& s) {
         protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
         if (!s.empty()) {
-            otlp_buffer.field(Link::trace_id, s.c_str(), 16);
-            otlp_buffer.field(Link::span_id, s.c_str() + 16, 8);
+            otlp_buffer.field(Link::trace_id, s.data(), 16);
+            otlp_buffer.field(Link::span_id, s.data() + 16, 8);
         }
         otlp_buffer.commitMessage(link_mark);
     });
