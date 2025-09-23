@@ -124,6 +124,24 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
+        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=0ms,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all",
+        output    = true,
+        error     = true
+    )
+    public void latencyZero(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p);
+        assert p.exitCode() == 0;
+
+        assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 2;
+        assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") == 3;
+        assert out.samples("\\[thread3 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$2;test\\/instrument\\/CpuBurner\\.burn") == 1;
+        assert out.samples("\\[thread4 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$3;test\\/instrument\\/CpuBurner\\.burn") == 1;
+    }
+
+    @Test(
+        mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,jfr,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,

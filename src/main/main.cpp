@@ -505,7 +505,7 @@ int main(int argc, const char** argv) {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
-                   arg == "--chunksize" || arg == "--chunktime" ||
+                   arg == "--latency" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
                    arg == "--target-cpu" || arg == "--proc") {
             params << "," << (arg.str() + 2) << "=" << args.next();

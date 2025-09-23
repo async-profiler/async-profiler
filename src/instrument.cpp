@@ -17,6 +17,9 @@
 #include "vmEntry.h"
 #include "instrument.h"
 
+#define PROFILER_PACKAGE "one/profiler/"
+static constexpr u32 PROFILER_PACKAGE_LEN = 13;
+
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
 constexpr u16 MAX_CODE_LENGTH = 65534;
@@ -26,7 +29,8 @@ enum class Result {
     METHOD_TOO_LARGE,
     JUMP_OVERFLOW,
     CLASS_DOES_NOT_MATCH,
-    BAD_FULL_FRAME
+    BAD_FULL_FRAME,
+    PROFILER_CLASS
 };
 
 static inline u16 alignUp4(u16 i) {
@@ -34,6 +38,8 @@ static inline u16 alignUp4(u16 i) {
 }
 
 enum ConstantTag {
+    // Available since JDK 11
+    CONSTANT_Dynamic = 17,
     // Available since JDK 17
     CONSTANT_Module = 19,
     CONSTANT_Package = 20
@@ -71,7 +77,7 @@ class Constant {
             case JVM_CONSTANT_Methodref:
             case JVM_CONSTANT_InterfaceMethodref:
             case JVM_CONSTANT_NameAndType:
-            case JVM_CONSTANT_Dynamic:
+            case CONSTANT_Dynamic:
             case JVM_CONSTANT_InvokeDynamic:
                 return 4;
             case JVM_CONSTANT_Long:
@@ -129,12 +135,10 @@ enum Scope {
 };
 
 enum PatchConstants {
-    EXTRA_CONSTANTS = 16,
+    EXTRA_CONSTANTS = 18,
     // Entry which does not track start time
     EXTRA_BYTECODES_SIMPLE_ENTRY = 4,
-    // System.nanoTime and lstore
     EXTRA_BYTECODES_ENTRY = 8,
-    // lload and recordExit(startTime)
     EXTRA_BYTECODES_EXIT = 8,
     // *load_i or *store_i to *load/*store
     EXTRA_BYTECODES_INDEXED = 4
@@ -162,7 +166,7 @@ class BytecodeRewriter {
     const char* _target_signature;
     u16 _target_signature_len;
 
-    bool _latency_profiling;
+    long _latency;
 
     // Reader
 
@@ -271,6 +275,12 @@ class BytecodeRewriter {
         put16(ref2);
     }
 
+    void putLongConstant(u64 l) {
+        put8(JVM_CONSTANT_Long);
+        put32((u32) (l >> 32));
+        put32((u32) l);
+    }
+
     // BytecodeRewriter
 
     Result rewriteCode(u16 access_flags, u16 descriptor_index);
@@ -285,14 +295,16 @@ class BytecodeRewriter {
     Result rewriteClass();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency_profiling) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, long latency) :
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
         _dst_len(0),
         _dst_capacity(class_data_len + 400),
         _cpool(NULL),
-        _latency_profiling(latency_profiling) {
+        _latency(latency),
+        _class_name(nullptr),
+        _method_name(nullptr) {
 
         _target_class = target_class;
         _target_class_len = strlen(_target_class);
@@ -325,10 +337,9 @@ class BytecodeRewriter {
         }
 
         VM::jvmti()->Deallocate(_dst);
-        if (res == Result::CLASS_DOES_NOT_MATCH) return;
 
         std::string class_name = std::string(_class_name->utf8(), _class_name->info());
-        std::string method_name = std::string(_method_name->utf8(), _method_name->info());
+        std::string method_name = _method_name ? std::string(_method_name->utf8(), _method_name->info()) : "n/a";
         switch (res) {
             case Result::METHOD_TOO_LARGE:
                 Log::warn("Method too large: %s.%s", class_name.c_str(), method_name.c_str());
@@ -338,6 +349,14 @@ class BytecodeRewriter {
                 break;
             case Result::JUMP_OVERFLOW:
                 Log::warn("Jump overflow: %s.%s", class_name.c_str(), method_name.c_str());
+                break;
+            case Result::CLASS_DOES_NOT_MATCH:
+                Log::trace("Skipping instrumentation of %s: class does not match", class_name.c_str());
+                break;
+            case Result::PROFILER_CLASS:
+                Log::trace("Skipping instrumentation of %s: internal profiler class", class_name.c_str());
+                break;
+            default:
                 break;
         }
     }
@@ -396,10 +415,10 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     int code_begin = _dst_len;
 
     u16 max_stack = get16();
-    put16(max_stack + (_latency_profiling ? 2 : 0));
+    put16(max_stack + (_latency >= 0 ? 4 : 0));
 
     u16 max_locals = get16();
-    put16(max_locals + (_latency_profiling ? 2 : 0));
+    put16(max_locals + (_latency >= 0 ? 2 : 0));
 
     u32 code_length_32 = get32();
     assert(code_length_32 <= MAX_CODE_LENGTH);
@@ -418,7 +437,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
     // This contains the byte index, considering that long and double take two slots
     int new_local_index = -1;
-    if (_latency_profiling) {
+    if (_latency >= 0) {
         // Find function signature (parameters + return value)
         const char* sig = _cpool[descriptor_index]->utf8();
         while (*sig != 0 && *sig != '(') sig++;
@@ -498,12 +517,19 @@ Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, 
         if (isFunctionExit(opcode)) {
             put8(JVM_OPC_lload);
             put8(start_time_loc_index);
-            put16(JVM_OPC_nop);
 
-            // invokestatic "one/profiler/Instrument.recordExit(J)V"
+            if (_latency > 0) {
+                put8(JVM_OPC_ldc2_w);
+                put16(_cpool_len + 16);
+            } else {
+                put8(JVM_OPC_nop);
+                put8(JVM_OPC_nop);
+                put8(JVM_OPC_nop);
+            }
+
+            // invokestatic "one/profiler/Instrument.recordExit(JJ)V"
             put8(JVM_OPC_invokestatic);
             put16(_cpool_len + 6);
-            put8(JVM_OPC_nop);
         } else if (isNarrowJump(opcode) || isWideJump(opcode)) {
             jumps.push_back((i + 1U) << 16 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
@@ -902,7 +928,7 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
     putConstant("recordExit");
-    putConstant("(J)V");
+    putConstant(_latency > 0 ? "(JJ)V" : "(J)V");
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 11, _cpool_len + 12);
     putConstant(JVM_CONSTANT_Class, _cpool_len + 13);
@@ -910,6 +936,8 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant("java/lang/System");
     putConstant("nanoTime");
     putConstant("()J");
+
+    putLongConstant(_latency >= 0 ? (u64) _latency : 0);
 
     u16 access_flags = get16();
     put16(access_flags);
@@ -921,6 +949,11 @@ Result BytecodeRewriter::rewriteClass() {
     _class_name = _cpool[class_name_index];
     if (!_class_name->matches(_target_class, _target_class_len)) {
         return Result::CLASS_DOES_NOT_MATCH;
+    }
+    // We should not instrument classes from one.profiler.* to avoid infinite recursion
+    if (_class_name->info() >= PROFILER_PACKAGE_LEN &&
+        strncmp(_class_name->utf8(), PROFILER_PACKAGE, PROFILER_PACKAGE_LEN) == 0) {
+        return Result::PROFILER_CLASS;
     }
 
     u16 super_class = get16();
@@ -956,7 +989,7 @@ Error Instrument::check(Arguments& args) {
         JNIEnv* jni = VM::jni();
         JNINativeMethod native_method[2];
         native_method[0] = {(char*)"recordEntry", (char*)"()V", (void*)recordEntry};
-        native_method[1] = {(char*)"recordExit", (char*)"(J)V", (void*)recordExit};
+        native_method[1] = {(char*)"recordExit0", (char*)"(J)V", (void*)recordExit0};
 
         jclass cls = jni->DefineClass(INSTRUMENT_NAME, NULL, (const jbyte*)INSTRUMENT_CLASS, INCBIN_SIZEOF(INSTRUMENT_CLASS));
         if (cls == NULL || jni->RegisterNatives(cls, native_method, 2) != 0) {
@@ -1069,7 +1102,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 
     bool wildcard_class = _target_class[0] == '*' && strlen(_target_class) == 1;
     if (name == NULL || wildcard_class || strcmp(name, _target_class) == 0) {
-        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency >= 0);
+        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
 }
@@ -1083,12 +1116,12 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
     }
 }
 
-void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
+void JNICALL Instrument::recordExit0(JNIEnv* jni, jobject unused, jlong startTimeNs) {
     if (!_enabled) return;
 
-    u64 now_ticks = TSC::ticks();
-    u64 duration_ns = OS::nanotime() - (u64) startTimeNanos;
-    if (duration_ns >= _latency && shouldRecordSample()) {
+    if (shouldRecordSample()) {
+        u64 now_ticks = TSC::ticks();
+        u64 duration_ns = OS::nanotime() - (u64) startTimeNs;
         u64 duration_ticks = (u64) ((double) duration_ns * TSC::frequency() / NANOTIME_FREQ);
         MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks);
         Profiler::instance()->recordSample(NULL, duration_ns, METHOD_TRACE, &event);

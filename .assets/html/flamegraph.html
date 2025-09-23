@@ -19,7 +19,7 @@
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <h1>CPU profile</h1>
-<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
+<header style='text-align: left'><button id='inverted' title='Invert'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
 <header style='text-align: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
 <canvas id='canvas'></canvas>
 <div id='hl'><span></span></div>
@@ -32,7 +32,7 @@
 	let root, px, pattern;
 	let level0 = 0, left0 = 0, width0 = 0;
 	let nav = [], navIndex, matchval;
-	let reverse = false;
+	let inverted = false;
 	const levels = Array(36);
 	for (let h = 0; h < levels.length; h++) {
 		levels[h] = [];
@@ -191,7 +191,7 @@
 		}
 
 		for (let h = 0; h < levels.length; h++) {
-			const y = reverse ? h * 16 : canvasHeight - (h + 1) * 16;
+			const y = inverted ? h * 16 : canvasHeight - (h + 1) * 16;
 			const frames = levels[h];
 			for (let i = 0; i < frames.length; i++) {
 				drawFrame(frames[i], y);
@@ -208,14 +208,14 @@
 	}
 
 	canvas.onmousemove = function() {
-		const h = Math.floor((reverse ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
+		const h = Math.floor((inverted ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
 		if (h >= 0 && h < levels.length) {
 			const f = findFrame(levels[h], event.offsetX / px + root.left);
 			if (f) {
 				if (f !== root) getSelection().removeAllRanges();
 				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';
 				hl.style.width = (Math.min(f.width, root.width) * px) + 'px';
-				hl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
+				hl.style.top = ((inverted ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
 				hl.firstChild.textContent = f.title;
 				hl.style.display = 'block';
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
@@ -249,8 +249,8 @@
 		getSelection().selectAllChildren(hl);
 	}
 
-	document.getElementById('reverse').onclick = function() {
-		reverse = !reverse;
+	document.getElementById('inverted').onclick = function() {
+		inverted = !inverted;
 		render();
 	}
 
@@ -272,7 +272,7 @@
 			navIndex = (navIndex + (event.shiftKey ? nav.length - 1 : 1)) % nav.length;
 			render(nav[navIndex]);
 			document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
-			window.scroll(0, reverse ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
+			window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
 			canvas.onmousemove();
 		}
 	}
@@ -492,7 +492,7 @@ f(484,12,2,3)
 u(476)
 f(68,10,3,23)
 f(412,11,2,16)
-u(380,15)
+f(380,12,1,15)
 f(372,13,1,3)
 n(388,2)
 n(396)
@@ -501,7 +501,7 @@ n(428,5)
 f(436,14,1,2)
 n(444)
 u(420)
-f(452,11,3,3)
+f(452,11,2,3)
 u(468)
 f(460,13,1,2)
 f(492,11,2)
@@ -539,7 +539,7 @@ u(108)
 f(1444,15,12,50)
 f(1452,16,1,22)
 f(124,17,2,20)
-f(156,18,9,8)
+f(156,18,10,8)
 f(228,19,2,2)
 n(508)
 n(605)
@@ -552,7 +552,7 @@ u(613)
 u(629)
 u(621)
 f(579,18,2)
-f(1460,16,3,27)
+f(1460,16,2,27)
 f(124,17,11,16)
 f(156,18,13,3)
 u(605)

@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include "flightRecorder.h"
 #include "log.h"
 #include "profiler.h"
 
@@ -85,6 +86,11 @@ void Log::writeRaw(LogLevel level, const char* msg, size_t len) {
 }
 
 void Log::log(LogLevel level, const char* msg, va_list args) {
+    if (level < _level && level < FlightRecorder::MIN_LOG_LEVEL) {
+        // Nothing to do
+        return;
+    }
+
     char buf[1024];
 
     // Format log message: [LEVEL] Message\n
@@ -95,8 +101,7 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
     }
     buf[prefix_len + msg_len] = '\n';
 
-    // Write all messages to JFR, if active
-    if (level < LOG_ERROR) {
+    if (level < LOG_ERROR && level >= FlightRecorder::MIN_LOG_LEVEL) {
         Profiler::instance()->writeLog(level, buf + prefix_len, msg_len);
     }
 
