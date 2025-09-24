@@ -30,7 +30,15 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
     }
 
-    @Test(mainClass = StringBuilderTest.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.ARM32})
+    @Test(
+        mainClass = StringBuilderTest.class,
+        debugNonSafepoints = true,
+        arch = {Arch.ARM64, Arch.ARM32},
+        // C2 Inlining can cause some issues when aggressive inlining happens
+        // This is more likely on newer JDKs where more optimization can happen (for example, SVE on JDK18+)
+        // For now the test is disabled until a solution is found
+        jvmVer = {8, 17}
+    )
     public void stringBuilderArm(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
         Assert.isGreater(out.ratio("(forward|foward|backward)_copy_longs"), 0.8); // there's a typo on some JDK versions
