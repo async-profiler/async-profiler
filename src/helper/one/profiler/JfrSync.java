@@ -106,9 +106,7 @@ class JfrSync implements FlightRecorderListener {
             recording.disable("jdk.MethodTrace");
         }
 
-        System.err.println(eventMask);
         eventMask >>= EM_JFR_OPTS_SHIFT;
-        System.err.println(eventMask);
         // Shifted JfrOption values
         if ((eventMask & NO_SYSTEM_INFO) != 0) {
             recording.disable("jdk.OSInformation");
