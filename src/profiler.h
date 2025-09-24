@@ -42,6 +42,8 @@ class FrameName;
 class NMethod;
 class StackContext;
 
+struct Chunk;
+
 enum State {
     NEW,
     IDLE,
@@ -73,6 +75,7 @@ class Profiler {
     u64 _start_time;
     u64 _stop_time;
     int _epoch;
+    static thread_local int _last_epoch;
     u32 _gc_id;
     WaitableMutex _timer_lock;
     void* _timer_id;
@@ -170,7 +173,7 @@ class Profiler {
         _thread_filter(),
         _call_trace_storage(),
         _jfr(),
-        _trace_context_allocator(1024 * 1024),
+        _trace_context_allocator(sizeof(Chunk) + Otlp::TRACE_CONTEXT_SIZE),
         _start_time(0),
         _epoch(0),
         _gc_id(0),

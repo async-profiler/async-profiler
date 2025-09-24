@@ -68,6 +68,7 @@ static ProfilingWindow profiling_window;
 
 thread_local uint8_t Profiler::_trace_context_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE] = {0};
 thread_local void* Profiler::_last_trace_context_ptr = NULL;
+thread_local int Profiler::_last_epoch = 0;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -611,6 +612,11 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
 u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Event* event) {
     atomicInc(_total_samples);
 
+    if (_last_epoch != _epoch) {
+        _last_epoch = _epoch;
+        _last_trace_context_ptr = NULL;
+    }
+
     int tid = OS::threadId();
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
@@ -697,10 +703,12 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 1) {
         _trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] = 2;
-        void* trace_ptr = _trace_context_allocator.alloc(24);
+        void* trace_ptr = _trace_context_allocator.alloc(Otlp::TRACE_CONTEXT_SIZE);
         if (trace_ptr != NULL) {
             memcpy(trace_ptr, _trace_context_buffer, Otlp::TRACE_CONTEXT_SIZE);
             _last_trace_context_ptr = trace_ptr;
+        } else {
+            _last_trace_context_ptr = NULL;
         }
     }
     if (_trace_context_buffer[Otlp::TRACE_CONTEXT_CONTROL_BYTE] == 2 && _last_trace_context_ptr != NULL) {

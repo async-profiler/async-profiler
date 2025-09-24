@@ -60,8 +60,7 @@ public class OtlpSignalCorrelationTest {
         ProfilesData data = dumpAndGetProfile(profiler);
         profiler.stop();
         
-        assert data.getDictionary().getLinkTableCount() == 5 : 
-            "Expected 5 links in link_table, but got: " + data.getDictionary().getLinkTableCount();
+        assert data.getDictionary().getLinkTableCount() == 5 : data.getDictionary().getLinkTableList().toString();
         
         Profile profile = data.getResourceProfiles(0).getScopeProfiles(0).getProfiles(0);
         int samplesWithLinks = 0;
@@ -111,10 +110,9 @@ public class OtlpSignalCorrelationTest {
         assert foundTrace1Alt : "TRACE_ID_1_ALT not found";
         assert foundTrace2 : "TRACE_ID_2 not found";
         assert foundTrace3 : "TRACE_ID_3 not found";
-
     }
 
-    private static void burnCpu() {
+    public static void burnCpu() {
         Instant start = Instant.now();
         while (Duration.between(start, Instant.now()).compareTo(TEST_DURATION) < 0) {
             CpuBurner.burn();
@@ -127,7 +125,7 @@ public class OtlpSignalCorrelationTest {
         return data;
     }
 
-    private static String bytesToHex(ByteString bytes) {
+    public static String bytesToHex(ByteString bytes) {
         StringBuilder hex = new StringBuilder();
         for (int i = 0; i < bytes.size(); ++i) {
             hex.append(String.format("%02x", bytes.byteAt(i) & 0xFF));
