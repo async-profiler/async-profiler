@@ -51,6 +51,7 @@ jobs:
         run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
       - name: Setup Java
         uses: actions/setup-java@v4
+        # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
         if: ${{ !contains(inputs.test-platform, 'alpine') }}
         with:
           distribution: ${{ inputs.java-distribution }}
