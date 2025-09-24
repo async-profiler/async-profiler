@@ -67,16 +67,6 @@ static Instrument instrument;
 static ProfilingWindow profiling_window;
 
 
-// The same constants are used in JfrSync
-enum EventMask {
-    EM_CPU   = 1,
-    EM_ALLOC = 2,
-    EM_LOCK  = 4,
-    EM_WALL  = 8,
-    EM_NATIVEMEM = 16,
-};
-
-
 struct MethodSample {
     u64 samples;
     u64 counter;
@@ -1088,11 +1078,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    _event_mask = (args._event != NULL ? EM_CPU : 0) |
-                  (args._alloc >= 0 ? EM_ALLOC : 0) |
-                  (args._lock >= 0 ? EM_LOCK : 0) |
-                  (args._wall >= 0 ? EM_WALL : 0) |
-                  (args._nativemem >= 0 ? EM_NATIVEMEM : 0);
+    _event_mask = make_event_mask(args);
 
     if (_event_mask == 0) {
         return Error("No profiling events specified");

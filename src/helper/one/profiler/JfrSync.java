@@ -89,7 +89,9 @@ class JfrSync implements FlightRecorderListener {
         if ((eventMask & 8) != 0) {
             recording.disable("jdk.MethodTrace");
         }
+        // No built-in event related to EM_NATIVEMEM
 
+        eventMask >>= 1;
         // Shifted JfrOption values
         if ((eventMask & 0x10) != 0) {
             recording.disable("jdk.OSInformation");
