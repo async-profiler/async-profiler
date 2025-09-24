@@ -58,12 +58,11 @@ enum EventMask {
 constexpr u8 EVENT_MASK_SIZE = 6;
 
 static int make_event_mask(const Arguments& args) {
-    return (args._event     != NULL ? EM_CPU          : 0) |
+    return (args._event     != NULL ? (args._latency >= 0 ? EM_METHOD_TRACE : EM_CPU) : 0) |
            (args._alloc     >= 0    ? EM_ALLOC        : 0) |
            (args._lock      >= 0    ? EM_LOCK         : 0) |
            (args._wall      >= 0    ? EM_WALL         : 0) |
-           (args._nativemem >= 0    ? EM_NATIVEMEM    : 0) |
-           (args._latency   >= 0    ? EM_METHOD_TRACE : 0);
+           (args._nativemem >= 0    ? EM_NATIVEMEM    : 0);
 }
 
 class Profiler {
