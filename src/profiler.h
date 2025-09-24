@@ -63,7 +63,6 @@ class Profiler {
     std::map<int, std::string> _thread_names;
     std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
-    Dictionary _symbol_map;
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;

@@ -17,8 +17,8 @@ import java.util.Optional;
 public class OtlpSignalCorrelationTest {
     private static final Duration TEST_DURATION = Duration.ofSeconds(1);
 
-    private static final String TRACE_ID_1 = "09a6c61f1181ce4fc439e5728c5fef75";
-    private static final String SPAN_ID_1 = "b98c89ad5d208dcc";
+    public static final String TRACE_ID_1 = "09a6c61f1181ce4fc439e5728c5fef75";
+    public static final String SPAN_ID_1 = "b98c89ad5d208dcc";
     private static final String TRACE_ID_1_ALT = "55812e1a0e7d80817be621dedec6accb";
     private static final String SPAN_ID_1_ALT = "ef95eccf36472d99";
     private static final String TRACE_ID_2 = "adf1a04340a7a3995571db46c3c648dc";
@@ -52,7 +52,7 @@ public class OtlpSignalCorrelationTest {
         for (Thread t : threads) {
             t.start();
         }
-        
+
         for (Thread t : threads) {
             t.join();
         }
@@ -110,6 +110,15 @@ public class OtlpSignalCorrelationTest {
         assert foundTrace1Alt : "TRACE_ID_1_ALT not found";
         assert foundTrace2 : "TRACE_ID_2 not found";
         assert foundTrace3 : "TRACE_ID_3 not found";
+
+        // Restart resilience
+        profiler.execute("start,otlp,threads");
+        TraceContext.setTraceContext(TRACE_ID_1, SPAN_ID_1);
+        burnCpu();
+        profiler.stop();
+        profiler.execute("start,otlp,threads");
+        burnCpu();
+        profiler.stop();
     }
 
     public static void burnCpu() {

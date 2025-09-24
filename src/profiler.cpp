@@ -4,6 +4,7 @@
  */
 
 #include <algorithm>
+#include <assert.h>
 #include <dlfcn.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -393,7 +394,12 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         return 0;
     }
 
-    JNIEnv* jni = VM::jni();
+    JNIEnv* jni = vm_thread->jni();
+    if (_features.jnienv) {
+        // jnienv feature is only used in tests to validate JNIEnv discovery through VMStructs.
+        // Normally, we avoid calling VM::jni() inside a signal handler as it may deadlock.
+        assert(jni == VM::jni());
+    }
     if (jni == NULL) {
         // Not a Java thread
         return 0;
@@ -683,7 +689,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
-        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : 0;
+        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : event_type == METHOD_TRACE ? 2 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
     }
 
@@ -1125,6 +1131,14 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    if (args._proc > 0) {
+        if (!OS::isLinux()) {
+            return Error("Process sampling is not supported on the platform");
+        } else if (args._output != OUTPUT_JFR) {
+            return Error("Process sampling requires JFR output format");
+        }
+    }
+
     // Save the arguments for shutdown or restart
     args.save();
 
@@ -1431,8 +1445,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
 void Profiler::printUsedMemory(Writer& out) {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
-    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory()
-                        + _trace_context_allocator.usedMemory();
+    size_t dictionaries = _class_map.usedMemory() + _thread_filter.usedMemory() + _trace_context_allocator.usedMemory();
 
     size_t code_cache = _runtime_stubs.usedMemory();
     int native_lib_count = _native_libs.count();
