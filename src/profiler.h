@@ -54,9 +54,8 @@ enum EventMask {
     EM_WALL         = 8,
     EM_NATIVEMEM    = 16,
     EM_METHOD_TRACE = 32,
-    EM_COUNT
 };
-
+constexpr u8 EVENT_MASK_SIZE = 6;
 
 static int make_event_mask(const Arguments& args) {
     return (args._event     != NULL ? EM_CPU          : 0) |

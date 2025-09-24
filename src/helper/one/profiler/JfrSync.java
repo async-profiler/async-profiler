@@ -21,6 +21,20 @@ import java.util.StringTokenizer;
  * Synchronize async-profiler recording with an existing JFR recording.
  */
 class JfrSync implements FlightRecorderListener {
+    // Keep in sync with EventMask
+    private static final int EM_CPU            = 1;
+    private static final int EM_ALLOC          = 2;
+    private static final int EM_LOCK           = 4;
+    private static final int EM_METHOD_TRACE   = 32;
+    private static final int EM_JFR_OPTS_SHIFT = 5;
+
+    // Keep in sync with JfrOption
+    private static final int NO_SYSTEM_INFO  = 1;
+    private static final int NO_SYSTEM_PROPS = 2;
+    private static final int NO_NATIVE_LIBS  = 4;
+    private static final int NO_CPU_LOAD     = 8;
+    private static final int NO_HEAP_SUMMARY = 16;
+
     private static volatile Recording masterRecording;
 
     private JfrSync() {
@@ -72,43 +86,45 @@ class JfrSync implements FlightRecorderListener {
     }
 
     private static void disableBuiltinEvents(Recording recording, int eventMask) {
-        if ((eventMask & 1) != 0) {
+        if ((eventMask & EM_CPU) != 0) {
             recording.disable("jdk.ExecutionSample");
             recording.disable("jdk.NativeMethodSample");
         }
-        if ((eventMask & 2) != 0) {
+        if ((eventMask & EM_ALLOC) != 0) {
             recording.disable("jdk.ObjectAllocationInNewTLAB");
             recording.disable("jdk.ObjectAllocationOutsideTLAB");
             recording.disable("jdk.ObjectAllocationSample");
             recording.disable("jdk.OldObjectSample");
         }
-        if ((eventMask & 4) != 0) {
+        if ((eventMask & EM_LOCK) != 0) {
             recording.disable("jdk.JavaMonitorEnter");
             recording.disable("jdk.ThreadPark");
         }
         // No built-in event related to EM_WALL
         // No built-in event related to EM_NATIVEMEM
-        if ((eventMask & 8) != 0) {
+        if ((eventMask & EM_METHOD_TRACE) != 0) {
             recording.disable("jdk.MethodTrace");
         }
 
-        eventMask >>= 1;
+        System.err.println(eventMask);
+        eventMask >>= EM_JFR_OPTS_SHIFT;
+        System.err.println(eventMask);
         // Shifted JfrOption values
-        if ((eventMask & 0x10) != 0) {
+        if ((eventMask & NO_SYSTEM_INFO) != 0) {
             recording.disable("jdk.OSInformation");
             recording.disable("jdk.CPUInformation");
             recording.disable("jdk.JVMInformation");
         }
-        if ((eventMask & 0x20) != 0) {
+        if ((eventMask & NO_SYSTEM_PROPS) != 0) {
             recording.disable("jdk.InitialSystemProperty");
         }
-        if ((eventMask & 0x40) != 0) {
+        if ((eventMask & NO_NATIVE_LIBS) != 0) {
             recording.disable("jdk.NativeLibrary");
         }
-        if ((eventMask & 0x80) != 0) {
+        if ((eventMask & NO_CPU_LOAD) != 0) {
             recording.disable("jdk.CPULoad");
         }
-        if ((eventMask & 0x100) != 0) {
+        if ((eventMask & NO_HEAP_SUMMARY) != 0) {
             recording.disable("jdk.GCHeapSummary");
         }
     }
