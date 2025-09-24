@@ -17,8 +17,8 @@ on:
         description: "Container image to use"
 
 env:
-  java_default_distribution: corretto
-  java_default_version: 11
+  build_java_distribution: corretto
+  build_java_version: 11
 
 jobs:
   build:
@@ -33,8 +33,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: ${{ env.java_default_distribution }}
-          java-version: ${{ env.java_default_version }}
+          distribution: ${{ env.build_java_distribution }}
+          java-version: ${{ env.build_java_version }}
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and unit test
