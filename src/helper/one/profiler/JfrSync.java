@@ -86,10 +86,11 @@ class JfrSync implements FlightRecorderListener {
             recording.disable("jdk.JavaMonitorEnter");
             recording.disable("jdk.ThreadPark");
         }
+        // No built-in event related to EM_WALL
+        // No built-in event related to EM_NATIVEMEM
         if ((eventMask & 8) != 0) {
             recording.disable("jdk.MethodTrace");
         }
-        // No built-in event related to EM_NATIVEMEM
 
         eventMask >>= 1;
         // Shifted JfrOption values
