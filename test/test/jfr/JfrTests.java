@@ -170,6 +170,12 @@ public class JfrTests {
         assert events.contains("profiler.Free"); // nativemem profiling
     }
 
+    // Simple smoke test, nothing in particular is tested
+    @Test(mainClass = JfrCpuProfiling.class)
+    public void jfrSyncSmoke(TestProcess p) throws Exception {
+        p.profile("-d 3 --jfrsync default --jfropts 4 -f %f.jfr");
+    }
+
     /**
      * Test to validate time to safepoint profiling
      *

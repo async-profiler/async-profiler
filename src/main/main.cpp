@@ -529,6 +529,10 @@ int main(int argc, const char** argv) {
             params << ",jfrsync=" << args.next();
             output = "jfr";
 
+        } else if (arg == "--jfropts") {
+            params << ",jfropts=" << args.next();
+            output = "jfr";
+
         } else if (arg == "--timeout" || arg == "--loop") {
             params << "," << (arg.str() + 2) << "=" << args.next();
             if (action == "collect") action = "start";
