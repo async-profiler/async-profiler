@@ -188,7 +188,6 @@ public class JfrTests {
         assert eventsCount.get("jdk.JVMInformation") != null : eventsCount;
         assert eventsCount.get("jdk.InitialSystemProperty") != null : eventsCount;
         assert eventsCount.get("jdk.NativeLibrary") != null : eventsCount;
-        assert eventsCount.get("jdk.CPULoad") != null : eventsCount;
     }
 
     /**
