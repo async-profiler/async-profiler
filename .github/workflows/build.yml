@@ -6,15 +6,12 @@ on:
       platform:
         type: string
         required: true
-        description: "Platform identifier (linux-x64, linux-arm64, macos)"
       runner:
         type: string
         required: true
-        description: "GitHub runner to use"
       container-image:
         type: string
         required: false
-        description: "Container image to use"
 
 env:
   build_java_distribution: corretto

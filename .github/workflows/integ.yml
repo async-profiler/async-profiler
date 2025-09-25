@@ -6,36 +6,28 @@ on:
       test-platform:
         type: string
         required: true
-        description: "Platform identifier for the test environment"
       platform:
         type: string
         required: true
-        description: "Platform identifier for the binary to test"
       architecture:
         type: string
         required: false
-        description: "Architecture for Java setup"
       java-version:
         type: string
         required: true
-        description: "Java version to test with"
       java-distribution:
         type: string
         required: false
         default: "corretto"
-        description: "Java distribution to use"
       runner:
         type: string
         required: true
-        description: "GitHub runner to use"
       container-image:
         type: string
         required: false
-        description: "Container image to use"
       container-volumes:
         type: string
         required: false
-        description: "Container volumes JSON array"
 
 jobs:
   integration-test:
