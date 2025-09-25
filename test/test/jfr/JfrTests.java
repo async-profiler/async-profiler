@@ -175,19 +175,19 @@ public class JfrTests {
     public void jfrSyncSmoke(TestProcess p) throws Exception {
         Output out = p.profile("-d 1 --jfrsync default --jfropts 4 -f %f.jfr");
 
-        Map<String, Integer> eventsCount = new HashMap<>();
+        Set<String> events = new HashSet<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
-                eventsCount.compute(event.getEventType().getName(), (key, old) -> old == null ? 1 : (old + 1));
+                events.add(event.getEventType().getName());
             }
         }
 
-        assert eventsCount.get("jdk.OSInformation") != null : eventsCount;
-        assert eventsCount.get("jdk.CPUInformation") != null : eventsCount;
-        assert eventsCount.get("jdk.JVMInformation") != null : eventsCount;
-        assert eventsCount.get("jdk.InitialSystemProperty") != null : eventsCount;
-        assert eventsCount.get("jdk.NativeLibrary") != null : eventsCount;
+        assert events.contains("jdk.OSInformation");
+        assert events.contains("jdk.CPUInformation");
+        assert events.contains("jdk.JVMInformation");
+        assert events.contains("jdk.InitialSystemProperty");
+        assert events.contains("jdk.NativeLibrary");
     }
 
     /**
