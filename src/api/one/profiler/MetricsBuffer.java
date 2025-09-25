@@ -24,14 +24,16 @@ public class MetricsBuffer {
         return BUFFER;
     }
     
-    public static void getMetrics(int[] metrics) {
+    public static void getMetrics(long[] metrics) {
         ByteBuffer buffer = getBuffer();
         if (buffer == null) return;
+
+        AsyncProfiler.getInstance().updateMetricsBuffer0();
+        buffer.order(java.nio.ByteOrder.nativeOrder());
         
         buffer.position(0);
         for (int i = 0; i < 5; i++) {
-            metrics[i] = buffer.getInt();
-            System.out.println(metrics[i]);
+            metrics[i] = buffer.getLong();
         }
     }
 }

@@ -65,7 +65,7 @@ static ITimer itimer;
 static Instrument instrument;
 
 static ProfilingWindow profiling_window;
-uint8_t Profiler::_metrics_buffer[20] = {0};
+uint8_t Profiler::_metrics_buffer[40] = {0};
 
 
 // The same constants are used in JfrSync
@@ -1239,7 +1239,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _start_time = OS::micros();
     _epoch++;
 
-    if (args._timeout != 0 || args._output == OUTPUT_JFR || _state == RUNNING) {
+    if (args._timeout != 0 || args._output == OUTPUT_JFR) {
         _stop_time = addTimeout(_start_time, args._timeout);
         startTimer();
     }
@@ -1445,21 +1445,11 @@ void Profiler::updateMetricsBuffer() {
     }
     code_cache = (code_cache + native_lib_count * sizeof(CodeCache));
     
-    // printf("Call trace storage: %zu\n", call_trace_storage);
-    // printf("Flight recording: %zu\n", flight_recording);
-    // printf("Dictionaries: %zu\n", dictionaries);
-    // printf("Code cache: %zu\n", code_cache);
-    // printf("Discarded samples: %d\n", _failures[-ticks_skipped]);
-
-    *((int*)(_metrics_buffer + 0)) = (int)call_trace_storage;
-    *((int*)(_metrics_buffer + 4)) = (int)flight_recording;
-    *((int*)(_metrics_buffer + 8)) = (int)dictionaries;
-    *((int*)(_metrics_buffer + 12)) = (int)code_cache;
-    *((int*)(_metrics_buffer + 16)) = (int)_failures[-ticks_skipped];
-
-    // printf("Metrics buffer: %d %d %d %d %d\n", *((int*)(_metrics_buffer + 0)),
-    //        *((int*)(_metrics_buffer + 4)), *((int*)(_metrics_buffer + 8)),
-    //        *((int*)(_metrics_buffer + 12)), *((int*)(_metrics_buffer + 16)));
+    *((uint64_t*)(_metrics_buffer + 0 * 8)) = (uint64_t)call_trace_storage;
+    *((uint64_t*)(_metrics_buffer + 1 * 8)) = (uint64_t)flight_recording;
+    *((uint64_t*)(_metrics_buffer + 2 * 8)) = (uint64_t)dictionaries;
+    *((uint64_t*)(_metrics_buffer + 3 * 8)) = (uint64_t)code_cache;
+    *((uint64_t*)(_metrics_buffer + 4 * 8)) = (uint64_t)_failures[-ticks_skipped];
 
 }
 
@@ -1882,8 +1872,6 @@ void Profiler::stopTimer() {
 void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
     u64 sleep_until = _jfr.active() ? current_micros + 1000000 : _stop_time;
-
-    updateMetricsBuffer();
 
     while (true) {
         {

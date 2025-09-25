@@ -10,7 +10,7 @@ public class MetricsTest {
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
         
-        int[] metrics1 = new int[5];
+        long[] metrics1 = new long[5];
         profiler.getMetrics(metrics1);
         System.out.println("Before profiling:");
         System.out.println("Call trace storage: " + metrics1[0]);
@@ -27,7 +27,7 @@ public class MetricsTest {
         }
         profiler.stop();
         
-        int[] metrics2 = new int[5];
+        long[] metrics2 = new long[5];
         profiler.getMetrics(metrics2);
         System.out.println("\nAfter profiling:");
         System.out.println("Call trace storage: " + metrics2[0]);
