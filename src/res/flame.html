@@ -215,9 +215,9 @@
 			if (f) {
 				if (f !== root) getSelection().removeAllRanges();
 				const border = 1;
-				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + "px";
-				hl.style.top = ((inverted ? h * 16 - border + jankOffset : canvasHeight - (h + 1) * 16 - border + jankOffset) + canvas.offsetTop) + "px";
+				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';
 				hl.style.width = (Math.min(f.width, root.width) * px) + 'px';
+				hl.style.top = ((inverted ? h * 16 - border + jankOffset : canvasHeight - (h + 1) * 16 - border + jankOffset) + canvas.offsetTop) + 'px';
 				hl.firstChild.textContent = f.title;
 				hl.style.display = 'block';
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
