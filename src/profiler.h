@@ -47,6 +47,7 @@ enum State {
     TERMINATED
 };
 
+// Keep this in sync with JfrSync
 enum EventMask {
     EM_CPU          = 1,
     EM_ALLOC        = 2,
