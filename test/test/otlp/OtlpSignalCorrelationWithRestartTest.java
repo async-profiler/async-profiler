@@ -8,6 +8,7 @@ import one.profiler.AsyncProfiler;
 import one.profiler.TraceContext;
 import io.opentelemetry.proto.profiles.v1development.*;
 import static test.otlp.OtlpSignalCorrelationTest.*;
+import java.time.Duration;
 
 public class OtlpSignalCorrelationWithRestartTest {
     public static void main(String[] args) throws Exception {
@@ -16,8 +17,10 @@ public class OtlpSignalCorrelationWithRestartTest {
         Thread longSpanThread = new Thread(() -> {
             TraceContext.setTraceContext(TRACE_ID_1, SPAN_ID_1);
 
-            for (int i = 0; i < 3; i++) {
-                burnCpu();
+            long start = System.nanoTime();
+            Duration duration = Duration.ofSeconds(2);
+            while (System.nanoTime() - start < duration.toNanos()) {
+                CpuBurner.burn();
             }
             
         }, "LongSpan");
@@ -25,7 +28,7 @@ public class OtlpSignalCorrelationWithRestartTest {
         profiler.execute("start,otlp,threads");
         longSpanThread.start();
         
-        Thread.sleep(1000);
+        Thread.sleep(500);
         profiler.stop();
         profiler.execute("start,otlp,threads");
         
@@ -35,6 +38,5 @@ public class OtlpSignalCorrelationWithRestartTest {
         profiler.stop();
         
         assert data.getDictionary().getLinkTableCount() == 1 : data.getDictionary().getLinkTableList().toString();
-        
     }
 }
