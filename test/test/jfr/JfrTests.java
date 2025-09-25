@@ -173,7 +173,22 @@ public class JfrTests {
     // Simple smoke test, nothing in particular is tested
     @Test(mainClass = JfrCpuProfiling.class)
     public void jfrSyncSmoke(TestProcess p) throws Exception {
-        p.profile("-d 3 --jfrsync default --jfropts 4 -f %f.jfr");
+        Output out = p.profile("-d 1 --jfrsync default --jfropts 4 -f %f.jfr");
+
+        Map<String, Integer> eventsCount = new HashMap<>();
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                eventsCount.compute(event.getEventType().getName(), (key, old) -> old == null ? 1 : (old + 1));
+            }
+        }
+
+        assert eventsCount.get("jdk.OSInformation") != null : eventsCount;
+        assert eventsCount.get("jdk.CPUInformation") != null : eventsCount;
+        assert eventsCount.get("jdk.JVMInformation") != null : eventsCount;
+        assert eventsCount.get("jdk.InitialSystemProperty") != null : eventsCount;
+        assert eventsCount.get("jdk.NativeLibrary") != null : eventsCount;
+        assert eventsCount.get("jdk.CPULoad") != null : eventsCount;
     }
 
     /**
