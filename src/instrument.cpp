@@ -1012,7 +1012,7 @@ Error Instrument::start(Arguments& args) {
         return error;
     }
 
-    setupTargetClassAndMethod(args._instrument != NULL ? args._instrument : args._event);
+    setupTargetClassAndMethod(args._trace != NULL ? args._trace : args._event);
     _latency = args._latency;
     _interval = args._interval ? args._interval : 1;
     _calls = 0;
