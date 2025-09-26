@@ -60,7 +60,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     live                    - build allocation profile from live objects only
 //     nativemem[=BYTES]       - profile native allocations with BYTES interval
 //     nofree                  - do not collect free calls in native allocation profiling
-//     trace=METHOD[:DURATION] - method ('package.Class.MethodName') to be traced with optional latency,
+//     trace=METHOD[:DURATION] - method to be traced with optional latency,
 //                               supports multiple values separated by '+'
 //     latency[=DURATION]      - Java method latency profiling threshold
 //     lock[=DURATION]         - profile contended locks overflowing the DURATION ns bucket (default: 10us)
