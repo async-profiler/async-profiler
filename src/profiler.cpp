@@ -1457,11 +1457,11 @@ void Profiler::updateMetricsBuffer() {
     }
     code_cache = (code_cache + native_lib_count * sizeof(CodeCache));
     
-    _metrics_buffer[0] = (uint64_t)call_trace_storage;
-    _metrics_buffer[1] = (uint64_t)flight_recording;
-    _metrics_buffer[2] = (uint64_t)dictionaries;
-    _metrics_buffer[3] = (uint64_t)code_cache;
-    _metrics_buffer[4] = (uint64_t)_failures[-ticks_skipped];
+    _metrics_buffer[0] = call_trace_storage;
+    _metrics_buffer[1] = flight_recording;
+    _metrics_buffer[2] = dictionaries;
+    _metrics_buffer[3] = code_cache;
+    _metrics_buffer[4] = _failures[-ticks_skipped];
 }
 
 void Profiler::logStats() {
