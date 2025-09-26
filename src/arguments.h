@@ -7,7 +7,6 @@
 #define _ARGUMENTS_H
 
 #include <stddef.h>
-#include "arch.h"
 
 
 const long DEFAULT_INTERVAL = 10000000;      // 10 ms
@@ -103,7 +102,7 @@ enum EventMask {
     EM_NATIVEMEM    = 16,
     EM_METHOD_TRACE = 32
 };
-constexpr u8 EVENT_MASK_SIZE = 6;
+constexpr int EVENT_MASK_SIZE = 6;
 
 struct StackWalkFeatures {
     // Stack recovery techniques used to workaround AsyncGetCallTrace flaws
