@@ -12,7 +12,9 @@ public class ComptaskTests {
         mainClass = Main.class,
         agentArgs = "start,features=comptask,collapsed,interval=1ms,file=%f",
         jvmArgs = "-Xcomp",
-        jvm = Jvm.HOTSPOT
+        jvm = Jvm.HOTSPOT,
+        // TODO: remove version filter after the fix for JDK-8367689 is released
+        jvmVer = {8, 24}
     )
     public void testCompTask(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
