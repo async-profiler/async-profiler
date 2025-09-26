@@ -12,6 +12,7 @@
 const long DEFAULT_INTERVAL = 10000000;      // 10 ms
 const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
 const long DEFAULT_LOCK_INTERVAL = 10000;    // 10 us
+const long DEFAULT_PROC_INTERVAL = 30;       // 30 seconds
 const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU        = "cpu";
@@ -105,14 +106,15 @@ struct StackWalkFeatures {
     unsigned short stats         : 1;
 
     // Additional HotSpot-specific features
+    unsigned short jnienv        : 1;
     unsigned short probe_sp      : 1;
     unsigned short vtable_target : 1;
     unsigned short comp_task     : 1;
     unsigned short pc_addr       : 1;
-    unsigned short _reserved     : 5;
+    unsigned short _reserved     : 4;
 
     StackWalkFeatures() : unknown_java(1), unwind_stub(1), unwind_comp(1), unwind_native(1), java_anchor(1), gc_traces(1),
-                          stats(0), probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
+                          stats(0), jnienv(0), probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
     }
 };
 
@@ -162,10 +164,12 @@ class Arguments {
     const char* _event;
     int _timeout;
     long _interval;
+    long _latency;
     long _alloc;
     long _nativemem;
     long _lock;
     long _wall;
+    long _proc;
     bool _all;
     int _jstackdepth;
     int _signal;
@@ -220,10 +224,12 @@ class Arguments {
         _event(NULL),
         _timeout(0),
         _interval(0),
+        _latency(-1),
         _alloc(-1),
         _nativemem(-1),
         _lock(-1),
         _wall(-1),
+        _proc(-1),
         _all(false),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _signal(0),

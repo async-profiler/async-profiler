@@ -150,7 +150,7 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
 
 extern "C" DLLEXPORT jobject JNICALL
 Java_one_profiler_AsyncProfiler_getMetricsBuffer(JNIEnv* env, jclass unused) {
-    return env->NewDirectByteBuffer(Profiler::metricsBuffer(), 40);
+    return env->NewDirectByteBuffer(Profiler::metricsBuffer(), sizeof(uint64_t) * 5);
 }
 
 extern "C" DLLEXPORT void JNICALL

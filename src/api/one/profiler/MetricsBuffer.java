@@ -5,6 +5,7 @@
 package one.profiler;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class MetricsBuffer {
     private static volatile ByteBuffer BUFFER = null;
@@ -29,7 +30,7 @@ public class MetricsBuffer {
         if (buffer == null) return;
 
         AsyncProfiler.getInstance().updateMetricsBuffer0();
-        buffer.order(java.nio.ByteOrder.nativeOrder());
+        buffer.order(ByteOrder.nativeOrder());
         
         buffer.position(0);
         for (int i = 0; i < 5; i++) {

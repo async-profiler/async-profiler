@@ -4,7 +4,7 @@
  */
 
 #include <algorithm>
-#include <climits>
+#include <assert.h>
 #include <dlfcn.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -65,7 +65,7 @@ static ITimer itimer;
 static Instrument instrument;
 
 static ProfilingWindow profiling_window;
-uint8_t Profiler::_metrics_buffer[40] = {0};
+uint64_t Profiler::_metrics_buffer[5] = {0};
 
 
 // The same constants are used in JfrSync
@@ -391,7 +391,12 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         return 0;
     }
 
-    JNIEnv* jni = VM::jni();
+    JNIEnv* jni = vm_thread->jni();
+    if (_features.jnienv) {
+        // jnienv feature is only used in tests to validate JNIEnv discovery through VMStructs.
+        // Normally, we avoid calling VM::jni() inside a signal handler as it may deadlock.
+        assert(jni == VM::jni());
+    }
     if (jni == NULL) {
         // Not a Java thread
         return 0;
@@ -676,7 +681,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
-        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : 0;
+        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : event_type == METHOD_TRACE ? 2 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
     }
 
@@ -1104,6 +1109,14 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    if (args._proc > 0) {
+        if (!OS::isLinux()) {
+            return Error("Process sampling is not supported on the platform");
+        } else if (args._output != OUTPUT_JFR) {
+            return Error("Process sampling requires JFR output format");
+        }
+    }
+
     // Save the arguments for shutdown or restart
     args.save();
 
@@ -1409,7 +1422,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
 void Profiler::printUsedMemory(Writer& out) {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
-    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory();
+    size_t dictionaries = _class_map.usedMemory() + _thread_filter.usedMemory();
 
     size_t code_cache = _runtime_stubs.usedMemory();
     int native_lib_count = _native_libs.count();
@@ -1435,8 +1448,7 @@ void Profiler::printUsedMemory(Writer& out) {
 void Profiler::updateMetricsBuffer() {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
-    size_t dictionaries = (_class_map.usedMemory() + _symbol_map.usedMemory() + 
-                          _thread_filter.usedMemory());
+    size_t dictionaries = (_class_map.usedMemory() + _thread_filter.usedMemory());
     
     size_t code_cache = _runtime_stubs.usedMemory();
     int native_lib_count = _native_libs.count();
@@ -1445,11 +1457,11 @@ void Profiler::updateMetricsBuffer() {
     }
     code_cache = (code_cache + native_lib_count * sizeof(CodeCache));
     
-    *((uint64_t*)(_metrics_buffer + 0 * 8)) = (uint64_t)call_trace_storage;
-    *((uint64_t*)(_metrics_buffer + 1 * 8)) = (uint64_t)flight_recording;
-    *((uint64_t*)(_metrics_buffer + 2 * 8)) = (uint64_t)dictionaries;
-    *((uint64_t*)(_metrics_buffer + 3 * 8)) = (uint64_t)code_cache;
-    *((uint64_t*)(_metrics_buffer + 4 * 8)) = (uint64_t)_failures[-ticks_skipped];
+    _metrics_buffer[0] = (uint64_t)call_trace_storage;
+    _metrics_buffer[1] = (uint64_t)flight_recording;
+    _metrics_buffer[2] = (uint64_t)dictionaries;
+    _metrics_buffer[3] = (uint64_t)code_cache;
+    _metrics_buffer[4] = (uint64_t)_failures[-ticks_skipped];
 
 }
 
@@ -1893,7 +1905,7 @@ void Profiler::timerLoop(void* timer_id) {
             // Flush under profiler state lock
             flushJfr();
         }
-    
+
         sleep_until = current_micros + 1000000;
     }
 }

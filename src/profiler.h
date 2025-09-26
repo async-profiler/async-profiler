@@ -59,7 +59,6 @@ class Profiler {
     std::map<int, std::string> _thread_names;
     std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
-    Dictionary _symbol_map;
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
@@ -90,7 +89,7 @@ class Profiler {
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
 
-    static uint8_t _metrics_buffer[40];  // Call trace storage, Flight recording, Dictionaries, Code cache, Discarded Samples
+    static uint64_t _metrics_buffer[5];  // Call trace storage, Flight recording, Dictionaries, Code cache, Discarded Samples
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
@@ -182,7 +181,7 @@ class Profiler {
             _calltrace_buffer[i] = NULL;
         }
     }
-    
+
     static Profiler* instance() {
         return _instance;
     }
@@ -215,7 +214,7 @@ class Profiler {
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
     void updateMetricsBuffer();
-    static uint8_t* metricsBuffer() { return _metrics_buffer; }
+    static uint64_t* metricsBuffer() { return _metrics_buffer; }
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
