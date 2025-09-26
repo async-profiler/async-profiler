@@ -34,8 +34,7 @@ public class RecoveryTests {
         mainClass = StringBuilderTest.class,
         debugNonSafepoints = true,
         arch = {Arch.ARM64, Arch.ARM32},
-        // C2 Inlining can cause some issues when aggressive inlining happens
-        // This is more likely on newer JDKs where more optimization can happen (for example, SVE on JDK18+)
+        // C2 often loses PcDesc mapping from arraycopy intrinsic to the original bytecode
         // For now the test is disabled until a solution is found
         jvmVer = {8, 17}
     )
