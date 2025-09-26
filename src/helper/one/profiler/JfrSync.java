@@ -25,7 +25,6 @@ class JfrSync implements FlightRecorderListener {
     private static final int EM_CPU            = 1;
     private static final int EM_ALLOC          = 2;
     private static final int EM_LOCK           = 4;
-    private static final int EM_METHOD_TRACE   = 32;
 
     // Keep in sync with EVENT_MASK_SIZE in C++
     private static final int EVENT_MASK_SIZE = 6;
@@ -104,9 +103,7 @@ class JfrSync implements FlightRecorderListener {
         }
         // No built-in event related to EM_WALL
         // No built-in event related to EM_NATIVEMEM
-        if ((eventMask & EM_METHOD_TRACE) != 0) {
-            recording.disable("jdk.MethodTrace");
-        }
+        // No need to disable built-in event related to EM_METHOD_TRACE
 
         eventMask >>= (EVENT_MASK_SIZE - 1);
         // Shifted JfrOption values
