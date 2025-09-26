@@ -33,7 +33,7 @@ jobs:
   integration-test:
     runs-on: ${{ inputs.runner }}
     container:
-      image: ${{ inputs.container-image }}
+      image: ${{ inputs.container-image && format('public.ecr.aws/async-profiler/asprof-builder-{0}', inputs.container-image) || '' }}
       options: --privileged
       volumes: ${{ fromJSON(inputs.container-volumes || '[]') }}
     name: "${{ inputs.test-platform }}, ${{ inputs.java-distribution }} ${{ inputs.java-version }}"

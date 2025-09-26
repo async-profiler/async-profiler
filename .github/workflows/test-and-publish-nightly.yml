@@ -30,7 +30,7 @@ jobs:
     with:
       platform: linux-arm64
       runner: ubuntu-24.04-arm
-      container-image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+      container-image: "arm:latest"
 
   build-linux-x64:
     name: build / linux-x64
@@ -38,7 +38,7 @@ jobs:
     with:
       platform: linux-x64
       runner: ubuntu-latest
-      container-image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
+      container-image: x86:latest
 
   build-macos:
     name: build / macos
@@ -48,27 +48,27 @@ jobs:
       runner: macos-15
 
   integ-linux-x64:
-    name: integration test / linux-x64
+    name: integ / linux-x64
     needs: build-linux-x64
     strategy:
       fail-fast: false
       matrix:
         test-platform: [linux-x64]
-        container-image: [public.ecr.aws/async-profiler/asprof-builder-x86:latest]
         java-version: [8, 11, 17, 21, 24]
         java-distribution: [corretto]
+        container-image: [x86:latest]
         include:
           - test-platform: linux-x64-alpine
-            container-image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
+            container-image: alpine:corretto-11
           - test-platform: linux-x64-AL2
-            container-image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
+            container-image: amazonlinux:2
             # GHA provides Node.js by attaching a volume to the container. The container path is
             # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
             container-volumes: '["/tmp/node20:/__e/node20"]'
             java-version: 11
             java-distribution: corretto
           - test-platform: linux-x64-AL2023
-            container-image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2023
+            container-image: amazonlinux:2023
             java-version: 11
             java-distribution: corretto
     uses: ./.github/workflows/integ.yml
@@ -82,18 +82,18 @@ jobs:
       java-distribution: ${{ matrix.java-distribution }}
 
   integ-linux-arm64:
-    name: integration test / linux-arm64
+    name: integ / linux-arm64
     needs: build-linux-arm64
     uses: ./.github/workflows/integ.yml
     with:
       platform: linux-arm64
       test-platform: linux-arm64
       runner: ubuntu-24.04-arm
-      container-image: public.ecr.aws/async-profiler/asprof-builder-arm:latest
+      container-image: arm:latest
       java-version: "11"
 
   integ-macos:
-    name: integration test / macos
+    name: integ / macos
     needs: build-macos
     strategy:
       fail-fast: false
