@@ -1451,8 +1451,8 @@ void Profiler::updateMetricsBuffer() {
     size_t dictionaries = (_class_map.usedMemory() + _thread_filter.usedMemory());
     
     size_t code_cache = _runtime_stubs.usedMemory();
-    int native_lib_count = _native_libs.count();
-    for (int i = 0; i < native_lib_count; i++) {
+    size_t native_lib_count = _native_libs.count();
+    for (size_t i = 0; i < native_lib_count; i++) {
         code_cache += _native_libs[i]->usedMemory();
     }
     code_cache = (code_cache + native_lib_count * sizeof(CodeCache));
@@ -1462,9 +1462,7 @@ void Profiler::updateMetricsBuffer() {
     _metrics_buffer[2] = (uint64_t)dictionaries;
     _metrics_buffer[3] = (uint64_t)code_cache;
     _metrics_buffer[4] = (uint64_t)_failures[-ticks_skipped];
-
 }
-
 
 void Profiler::logStats() {
     if (!_features.stats) return;
