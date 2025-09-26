@@ -307,7 +307,7 @@ class Arguments {
         return (_jfr_options & option) != 0;
     }
 
-    int make_event_mask() const {
+    int eventMask() const {
         return (_event     != NULL ? (_latency >= 0 ? EM_METHOD_TRACE : EM_CPU) : 0) |
                (_alloc     >= 0    ? EM_ALLOC                                   : 0) |
                (_lock      >= 0    ? EM_LOCK                                    : 0) |
