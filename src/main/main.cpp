@@ -525,8 +525,8 @@ int main(int argc, const char** argv) {
         } else if (arg == "--safe-mode") {
             params << ",safemode=" << args.next();
 
-        } else if (arg == "--jfrsync") {
-            params << ",jfrsync=" << args.next();
+        } else if (arg == "--jfrsync" || arg == "--jfropts") {
+            params << "," << (arg.str() + 2) << "=" << args.next();
             output = "jfr";
 
         } else if (arg == "--timeout" || arg == "--loop") {
