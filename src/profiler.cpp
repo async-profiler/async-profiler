@@ -1078,7 +1078,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    _event_mask = make_event_mask(args);
+    _event_mask = args.make_event_mask();
 
     if (_event_mask == 0) {
         return Error("No profiling events specified");

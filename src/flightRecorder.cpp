@@ -1383,7 +1383,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     jobject jfilename = env->NewStringUTF(filename);
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
 
-    int event_mask = make_event_mask(args) |
+    int event_mask = args.make_event_mask() |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << (EVENT_MASK_SIZE - 1));
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);

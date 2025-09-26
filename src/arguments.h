@@ -7,6 +7,7 @@
 #define _ARGUMENTS_H
 
 #include <stddef.h>
+#include "arch.h"
 
 
 const long DEFAULT_INTERVAL = 10000000;      // 10 ms
@@ -92,6 +93,17 @@ enum JfrOption {
 
     JFR_SYNC_OPTS   = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD | NO_HEAP_SUMMARY
 };
+
+// Keep this in sync with JfrSync.java
+enum EventMask {
+    EM_CPU          = 1,
+    EM_ALLOC        = 2,
+    EM_LOCK         = 4,
+    EM_WALL         = 8,
+    EM_NATIVEMEM    = 16,
+    EM_METHOD_TRACE = 32
+};
+constexpr u8 EVENT_MASK_SIZE = 6;
 
 struct StackWalkFeatures {
     // Stack recovery techniques used to workaround AsyncGetCallTrace flaws
@@ -293,6 +305,14 @@ class Arguments {
 
     bool hasOption(JfrOption option) const {
         return (_jfr_options & option) != 0;
+    }
+
+    int make_event_mask() const {
+        return (_event     != NULL ? (_latency >= 0 ? EM_METHOD_TRACE : EM_CPU) : 0) |
+               (_alloc     >= 0    ? EM_ALLOC                                   : 0) |
+               (_lock      >= 0    ? EM_LOCK                                    : 0) |
+               (_wall      >= 0    ? EM_WALL                                    : 0) |
+               (_nativemem >= 0    ? EM_NATIVEMEM                               : 0);
     }
 
     friend class FrameName;

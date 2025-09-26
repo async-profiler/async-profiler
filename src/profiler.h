@@ -47,25 +47,6 @@ enum State {
     TERMINATED
 };
 
-// Keep this in sync with JfrSync
-enum EventMask {
-    EM_CPU          = 1,
-    EM_ALLOC        = 2,
-    EM_LOCK         = 4,
-    EM_WALL         = 8,
-    EM_NATIVEMEM    = 16,
-    EM_METHOD_TRACE = 32
-};
-constexpr u8 EVENT_MASK_SIZE = 6;
-
-static int make_event_mask(const Arguments& args) {
-    return (args._event     != NULL ? (args._latency >= 0 ? EM_METHOD_TRACE : EM_CPU) : 0) |
-           (args._alloc     >= 0    ? EM_ALLOC                                        : 0) |
-           (args._lock      >= 0    ? EM_LOCK                                         : 0) |
-           (args._wall      >= 0    ? EM_WALL                                         : 0) |
-           (args._nativemem >= 0    ? EM_NATIVEMEM                                    : 0);
-}
-
 class Profiler {
   private:
     Mutex _state_lock;
