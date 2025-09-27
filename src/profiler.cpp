@@ -65,6 +65,7 @@ static ITimer itimer;
 static Instrument instrument;
 
 static ProfilingWindow profiling_window;
+uint64_t Profiler::_metrics_buffer[5] = {0};
 
 
 struct MethodSample {
@@ -1428,6 +1429,25 @@ void Profiler::printUsedMemory(Writer& out) {
              call_trace_storage / KB, flight_recording / KB, dictionaries / KB, code_cache / KB,
              (call_trace_storage + flight_recording + dictionaries + code_cache) / KB);
     out << buf;
+}
+
+void Profiler::updateMetricsBuffer() {
+    size_t call_trace_storage = _call_trace_storage.usedMemory();
+    size_t flight_recording = _jfr.usedMemory();
+    size_t dictionaries = (_class_map.usedMemory() + _thread_filter.usedMemory());
+    
+    size_t code_cache = _runtime_stubs.usedMemory();
+    size_t native_lib_count = _native_libs.count();
+    for (size_t i = 0; i < native_lib_count; i++) {
+        code_cache += _native_libs[i]->usedMemory();
+    }
+    code_cache = (code_cache + native_lib_count * sizeof(CodeCache));
+    
+    _metrics_buffer[0] = call_trace_storage;
+    _metrics_buffer[1] = flight_recording;
+    _metrics_buffer[2] = dictionaries;
+    _metrics_buffer[3] = code_cache;
+    _metrics_buffer[4] = _failures[-ticks_skipped];
 }
 
 void Profiler::logStats() {
