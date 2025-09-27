@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -280,6 +281,26 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
             }
         }
     }
+
+    /**
+     * Set trace context for signal correlation
+     * @param traceId OpenTelemetry trace identifier
+     * @param spanId OpenTelemetry span identifier
+     */
+    @Override
+    public void setTraceContext(String traceId, String spanId) {
+        TraceContext.setTraceContext(traceId, spanId);
+    }
+
+    /**
+     * Clear trace context for the current thread
+     */
+    @Override
+    public void clearTraceContext() {
+        TraceContext.clearTraceContext();
+    }
+
+    static native ByteBuffer getThreadLocalBuffer();
 
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
 
