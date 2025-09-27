@@ -173,6 +173,7 @@ class Arguments {
     Action _action;
     Counter _counter;
     const char* _event;
+    const char* _trace;
     int _timeout;
     long _interval;
     long _latency;
@@ -233,6 +234,7 @@ class Arguments {
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _event(NULL),
+        _trace(NULL),
         _timeout(0),
         _interval(0),
         _latency(-1),
@@ -311,7 +313,8 @@ class Arguments {
                (_alloc     >= 0    ? EM_ALLOC                                   : 0) |
                (_lock      >= 0    ? EM_LOCK                                    : 0) |
                (_wall      >= 0    ? EM_WALL                                    : 0) |
-               (_nativemem >= 0    ? EM_NATIVEMEM                               : 0);
+               (_nativemem >= 0    ? EM_NATIVEMEM                               : 0) |
+               (_trace     != NULL ? EM_METHOD_TRACE                            : 0);
     }
 
     friend class FrameName;

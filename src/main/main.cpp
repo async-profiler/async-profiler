@@ -73,6 +73,8 @@ static const char USAGE_STRING[] =
     "  --live              build allocation profile from live objects only\n"
     "  --nativemem bytes   native allocation profiling interval in bytes\n"
     "  --nofree            do not collect free calls in native allocation profiling\n"
+    "  --trace method      Method to be instrumented with optional latency treshold,\n"
+    "                      supports multiple values separated by '+'\n"
     "  --latency duration  Java method latency profiling threshold\n"
     "  --lock duration     lock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
@@ -505,7 +507,7 @@ int main(int argc, const char** argv) {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
-                   arg == "--latency" || arg == "--chunksize" || arg == "--chunktime" ||
+                   arg == "trace" || arg == "--latency" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
                    arg == "--target-cpu" || arg == "--proc") {
             params << "," << (arg.str() + 2) << "=" << args.next();

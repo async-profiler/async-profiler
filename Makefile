@@ -311,10 +311,10 @@ cpp-lint-diff:
 		clang-tidy-diff.py -p1 $(CLANG_TIDY_ARGS_EXTRA) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
 check-md:
-	prettier -c README.md "docs/**/*.md"
+	prettier -c README.md "docs/**/*.md" "!docs/ProfilerOptions.md"
 
 format-md:
-	prettier -w README.md "docs/**/*.md"
+	prettier -w README.md "docs/**/*.md" "!docs/ProfilerOptions.md"
 
 clean-coverage:
 	$(RM) -rf build/test/cpptests build/test/coverage
