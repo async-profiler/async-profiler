@@ -60,6 +60,19 @@ static jmethodID getMethodId(VMMethod* method) {
     return NULL;
 }
 
+// Fills current frame from thread's JavaFrameAnchor if available
+static bool getTopJavaFrame(VMThread* vm_thread, const void*& pc, uintptr_t& sp, uintptr_t& fp) {
+    if (vm_thread != NULL && vm_thread->isJavaThread()) {
+        JavaFrameAnchor* anchor = vm_thread->anchor();
+        if (anchor->lastJavaPC() != NULL && anchor->lastJavaSP() != 0) {
+            pc = anchor->lastJavaPC();
+            sp = anchor->lastJavaSP();
+            fp = anchor->lastJavaFP();
+            return true;
+        }
+    }
+    return false;
+}
 
 int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
     const void* pc;
@@ -257,13 +270,28 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         }
     }
 
-    // Walk until the bottom of the stack or until the first Java frame
+    bool java_frame_found = detail == VM_BASIC;
+
+    unwind_loop:
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
                 fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
-            } else if (nm->isNMethod()) {
+                break;
+            }
+
+            // Always prefer JavaFrameAnchor when it is available,
+            // since it provides reliable SP and FP.
+            // Do not treat the topmost stub as Java frame.
+            if (!java_frame_found && (depth > 0 || !nm->isStub())) {
+                java_frame_found = true;
+                if (getTopJavaFrame(vm_thread, pc, sp, fp) && !nm->contains(pc)) {
+                    continue;  // NMethod has changed as a result of correction
+                }
+            }
+
+            if (nm->isNMethod()) {
                 int level = nm->level();
                 FrameTypeId type = detail != VM_BASIC && level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
                 fillFrame(frames[depth++], type, 0, nm->method()->id());
@@ -443,6 +471,14 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         if (inDeadZone(pc) || (pc == prev_pc && sp == prev_sp)) {
             break;
         }
+    }
+
+    // If we did not meet Java frame but current thread has JavaFrameAnchor set,
+    // retry stack walking from the anchor
+    if (!java_frame_found && getTopJavaFrame(vm_thread, pc, sp, fp)) {
+        java_frame_found = true;
+        while (depth > 0 && frames[depth - 1].method_id == NULL) depth--;  // pop unknown frames
+        goto unwind_loop;
     }
 
     if (vm_thread != NULL) vm_thread->exception() = saved_exception;
