@@ -735,7 +735,7 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     size_t str_size = 0;
     ssize_t len;
 
-    while (max_count > 0 && (len = getline(&str, &str_size, f)) > 0) {
+    while ((len = getline(&str, &str_size, f)) > 0) {
         str[len - 1] = 0;
 
         MemoryMapDesc map(str);
@@ -767,6 +767,9 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
         }
 
         if (map.isExecutable()) {
+            if (libs.find(inode) == libs.end() && libs.size() == max_count) {
+                break;
+            }
             SharedLibrary& lib = libs[inode];
             if (lib.file == nullptr) {
                 lib.file = strdup(map.file());
