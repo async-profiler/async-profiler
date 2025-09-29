@@ -31,14 +31,14 @@ enum EventType {
 class Event {
   public:
     static bool hasNativeStack(EventType event_type) {
-        constexpr int events_with_native_stack =
+        constexpr int EVENTS_WITH_NATIVE_STACK =
             (1 << PERF_SAMPLE)       |
             (1 << EXECUTION_SAMPLE)  |
             (1 << WALL_CLOCK_SAMPLE) |
             (1 << MALLOC_SAMPLE)     |
             (1 << ALLOC_SAMPLE)      |
             (1 << ALLOC_OUTSIDE_TLAB);
-        return (1 << event_type) & events_with_native_stack;
+        return (1 << event_type) & EVENTS_WITH_NATIVE_STACK;
     }
 };
 
