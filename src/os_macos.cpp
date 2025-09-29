@@ -6,6 +6,7 @@
 #ifdef __APPLE__
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <libkern/OSByteOrder.h>
 #include <libproc.h>
 #include <mach/mach.h>
@@ -102,6 +103,7 @@ static SigAction orig_sigsegv_handler;
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const long OS::clock_ticks_per_sec = sysconf(_SC_CLK_TCK);
 
 static mach_timebase_info_data_t timebase = {0, 0};
 
@@ -121,6 +123,11 @@ u64 OS::micros() {
 void OS::sleep(u64 nanos) {
     struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
     nanosleep(&ts, NULL);
+}
+
+void OS::uninterruptibleSleep(u64 nanos, volatile bool* flag) {
+    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
+    while (*flag && nanosleep(&ts, &ts) < 0 && errno == EINTR);
 }
 
 u64 OS::overrun(siginfo_t* siginfo) {
@@ -423,6 +430,26 @@ bool OS::checkPreloaded() {
         }
     }
 
+    return false;
+}
+
+u64 OS::getSystemBootTime() {
+    return 0;
+}
+
+u64 OS::getRamSize() {
+    return 0;
+}
+
+int OS::getProcessIds(int* pids, int max_pids) {
+    return 0;
+}
+
+bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
+    return false;
+}
+
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {
     return false;
 }
 

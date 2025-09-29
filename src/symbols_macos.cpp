@@ -99,6 +99,8 @@ class MachOParser {
                 _cc->add(stubs_start + i * stubs_section->reserved2, stubs_section->reserved2, stub_name);
             }
         }
+
+        _cc->setPlt(stubs_section->addr, isym_count * stubs_section->reserved2);
     }
 
     void loadImports(const symtab_command* symtab, const dysymtab_command* dysymtab,

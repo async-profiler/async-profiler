@@ -12,6 +12,7 @@ import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
+import test.alloc.Hello;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -102,7 +103,7 @@ public class JfrTests {
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
     @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,file=%f.jfr", nameSuffix = "noOverride")
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr", nameSuffix = "overrideAlloc")
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,alloc=262143,file=%f.jfr", nameSuffix = "overrideAlloc")
     public void allModeNoEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -138,7 +139,7 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr")
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=262143,file=%f.jfr")
     public void allModeEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -169,6 +170,26 @@ public class JfrTests {
         assert events.contains("profiler.Free"); // nativemem profiling
     }
 
+    // Simple smoke test, nothing in particular is tested
+    @Test(mainClass = JfrCpuProfiling.class)
+    public void jfrSyncSmoke(TestProcess p) throws Exception {
+        Output out = p.profile("-d 1 --jfrsync default --jfropts 4 -f %f.jfr");
+
+        Set<String> events = new HashSet<>();
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                events.add(event.getEventType().getName());
+            }
+        }
+
+        assert events.contains("jdk.OSInformation");
+        assert events.contains("jdk.CPUInformation");
+        assert events.contains("jdk.JVMInformation");
+        assert events.contains("jdk.InitialSystemProperty");
+        assert events.contains("jdk.NativeLibrary");
+    }
+
     /**
      * Test to validate time to safepoint profiling
      *
@@ -196,6 +217,14 @@ public class JfrTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
+    }
+
+    @Test(mainClass = Hello.class, agentArgs = "start,begin=write,end=write,file=%f.jfr", output = true)
+    public void beginEnd(TestProcess p) throws Exception {
+        Output out = p.waitForExit(TestProcess.STDOUT);
+        assert p.exitCode() == 0;
+
+        assert out.contains("begin and end symbols should not resolve to the same address");
     }
 
     private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {

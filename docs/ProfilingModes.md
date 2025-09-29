@@ -189,6 +189,12 @@ of all compiled methods. The subsequent instrumentation flushes only the _depend
 
 The massive CodeCache flush doesn't occur if attaching async-profiler as an agent.
 
+### Latency profiling
+
+In the context of _Java method profiling_, async-profiler supports latency profiling. Users may
+specify a threshold latency with the parameter `latency`. Only the calls exceeding this threshold
+in total runtime will be profiled. Method calls resulting in an exception are ignored.
+
 ## Native function profiling
 
 Here are some useful native functions to profile:
