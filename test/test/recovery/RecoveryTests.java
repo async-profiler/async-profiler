@@ -30,7 +30,14 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
     }
 
-    @Test(mainClass = StringBuilderTest.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.ARM32})
+    @Test(
+        mainClass = StringBuilderTest.class,
+        debugNonSafepoints = true,
+        arch = {Arch.ARM64, Arch.ARM32},
+        // C2 often loses PcDesc mapping from arraycopy intrinsic to the original bytecode
+        // For now the test is disabled until a solution is found, JDK-8368867
+        jvmVer = {8, 17}
+    )
     public void stringBuilderArm(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
         Assert.isGreater(out.ratio("(forward|foward|backward)_copy_longs"), 0.8); // there's a typo on some JDK versions
