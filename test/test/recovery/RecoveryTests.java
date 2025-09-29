@@ -35,7 +35,7 @@ public class RecoveryTests {
         debugNonSafepoints = true,
         arch = {Arch.ARM64, Arch.ARM32},
         // C2 often loses PcDesc mapping from arraycopy intrinsic to the original bytecode
-        // For now the test is disabled until a solution is found
+        // For now the test is disabled until a solution is found, JDK-8368867
         jvmVer = {8, 17}
     )
     public void stringBuilderArm(TestProcess p) throws Exception {
