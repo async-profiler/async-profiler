@@ -245,7 +245,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
 
     // Should be preserved across setjmp/longjmp
     volatile int depth = 0;
-    bool code_heap_pc_observed = false;
 
     if (vm_thread != NULL) {
         vm_thread->exception() = &crash_protection_ctx;
@@ -261,7 +260,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
-            code_heap_pc_observed = true;
 
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
@@ -399,7 +397,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 if (compile_task != NULL) {
                     fillFrame(frames[depth++], FRAME_JIT_COMPILED, 0, compile_task);
                 }
-            } else if (code_heap_pc_observed || detail == VM_EXPERT) {
+            } else if (detail == VM_EXPERT) {
                 // branch to avoid any special handling for the native frames
             } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
                 // Skip any frames above profiler hook methods

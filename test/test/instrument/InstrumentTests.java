@@ -21,6 +21,26 @@ public class InstrumentTests {
     private static final String MAIN_METHOD_SEGMENT = "^test\\/instrument\\/Recursive\\.main";
     private static final String RECURSIVE_METHOD_SEGMENT = ";test\\/instrument\\/Recursive\\.recursive";
 
+    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,file=%profile", nameSuffix = "default")
+    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,cstack=vm,file=%profile", nameSuffix = "VM")
+    public void instrumentDefault(TestProcess p) throws Exception {
+        Output output = p.waitForExit("%profile");
+
+        output.stream().forEach(line -> {
+            assert line.matches(".*java/util/Properties.getProperty [0-9]+") : line;
+        });
+    }
+
+    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,cstack=vmx,file=%profile")
+    public void instrumentVMX(TestProcess p) throws Exception {
+        Output output = p.waitForExit("%profile");
+
+        output.stream().forEach(line -> {
+            assert line.matches(".*java/util/Properties.getProperty;" +
+                    ".+ [0-9]+") : line; // Multiple internal profiler frames will be present in VMX
+        });
+    }
+
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f",
