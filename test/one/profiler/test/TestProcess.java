@@ -141,6 +141,7 @@ public class TestProcess implements Closeable {
                 cmd.add("-XX:+DebugNonSafepoints");
             }
             cmd.add("-Djava.library.path=" + System.getProperty("java.library.path"));
+            cmd.add("-ea");
             addArgs(cmd, test.jvmArgs());
             if (!test.agentArgs().isEmpty()) {
                 cmd.add("-agentpath:" + profilerLibPath() + "=" +
@@ -307,10 +308,14 @@ public class TestProcess implements Closeable {
     }
 
     public Output profile(String args) throws IOException, TimeoutException, InterruptedException {
-        return profile(args, false);
+        return profile(args, false, 10);
     }
 
     public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException {
+        return profile(args, sudo, 10);
+    }
+
+    public Output profile(String args, boolean sudo, int timeout) throws IOException, TimeoutException, InterruptedException {
         List<String> cmd = new ArrayList<>();
         if (sudo && (new File("/usr/bin/sudo").exists() || !isRoot())) {
             cmd.add("/usr/bin/sudo");
@@ -325,7 +330,7 @@ public class TestProcess implements Closeable {
                 .redirectError(createTempFile(PROFERR))
                 .start();
 
-        waitForExit(p, 10);
+        waitForExit(p, timeout);
         int exitCode = p.waitFor();
         if (exitCode != 0) {
             throw new IOException("Profiling call failed: " + readFile(PROFERR));

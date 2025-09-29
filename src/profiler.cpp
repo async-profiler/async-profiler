@@ -4,6 +4,7 @@
  */
 
 #include <algorithm>
+#include <assert.h>
 #include <dlfcn.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -11,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <time.h>
 #include "index.h"
 #include "profiler.h"
 #include "perfEvents.h"
@@ -44,7 +46,7 @@
 Profiler* const Profiler::_instance = new Profiler();
 
 static SigAction orig_trapHandler = NULL;
-static SigAction orig_segvHandler = NULL;
+static SigAction orig_crashHandler = NULL;
 
 static uintptr_t profiler_lib_start = 0;
 static uintptr_t profiler_lib_end = 0;
@@ -63,16 +65,6 @@ static ITimer itimer;
 static Instrument instrument;
 
 static ProfilingWindow profiling_window;
-
-
-// The same constants are used in JfrSync
-enum EventMask {
-    EM_CPU   = 1,
-    EM_ALLOC = 2,
-    EM_LOCK  = 4,
-    EM_WALL  = 8,
-    EM_NATIVEMEM = 16,
-};
 
 
 struct MethodSample {
@@ -365,7 +357,12 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         return 0;
     }
 
-    JNIEnv* jni = VM::jni();
+    JNIEnv* jni = vm_thread->jni();
+    if (_features.jnienv) {
+        // jnienv feature is only used in tests to validate JNIEnv discovery through VMStructs.
+        // Normally, we avoid calling VM::jni() inside a signal handler as it may deadlock.
+        assert(jni == VM::jni());
+    }
     if (jni == NULL) {
         // Not a Java thread
         return 0;
@@ -648,7 +645,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
-        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : 0;
+        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : event_type == METHOD_TRACE ? 2 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
     }
 
@@ -784,6 +781,11 @@ Error Profiler::installTraps(const char* begin, const char* end, bool nostop) {
         return Error("End address not found");
     }
 
+    // Having 'begin' and 'end' traps at the same address would result in an infinite loop
+    if (begin_addr && begin_addr == end_addr) {
+        return Error("begin and end symbols should not resolve to the same address");
+    }
+
     _begin_trap.assign(begin_addr);
     _end_trap.assign(end_addr);
     _nostop = nostop;
@@ -827,26 +829,14 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 }
 
-void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+void Profiler::crashHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
+
+    if (SafeAccess::checkFault(frame)) {
+        return;
+    }
+
     uintptr_t pc = frame.pc();
-
-    uintptr_t length = SafeAccess::skipLoad(pc);
-    if (length > 0) {
-        // Skip the fault instruction, as if it successfully loaded NULL
-        frame.pc() += length;
-        frame.retval() = 0;
-        return;
-    }
-
-    length = SafeAccess::skipLoadArg(pc);
-    if (length > 0) {
-        // Act as if the load returned default_value argument
-        frame.pc() += length;
-        frame.retval() = frame.arg1();
-        return;
-    }
-
     if (pc >= profiler_lib_start && pc < profiler_lib_end) {
         StackWalker::checkFault();
     }
@@ -860,7 +850,7 @@ void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
-    orig_segvHandler(signo, siginfo, ucontext);
+    orig_crashHandler(signo, siginfo, ucontext);
 }
 
 void Profiler::wakeupHandler(int signo) {
@@ -878,14 +868,14 @@ void Profiler::setupSignalHandlers() {
 
     // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs don't
     if (!VM::isOpenJ9() && !VM::isZing()) {
-        CodeCache* profiler_lib = instance()->findLibraryByAddress((void*)setupSignalHandlers);
+        CodeCache* profiler_lib = instance()->findLibraryByAddress((void*)crashHandler);
         if (profiler_lib != NULL) {
             // Record boundaries of our own library for the signal handler to check
             // if a crash has happened in the profiler code
             profiler_lib_start = (uintptr_t)profiler_lib->minAddress();
             profiler_lib_end = (uintptr_t)profiler_lib->maxAddress();
         }
-        orig_segvHandler = OS::replaceCrashHandler(segvHandler);
+        orig_crashHandler = OS::replaceCrashHandler(crashHandler);
     }
 
     OS::installSignalHandler(WAKEUP_SIGNAL, NULL, wakeupHandler);
@@ -1063,11 +1053,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    _event_mask = (args._event != NULL ? EM_CPU : 0) |
-                  (args._alloc >= 0 ? EM_ALLOC : 0) |
-                  (args._lock >= 0 ? EM_LOCK : 0) |
-                  (args._wall >= 0 ? EM_WALL : 0) |
-                  (args._nativemem >= 0 ? EM_NATIVEMEM : 0);
+    _event_mask = args.eventMask();
 
     if (_event_mask == 0) {
         return Error("No profiling events specified");
@@ -1080,6 +1066,14 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (args._fdtransfer) {
         if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
             return Error("Failed to initialize FdTransferClient");
+        }
+    }
+
+    if (args._proc > 0) {
+        if (!OS::isLinux()) {
+            return Error("Process sampling is not supported on the platform");
+        } else if (args._output != OUTPUT_JFR) {
+            return Error("Process sampling requires JFR output format");
         }
     }
 
@@ -1215,7 +1209,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     switchThreadEvents(JVMTI_ENABLE);
 
     _state = RUNNING;
-    _start_time = time(NULL);
+    _start_time = OS::micros();
     _epoch++;
 
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
@@ -1388,7 +1382,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
 void Profiler::printUsedMemory(Writer& out) {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
-    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory();
+    size_t dictionaries = _class_map.usedMemory() + _thread_filter.usedMemory();
 
     size_t code_cache = _runtime_stubs.usedMemory();
     int native_lib_count = _native_libs.count();
@@ -1637,10 +1631,18 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
     Index strings;
     Index functions;
+    // Eventually this is going to be Index<Attribute>, for now we keep it simple
+    Index thread_names;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
+
+    u64 time_nanos = _start_time * 1000ULL;
+    u64 duration_nanos = (OS::micros() - _start_time) * 1000ULL;
+
+    otlp_buffer.field(Profile::time_nanos, time_nanos);
+    otlp_buffer.field(Profile::duration_nanos, duration_nanos);
 
     recordSampleType(otlp_buffer, strings, _engine->type(), "count");
     recordSampleType(otlp_buffer, strings, _engine->type(), _engine->units());
@@ -1660,17 +1662,32 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
         otlp_buffer.field(Sample::locations_length, trace->num_frames);
+
+        u32 thread_name_idx = 0;
+        for (int j = 0; j < trace->num_frames; j++) {
+            if (trace->frames[j].bci == BCI_THREAD_ID) {
+                int tid = (int)(uintptr_t) trace->frames[j].method_id;
+                MutexLocker ml(_thread_names_lock);
+                ThreadMap::iterator it = _thread_names.find(tid);
+                if (it != _thread_names.end()) {
+                    thread_name_idx = thread_names.indexOf(it->second);
+                }
+                continue;
+            }
+
+            // To be written below in Profile.location_indices
+            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
+            ++frames_seen;
+        }
+        if (thread_name_idx != 0) {
+            otlp_buffer.field(Sample::attribute_indices, thread_name_idx);
+        }
+
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
         otlp_buffer.putVarInt(cts->counter);
         otlp_buffer.commitMessage(sample_value_mark);
         otlp_buffer.commitMessage(sample_mark);
-
-        for (int j = 0; j < trace->num_frames; j++) {
-            // To be written below in Profile.location_indices
-            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
-        }
-        frames_seen += trace->num_frames;
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
@@ -1690,7 +1707,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     otlp_buffer.commitMessage(mapping_mark);
 
     // Write function_table
-    functions.forEachOrdered([&] (const std::string& function_name) {
+    functions.forEachOrdered([&] (size_t idx, const std::string& function_name) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
         otlp_buffer.field(Function::name_strindex, strings.indexOf(function_name));
         otlp_buffer.commitMessage(function_mark);
@@ -1710,8 +1727,18 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     }
 
     // Write string_table
-    strings.forEachOrdered([&] (const std::string& s) {
+    strings.forEachOrdered([&] (size_t idx, const std::string& s) {
         otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
+    });
+
+    // Write attribute_table (only threads for now)
+    thread_names.forEachOrdered([&] (size_t idx, const std::string& s) {
+        protobuf_mark_t attr_mark = otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
+        otlp_buffer.field(Key::key, OTLP_THREAD_NAME);
+        protobuf_mark_t value_mark = otlp_buffer.startMessage(Key::value);
+        otlp_buffer.field(AnyValue::string_value, s.data(), s.length());
+        otlp_buffer.commitMessage(value_mark);
+        otlp_buffer.commitMessage(attr_mark);
     });
 
     otlp_buffer.commitMessage(dictionary_mark);
@@ -1719,15 +1746,16 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     out.write((const char*) otlp_buffer.data(), otlp_buffer.offset());
 }
 
-time_t Profiler::addTimeout(time_t start, int timeout) {
+u64 Profiler::addTimeout(u64 start_micros, int timeout) {
     if (timeout == 0) {
-        return (time_t)0x7fffffff;
+        return 0x7fffffffffffffffULL;
     } else if (timeout > 0) {
-        return start + timeout;
+        return start_micros + (u64)timeout * 1000000ULL;
     }
 
+    time_t start_seconds = start_micros / 1000000ULL;
     struct tm t;
-    localtime_r(&start, &t);
+    localtime_r(&start_seconds, &t);
 
     int hh = (timeout >> 16) & 0xff;
     if (hh < 24) {
@@ -1743,10 +1771,10 @@ time_t Profiler::addTimeout(time_t start, int timeout) {
     }
 
     time_t result = mktime(&t);
-    if (result <= start) {
+    if (result <= start_seconds) {
         result += (hh < 24 ? 86400 : (mm < 60 ? 3600 : 60));
     }
-    return result;
+    return (u64)result * 1000000ULL;
 }
 
 void Profiler::startTimer() {
@@ -1794,8 +1822,7 @@ void Profiler::stopTimer() {
 
 void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
-    u64 stop_micros = _stop_time * 1000000ULL;
-    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : stop_micros;
+    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : _stop_time;
 
     while (true) {
         {
@@ -1807,7 +1834,7 @@ void Profiler::timerLoop(void* timer_id) {
             if (_timer_id != timer_id) return;
         }
 
-        if ((current_micros = OS::micros()) >= stop_micros) {
+        if ((current_micros = OS::micros()) >= _stop_time) {
             restart(_global_args);
             return;
         }

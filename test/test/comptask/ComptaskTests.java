@@ -31,7 +31,7 @@ public class ComptaskTests {
     public void testCompTask(TestProcess p) throws Exception {
         Output out = p.waitForExit("%profile");
         assert p.exitCode() == 0;
-        assert out.contains(";Compiler::compile_method;java/lang/\\w+\\.");
-        assert out.contains(";C2Compiler::compile_method;java/lang/\\w+\\.");
+        assert out.contains(";Compiler::compile_method;(java|sun|jdk)/[^;]+[^;/]\\.[^;/]+;");
+        assert out.contains(";C2Compiler::compile_method;(java|sun|jdk)/[^;]+[^;/]\\.[^;/]+;");
     }
 }

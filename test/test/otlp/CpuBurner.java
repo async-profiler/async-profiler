@@ -5,6 +5,7 @@
 
 package test.otlp;
 
+import java.lang.Thread;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Random;
@@ -20,10 +21,14 @@ public class CpuBurner {
         }
     }
 
-    public static void main(String[] args) {
-        Instant start = Instant.now();
-        while (Duration.between(start, Instant.now()).compareTo(TEST_DURATION) < 0) {
-            burn();
-        }
+    public static void main(String[] args) throws InterruptedException {
+        Thread worker = new Thread(() -> {
+            Instant start = Instant.now();
+            while (Duration.between(start, Instant.now()).compareTo(TEST_DURATION) < 0) {
+                burn();
+            }
+        }, "CpuBurnerWorker");
+        worker.start();
+        worker.join();
     }
 }

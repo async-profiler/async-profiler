@@ -49,7 +49,7 @@ public class TestDeclaration {
         File[] files = new File("test/test").listFiles();
         if (files != null) {
             for (File file : files) {
-                if (file.isDirectory()) {
+                if (file.isDirectory() && !file.getName().startsWith(".")) {
                     allTestDirs.add(file.getName());
                 }
             }
