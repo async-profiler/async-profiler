@@ -60,6 +60,9 @@ jobs:
         include:
           - test-platform: linux-x64-alpine
             container-image: alpine:corretto-11
+            use-builtin-jdk: true
+            java-distribution: corretto
+            java-version: 11
           - test-platform: linux-x64-AL2
             container-image: amazonlinux:2
             # GHA provides Node.js by attaching a volume to the container. The container path is
@@ -71,6 +74,11 @@ jobs:
             container-image: amazonlinux:2023
             java-version: 11
             java-distribution: corretto
+          - test-platform: linux-x64-alpaquita
+            container-image: alpaquita:x86_64-liberica-21
+            use-builtin-jdk: true
+            java-distribution: liberica
+            java-version: 21
     uses: ./.github/workflows/integ.yml
     with:
       platform: linux-x64
@@ -80,6 +88,7 @@ jobs:
       container-volumes: ${{ matrix.container-volumes || '' }}
       java-version: ${{ matrix.java-version }}
       java-distribution: ${{ matrix.java-distribution }}
+      use-builtin-jdk: ${{ matrix.use-builtin-jdk || false }}
 
   integ-linux-arm64:
     name: integ / linux-arm64
