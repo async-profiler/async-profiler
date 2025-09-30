@@ -108,17 +108,10 @@ public class Arguments {
     }
 
     private static String toCamelCase(String name) {
-        StringBuilder camel = new StringBuilder();
-        boolean flip = false;
-        for (char c : name.toCharArray()) {
-            if (c == '-') {
-                flip = true;
-            } else {
-                camel.append(flip ? Character.toUpperCase(c) : c);
-                flip = false;
-            }
+        for (int i; (i = name.lastIndexOf('-', name.length() - 2)) >= 0; ) {
+            name = name.substring(0, i) + Character.toUpperCase(name.charAt(i + 1)) + name.substring(i + 2);
         }
-        return camel.toString();
+        return name;
     }
 
     // Absolute floating point value or percentage followed by %
