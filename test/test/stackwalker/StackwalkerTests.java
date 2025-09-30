@@ -22,11 +22,10 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^Java_test_stackwalker_StackGenerator_largeFrame;" +
+        assert output.contains("test/stackwalker/StackGenerator.main[^;]*;" +
+                "test/stackwalker/StackGenerator.largeFrame[^;]*;" +
+                "Java_test_stackwalker_StackGenerator_largeFrame;" +
                 "doCpuTask");
-
-        // There will be no stack frame that contains main method, largeFrame native method & doCpuTask
-        assert !output.contains(".*main.*Java_test_stackwalker_StackGenerator_largeFrame.*doCpuTask");
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepFrame",
@@ -37,7 +36,9 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^Java_test_stackwalker_StackGenerator_deepFrame;" +
+        assert output.contains("test/stackwalker/StackGenerator.main[^;]*;" +
+                "test/stackwalker/StackGenerator.deepFrame[^;]*;" +
+                "Java_test_stackwalker_StackGenerator_deepFrame;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
@@ -46,9 +47,6 @@ public class StackwalkerTests {
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
                 "doCpuTask");
-
-        // There will be no stack frame that contains main method, deepFrame native method & doCpuTask
-        assert !output.contains(".*main.*Java_test_stackwalker_StackGenerator_deepFrame.*doCpuTask");
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "leafFrame",
