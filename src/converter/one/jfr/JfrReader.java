@@ -250,10 +250,10 @@ public class JfrReader implements Closeable {
         long time = getVarlong();
         int stackTraceId = getVarint();
         int tid = getVarint();
-        boolean _failed = getBoolean();
-        long _samplingPeriod = getVarlong();
-        boolean _biased = getBoolean();
-        return new ExecutionSample(time, tid, stackTraceId, ExecutionSample.CpuTimeSample, 1);
+        boolean failed = getBoolean();
+        long samplingPeriod = getVarlong();
+        boolean biased = getBoolean();
+        return new ExecutionSample(time, tid, stackTraceId, ExecutionSample.CPU_TIME_SAMPLE, 1);
     }
 
     private MallocEvent readMallocEvent(boolean hasSize) {
@@ -653,7 +653,7 @@ public class JfrReader implements Closeable {
     }
 
     public boolean getBoolean() {
-        return getByte() != 0;
+        return buf.get() != 0;
     }
 
     public String getString() {

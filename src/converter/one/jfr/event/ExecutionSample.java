@@ -6,7 +6,10 @@
 package one.jfr.event;
 
 public class ExecutionSample extends Event {
-    public static final int CpuTimeSample = 254;
+    // Synthetic thread state to distinguish samples converted from jdk.CPUTimeSample event.
+    // A small constant suitable for BitSet, does not clash with any existing thread state.
+    public static final int CPU_TIME_SAMPLE = 254;
+
     public final int threadState;
     public final int samples;
 
@@ -25,5 +28,4 @@ public class ExecutionSample extends Event {
     public long value() {
         return samples;
     }
-
 }
