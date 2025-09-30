@@ -6,7 +6,7 @@
 package one.jfr.event;
 
 public class ExecutionSample extends Event {
-    public static final int CpuTimeSample = Integer.MAX_VALUE - 1;
+    public static final int CpuTimeSample = 254;
     public final int threadState;
     public final int samples;
 

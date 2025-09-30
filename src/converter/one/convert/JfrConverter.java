@@ -63,20 +63,19 @@ public abstract class JfrConverter extends Classifier {
                 : args.trace ? MethodTrace.class
                 : ExecutionSample.class;
 
-        BitSet threadStates;
+        BitSet threadStates = null;
         if (args.state != null) {
             threadStates = new BitSet();
             for (String state : args.state.toUpperCase().split(",")) {
                 threadStates.set(toThreadState(state));
             }
         } else if (args.cpu) {
-            threadStates = getThreadStates(ThreadStateFilter.Cpu);
-        } else if (args.cpuTime) {
-            threadStates = getThreadStates(ThreadStateFilter.CpuTime);
+            threadStates = getThreadStates(true);
         } else if (args.wall) {
-            threadStates = getThreadStates(ThreadStateFilter.Wall);
-        } else {
-            threadStates = getThreadStates(ThreadStateFilter.Default);
+            threadStates = getThreadStates(false);
+        } else if (args.cpuTime) {
+            threadStates = new BitSet();
+            threadStates.set(ExecutionSample.CpuTimeSample);
         }
 
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
@@ -84,7 +83,7 @@ public abstract class JfrConverter extends Classifier {
 
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
-                if (!(event instanceof ExecutionSample) || threadStates.get(((ExecutionSample) event).threadState)) {
+                if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
                     collector.collect(event);
                 }
             }
@@ -107,22 +106,14 @@ public abstract class JfrConverter extends Classifier {
         throw new IllegalArgumentException("Unknown thread state: " + name);
     }
 
-    protected BitSet getThreadStates(ThreadStateFilter filter) {
+    protected BitSet getThreadStates(boolean cpu) {
         BitSet set = new BitSet();
         Map<Integer, String> threadStates = jfr.enums.get("jdk.types.ThreadState");
-
-        if (filter == ThreadStateFilter.CpuTime) {
-            set.set(ExecutionSample.CpuTimeSample, true);
-        } else if (filter == ThreadStateFilter.Default) {
+        if (threadStates != null) {
             for (Map.Entry<Integer, String> entry : threadStates.entrySet()) {
-                set.set(entry.getKey(), true);
-            }
-        } else if (threadStates != null) {
-            for (Map.Entry<Integer, String> entry : threadStates.entrySet()) {
-                set.set(entry.getKey(), "STATE_DEFAULT".equals(entry.getValue()) == (filter == ThreadStateFilter.Cpu));
+                set.set(entry.getKey(), "STATE_DEFAULT".equals(entry.getValue()) == cpu);
             }
         }
-
         return set;
     }
 
