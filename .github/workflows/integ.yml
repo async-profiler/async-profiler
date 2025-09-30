@@ -28,6 +28,10 @@ on:
       container-volumes:
         type: string
         required: false
+      use-builtin-jdk:
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   integration-test:
@@ -44,7 +48,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
-        if: ${{ !contains(inputs.test-platform, 'alpine') }}
+        if: ${{ !inputs.use-builtin-jdk }}
         with:
           distribution: ${{ inputs.java-distribution }}
           java-version: ${{ inputs.java-version }}
