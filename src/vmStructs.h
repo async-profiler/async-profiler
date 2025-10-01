@@ -333,6 +333,16 @@ class JavaFrameAnchor : VMStructs {
     void setLastJavaPC(const void* pc) {
         *(const void**) at(_anchor_pc_offset) = pc;
     }
+
+    bool getFrame(const void*& pc, uintptr_t& sp, uintptr_t& fp) {
+        if (lastJavaPC() != NULL && lastJavaSP() != 0) {
+            pc = lastJavaPC();
+            sp = lastJavaSP();
+            fp = lastJavaFP();
+            return true;
+        }
+        return false;
+    }
 };
 
 class VMThread : VMStructs {
