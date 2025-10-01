@@ -7,16 +7,26 @@
 #define _INSTRUMENT_H
 
 #include <jvmti.h>
+#include <string.h>
+#include <unordered_map>
+#include <vector>
 #include "arch.h"
 #include "engine.h"
 
+typedef std::string ClassName;
+typedef std::string MethodName;
+typedef std::string MethodSignature;
+typedef long Latency;
+typedef std::unordered_map<MethodName, std::unordered_map<MethodSignature, Latency>> MethodTargets;
+typedef std::unordered_map<ClassName, MethodTargets> Targets;
+
+const MethodTargets EMPTY_METHOD_TARGETS;
 
 class Instrument : public Engine {
   private:
-    static char* _target_class;
+    static Targets _targets;
     static bool _instrument_class_loaded;
     static u64 _interval;
-    static long _latency;
     static volatile u64 _calls;
     static volatile bool _running;
 
@@ -41,7 +51,7 @@ class Instrument : public Engine {
     Error start(Arguments& args);
     void stop();
 
-    void setupTargetClassAndMethod(const char* event);
+    Error setupTargetClassAndMethod(const Arguments& args);
 
     void retransformMatchedClasses(jvmtiEnv* jvmti);
 

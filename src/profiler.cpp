@@ -1032,6 +1032,8 @@ Engine* Profiler::activeEngine() {
             return &wall_clock;
         case EM_NATIVEMEM:
             return &malloc_tracer;
+        case EM_METHOD_TRACE:
+            return &instrument;
         default:
             return _engine;
     }
@@ -1084,7 +1086,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
         return Error("Only JFR output supports multiple events");
-    } else if (!VM::loaded() && (_event_mask & (EM_ALLOC | EM_LOCK))) {
+    } else if (!VM::loaded() && (_event_mask & (EM_ALLOC | EM_LOCK | EM_METHOD_TRACE))) {
         return Error("Profiling event is not supported with non-Java processes");
     }
 
@@ -1230,6 +1232,12 @@ Error Profiler::start(Arguments& args, bool reset) {
             goto error5;
         }
     }
+    if (_event_mask & EM_METHOD_TRACE) {
+        error = instrument.start(args);
+        if (error) {
+            goto error6;
+        }
+    }
 
     switchThreadEvents(JVMTI_ENABLE);
 
@@ -1243,6 +1251,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     return Error::OK;
+
+error6:
+    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
 error5:
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
@@ -1280,6 +1291,7 @@ Error Profiler::stop(bool restart) {
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
+    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
     _engine->stop();
 

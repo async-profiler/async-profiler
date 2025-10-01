@@ -5,6 +5,7 @@
 
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <string>
 #include <string.h>
 #include <vector>
 #include "assert.h"
@@ -28,7 +29,6 @@ enum class Result {
     OK,
     METHOD_TOO_LARGE,
     JUMP_OVERFLOW,
-    CLASS_DOES_NOT_MATCH,
     BAD_FULL_FRAME,
     PROFILER_CLASS
 };
@@ -64,7 +64,12 @@ class Constant {
     }
 
     const char* utf8() const {
+        assert(_tag == JVM_CONSTANT_Utf8);
         return (const char*) (_info + 2);
+    }
+
+    std::string as_string() const {
+        return std::string(utf8(), info());
     }
 
     int length() const {
@@ -97,12 +102,12 @@ class Constant {
     }
 
     bool equals(const char* value, u16 len) const {
-        return _tag == JVM_CONSTANT_Utf8 && info() == len && memcmp(utf8(), value, len) == 0;
+        return info() == len && memcmp(utf8(), value, len) == 0;
     }
 
     bool matches(const char* value, u16 len) const {
         if (len > 0 && value[len - 1] == '*') {
-            return _tag == JVM_CONSTANT_Utf8 && info() >= len - 1 && memcmp(utf8(), value, len - 1) == 0;
+            return info() >= len - 1 && memcmp(utf8(), value, len - 1) == 0;
         }
         return equals(value, len);
     }
@@ -131,11 +136,9 @@ enum Scope {
     SCOPE_CLASS,
     SCOPE_FIELD,
     SCOPE_METHOD,
-    SCOPE_REWRITE_METHOD
 };
 
 enum PatchConstants {
-    EXTRA_CONSTANTS = 18,
     // Entry which does not track start time
     EXTRA_BYTECODES_SIMPLE_ENTRY = 4,
     EXTRA_BYTECODES_ENTRY = 8,
@@ -159,14 +162,19 @@ class BytecodeRewriter {
     Constant** _cpool;
     u16 _cpool_len;
 
-    const char* _target_class;
-    u16 _target_class_len;
-    const char* _target_method;
-    u16 _target_method_len;
-    const char* _target_signature;
-    u16 _target_signature_len;
+    // one/profiler/Instrument.recordEntry()V
+    u16 _recordEntry_idx;
+    // one/profiler/Instrument.recordExit(JJ)V
+    u16 _recordExit_idx;
+    // one/profiler/Instrument.recordExit(J)V
+    u16 _recordExit_latency0_idx;
+    // java/lang/System.nanoTime()J
+    u16 _nanoTime_idx;
 
-    long _latency;
+    // Maps latency to the index in the constant pool
+    std::unordered_map<long, long> _latency_constant_idx;
+
+    const MethodTargets& _target_methods;
 
     // Reader
 
@@ -283,42 +291,29 @@ class BytecodeRewriter {
 
     // BytecodeRewriter
 
-    Result rewriteCode(u16 access_flags, u16 descriptor_index);
-    Result rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table);
+    Result rewriteCode(u16 access_flags, u16 descriptor_index, long latency);
+    Result rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, long latency);
     void rewriteLineNumberTable(const u16* relocation_table);
     void rewriteLocalVariableTable(const u16* relocation_table, int new_local_index);
     Result rewriteStackMapTable(const u16* relocation_table, int new_local_index);
     u8 rewriteVerificationTypeInfo(const u16* relocation_table);
-    Result rewriteAttributes(Scope scope, u16 access_flags = 0, u16 descriptor_index = 0);
+    Result rewriteMethod(u16 access_flags, u16 descriptor_index, long latency);
+    Result rewriteAttributes(u16 access_flags = 0, u16 descriptor_index = 0);
     Result rewriteCodeAttributes(const u16* relocation_table, int new_local_index);
     Result rewriteMembers(Scope scope);
     Result rewriteClass();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, long latency) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const MethodTargets& target_methods) :
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
         _dst_len(0),
         _dst_capacity(class_data_len + 400),
         _cpool(NULL),
-        _latency(latency),
         _class_name(nullptr),
-        _method_name(nullptr) {
-
-        _target_class = target_class;
-        _target_class_len = strlen(_target_class);
-
-        _target_method = _target_class + _target_class_len + 1;
-        _target_signature = strchr(_target_method, '(');
-
-        if (_target_signature == NULL) {
-            _target_method_len = strlen(_target_method);
-        } else {
-            _target_method_len = _target_signature - _target_method;
-            _target_signature_len = strlen(_target_signature);
-        }
-    }
+        _method_name(nullptr),
+        _target_methods(target_methods) {}
 
     ~BytecodeRewriter() {
         delete[] _cpool;
@@ -338,8 +333,8 @@ class BytecodeRewriter {
 
         VM::jvmti()->Deallocate(_dst);
 
-        std::string class_name = std::string(_class_name->utf8(), _class_name->info());
-        std::string method_name = _method_name ? std::string(_method_name->utf8(), _method_name->info()) : "n/a";
+        std::string class_name = _class_name->as_string();
+        std::string method_name = _method_name ? _method_name->as_string() : "n/a";
         switch (res) {
             case Result::METHOD_TOO_LARGE:
                 Log::warn("Method too large: %s.%s", class_name.c_str(), method_name.c_str());
@@ -349,9 +344,6 @@ class BytecodeRewriter {
                 break;
             case Result::JUMP_OVERFLOW:
                 Log::warn("Jump overflow: %s.%s", class_name.c_str(), method_name.c_str());
-                break;
-            case Result::CLASS_DOES_NOT_MATCH:
-                Log::trace("Skipping instrumentation of %s: class does not match", class_name.c_str());
                 break;
             case Result::PROFILER_CLASS:
                 Log::trace("Skipping instrumentation of %s: internal profiler class", class_name.c_str());
@@ -408,17 +400,17 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
-Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
+Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, long latency) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
     int code_begin = _dst_len;
 
     u16 max_stack = get16();
-    put16(max_stack + (_latency >= 0 ? 4 : 0));
+    put16(max_stack + (latency >= 0 ? 4 : 0));
 
     u16 max_locals = get16();
-    put16(max_locals + (_latency >= 0 ? 2 : 0));
+    put16(max_locals + (latency >= 0 ? 2 : 0));
 
     u32 code_length_32 = get32();
     assert(code_length_32 <= MAX_CODE_LENGTH);
@@ -437,7 +429,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
     // This contains the byte index, considering that long and double take two slots
     int new_local_index = -1;
-    if (_latency >= 0) {
+    if (latency >= 0) {
         // Find function signature (parameters + return value)
         const char* sig = _cpool[descriptor_index]->utf8();
         while (*sig != 0 && *sig != '(') sig++;
@@ -446,15 +438,14 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_non_static;
 
-        Result res = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
+        Result res = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table, latency);
         if (res != Result::OK) {
             delete[] relocation_table;
             return res;
         }
     } else {
-        // invokestatic "one/profiler/Instrument.recordEntry()V"
         put8(JVM_OPC_invokestatic);
-        put16(_cpool_len);
+        put16(_recordEntry_idx);
         // nop ensures that tableswitch/lookupswitch needs no realignment
         put8(JVM_OPC_nop);
 
@@ -489,15 +480,14 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     return Result::OK;
 }
 
-Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table) {
+Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, long latency) {
     // Method start is relocated
     u16 current_relocation = EXTRA_BYTECODES_ENTRY;
 
     u32 code_start = _dst_len;
 
-    // invokestatic "java/lang/System.nanoTime()J"
     put8(JVM_OPC_invokestatic);
-    put16(_cpool_len + 10);
+    put16(_nanoTime_idx);
 
     put8(JVM_OPC_lstore);
     put8(start_time_loc_index);
@@ -518,18 +508,20 @@ Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, 
             put8(JVM_OPC_lload);
             put8(start_time_loc_index);
 
-            if (_latency > 0) {
+            if (latency > 0) {
                 put8(JVM_OPC_ldc2_w);
-                put16(_cpool_len + 16);
+
+                auto latency_it = _latency_constant_idx.find(latency);
+                assert(latency_it != _latency_constant_idx.end());
+                put16(latency_it->second);
             } else {
                 put8(JVM_OPC_nop);
                 put8(JVM_OPC_nop);
                 put8(JVM_OPC_nop);
             }
 
-            // invokestatic "one/profiler/Instrument.recordExit(JJ)V"
             put8(JVM_OPC_invokestatic);
-            put16(_cpool_len + 6);
+            put16(latency == 0 ? _recordExit_latency0_idx : _recordExit_idx);
         } else if (isNarrowJump(opcode) || isWideJump(opcode)) {
             jumps.push_back((i + 1U) << 16 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
@@ -816,7 +808,7 @@ u8 BytecodeRewriter::rewriteVerificationTypeInfo(const u16* relocation_table) {
     return tag;
 }
 
-Result BytecodeRewriter::rewriteAttributes(Scope scope, u16 access_flags, u16 descriptor_index) {
+Result BytecodeRewriter::rewriteMethod(u16 access_flags, u16 descriptor_index, long latency) {
     u16 attributes_count = get16();
     put16(attributes_count);
 
@@ -825,11 +817,26 @@ Result BytecodeRewriter::rewriteAttributes(Scope scope, u16 access_flags, u16 de
         put16(attribute_name_index);
 
         Constant* attribute_name = _cpool[attribute_name_index];
-        if (scope == SCOPE_REWRITE_METHOD && attribute_name->equals("Code", 4)) {
-            Result res = rewriteCode(access_flags, descriptor_index);
+        if (attribute_name->equals("Code", 4)) {
+            Result res = rewriteCode(access_flags, descriptor_index, latency);
             if (res != Result::OK) return res;
             continue;
         }
+
+        u32 attribute_length = get32();
+        put32(attribute_length);
+        put(get(attribute_length), attribute_length);
+    }
+    return Result::OK;
+}
+
+Result BytecodeRewriter::rewriteAttributes(u16 access_flags, u16 descriptor_index) {
+    u16 attributes_count = get16();
+    put16(attributes_count);
+
+    for (int i = 0; i < attributes_count; i++) {
+        // attribute_name_index
+        put16(get16());
 
         u32 attribute_length = get32();
         put32(attribute_length);
@@ -877,23 +884,46 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
 
         u16 name_index = get16();
         put16(name_index);
-        assert(_cpool[name_index]->tag() == JVM_CONSTANT_Utf8);
 
         u16 descriptor_index = get16();
         put16(descriptor_index);
-        assert(_cpool[descriptor_index]->tag() == JVM_CONSTANT_Utf8);
 
+        bool need_rewrite = false;
         if (scope == SCOPE_METHOD) {
             _method_name = _cpool[name_index];
+            need_rewrite = (access_flags & JVM_ACC_NATIVE) == 0;
         }
 
-        bool need_rewrite = scope == SCOPE_METHOD
-            && (access_flags & JVM_ACC_NATIVE) == 0
-            && _cpool[name_index]->matches(_target_method, _target_method_len)
-            && (_target_signature == NULL || _cpool[descriptor_index]->matches(_target_signature, _target_signature_len));
+        long latency = -1;
+        if (need_rewrite) {
+            auto name_it = _target_methods.find(_cpool[name_index]->as_string());
+            if (name_it == _target_methods.end()) {
+                name_it = _target_methods.find("*");
+            }
 
-        Result res = rewriteAttributes(need_rewrite ? SCOPE_REWRITE_METHOD : SCOPE_METHOD, access_flags, descriptor_index);
-        if (res != Result::OK) return res;
+            if (name_it == _target_methods.end()) {
+                need_rewrite = false;
+            } else {
+                auto sig_it = name_it->second.find(_cpool[descriptor_index]->as_string());
+                if (sig_it == name_it->second.end()) {
+                    sig_it = name_it->second.find("*");
+                }
+
+                if (sig_it == name_it->second.end()) {
+                    need_rewrite = false;
+                } else {
+                    latency = sig_it->second;
+                }
+            }
+        }
+
+        if (need_rewrite) {
+            Result res = rewriteMethod(access_flags, descriptor_index, latency);
+            if (res != Result::OK) return res;    
+        } else {
+            Result res = rewriteAttributes(access_flags, descriptor_index);
+            if (res != Result::OK) return res;
+        }
     }
     return Result::OK;
 }
@@ -906,7 +936,8 @@ Result BytecodeRewriter::rewriteClass() {
     put32(version);
 
     _cpool_len = get16();
-    put16(_cpool_len + EXTRA_CONSTANTS);
+    u32 cpool_len_idx = _dst_len;
+    put16(_cpool_len); // to be patched later
 
     const u8* cpool_start = _src;
 
@@ -919,6 +950,7 @@ Result BytecodeRewriter::rewriteClass() {
     put(cpool_start, cpool_end - cpool_start);
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
+    _recordEntry_idx = _cpool_len;
     putConstant(JVM_CONSTANT_Class, _cpool_len + 3);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 4, _cpool_len + 5);
     putConstant("one/profiler/Instrument");
@@ -926,18 +958,37 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant("()V");
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
+    _recordExit_idx = _cpool_len + 6;
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
     putConstant("recordExit");
-    putConstant(_latency > 0 ? "(JJ)V" : "(J)V");
+    putConstant("(JJ)V");
 
-    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 11, _cpool_len + 12);
-    putConstant(JVM_CONSTANT_Class, _cpool_len + 13);
-    putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 14, _cpool_len + 15);
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 11);
+    _recordExit_latency0_idx = _cpool_len + 10;
+    putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 12);
+    putConstant("(J)V");
+
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 14, _cpool_len + 15);
+    _nanoTime_idx = _cpool_len + 13;
+    putConstant(JVM_CONSTANT_Class, _cpool_len + 16);
+    putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 17, _cpool_len + 18);
     putConstant("java/lang/System");
     putConstant("nanoTime");
     putConstant("()J");
 
-    putLongConstant(_latency >= 0 ? (u64) _latency : 0);
+    u16 new_cpool_len = _cpool_len + 19;
+    for (const auto& name_it : _target_methods) {
+        for (const auto& sig_it : name_it.second) {
+            long latency = sig_it.second;
+            if (latency < 0) continue; // no need to register this latency
+            if (_latency_constant_idx.find(latency) != _latency_constant_idx.end()) continue;
+
+            putLongConstant((u64) latency);
+            _latency_constant_idx[latency] = new_cpool_len;
+            new_cpool_len += 2;
+        }
+    }
+    put16(_dst + cpool_len_idx, new_cpool_len);
 
     u16 access_flags = get16();
     put16(access_flags);
@@ -947,9 +998,6 @@ Result BytecodeRewriter::rewriteClass() {
 
     u16 class_name_index = _cpool[this_class]->info();
     _class_name = _cpool[class_name_index];
-    if (!_class_name->matches(_target_class, _target_class_len)) {
-        return Result::CLASS_DOES_NOT_MATCH;
-    }
     // We should not instrument classes from one.profiler.* to avoid infinite recursion
     if (_class_name->info() >= PROFILER_PACKAGE_LEN &&
         strncmp(_class_name->utf8(), PROFILER_PACKAGE, PROFILER_PACKAGE_LEN) == 0) {
@@ -967,18 +1015,18 @@ Result BytecodeRewriter::rewriteClass() {
     if (res != Result::OK) return res;
     res = rewriteMembers(SCOPE_METHOD);
     if (res != Result::OK) return res;
-    res = rewriteAttributes(SCOPE_CLASS);
+    res = rewriteAttributes();
 
     return res;
 }
 
 
-char* Instrument::_target_class = NULL;
+Targets Instrument::_targets;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
-long Instrument::_latency;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
+
 
 Error Instrument::check(Arguments& args) {
     if (!_instrument_class_loaded) {
@@ -1000,20 +1048,23 @@ Error Instrument::check(Arguments& args) {
         _instrument_class_loaded = true;
     }
 
-    if (args._latency < 0 && args._interval < 0) {
-        return Error("interval must be positive");
+    if (args._trace.empty() && args._event == NULL) {
+        return Error("Missing target class for instrumentation");
     }
+    if (!args._trace.empty() && args._event != NULL && strchr(args._event, '.') != NULL) {
+        return Error("Running method tracing and Java method sampling in parallel is not supported");
+    }
+
     return Error::OK;
 }
 
 Error Instrument::start(Arguments& args) {
     Error error = check(args);
-    if (error) {
-        return error;
-    }
+    if (error) return error;
 
-    setupTargetClassAndMethod(args._event);
-    _latency = args._latency;
+    error = setupTargetClassAndMethod(args);
+    if (error) return error;
+
     _interval = args._interval ? args._interval : 1;
     _calls = 0;
     _running = true;
@@ -1026,24 +1077,107 @@ Error Instrument::start(Arguments& args) {
 }
 
 void Instrument::stop() {
-    _running = false;
+    if (!_running) return;
 
     jvmtiEnv* jvmti = VM::jvmti();
     retransformMatchedClasses(jvmti);  // undo transformation
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
+
+    _running = false;
+    _targets.clear();
 }
 
-void Instrument::setupTargetClassAndMethod(const char* event) {
-    char* new_class = strdup(event);
-    *strrchr(new_class, '.') = 0;
+Error handleTarget(Targets& targets, const char* s) {
+    // Expected formats:
+    // - the.package.name.ClassName.MethodName
+    // - the.package.name.ClassName.MethodName+50ms
+    // - the.package.name.ClassName.MethodName(Jjava/lang/String;)V
+    // - the.package.name.ClassName.MethodName(Jjava/lang/String;)V+50ms
 
-    for (char* s = new_class; *s; s++) {
-        if (*s == '.') *s = '/';
+    const char* last_dot = strrchr(s, '.');
+    if (last_dot == NULL) {
+        return Error("Unexpected format for tracing target");
+    }
+    size_t class_name_size = last_dot - s;
+    std::string class_name(s, class_name_size);
+
+    if (class_name.find_first_of("+()") != std::string::npos) {
+        // E.g. wrong signature
+        // the.package.name.ClassName.MethodName(Jjava.lang.String;)V
+        return Error("Unexpected format for tracing target");
     }
 
-    char* old_class = _target_class;
-    _target_class = new_class;
-    free(old_class);
+    // Replace all '.' in package name with '/'
+    size_t dot_idx;
+    size_t pos = 0;
+    while ((dot_idx = class_name.find('.', pos)) != std::string::npos) {
+        pos = dot_idx + 1;
+        class_name[dot_idx] = '/';
+    }
+
+    // We need to know what's the next special symbol (either '(' or '+')
+    // to figure the method name.
+    std::string method_name;
+
+    const char* plus;
+
+    // Signature
+    const char* bracket = strchr(last_dot, '(');
+    std::string signature;
+    if (bracket != NULL) {
+        plus = strchr(bracket, '+');
+        if (plus == NULL) {
+            signature = std::string(bracket);
+        } else {
+            size_t sig_size = plus - bracket;
+            signature = std::string(bracket, sig_size);
+        }
+
+        // We also know the boundaries for method_name know
+        size_t method_name_size = bracket - last_dot - 1;
+        method_name = std::string(last_dot + 1, method_name_size);
+    } else {
+        signature = "*";
+        plus = strchr(last_dot, '+');
+    }
+
+    // Latency
+    long latency = 0;
+    if (plus != NULL) {
+        latency = Arguments::parseUnits(plus + 1, NANOS);
+        if (latency == -1) {
+            return Error("Invalid latency format in tracing target");
+        }
+    }
+
+    // Fill in method_name in case signature is not provided
+    if (bracket == NULL) {
+        if (plus == NULL) {
+            method_name = std::string(last_dot + 1);
+        } else {
+            method_name = std::string(last_dot + 1, plus - last_dot - 1);
+        }
+    }
+
+    targets[std::move(class_name)][std::move(method_name)][std::move(signature)] = latency;
+
+    return Error::OK;
+}
+
+Error Instrument::setupTargetClassAndMethod(const Arguments& args) {
+    _targets.clear();
+    
+    if (args._trace.empty()) {
+        Error error = handleTarget(_targets, args._event);
+        if (error) return error;
+    } else {
+        for (const char* s : args._trace) {
+            Error error = handleTarget(_targets, s);
+            if (error) return error;
+        }
+    }
+
+    return Error::OK;
 }
 
 void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
@@ -1059,23 +1193,32 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
     }
 
     jint matched_count = 0;
-    size_t len = strlen(_target_class);
-    bool wildcard_class = len == 1 && _target_class[0] == '*';
     for (int i = 0; i < class_count; i++) {
         char* signature;
-        if (jvmti->GetClassSignature(classes[i], &signature, NULL) == 0) {
-            if (signature[0] == 'L') {
-                if (wildcard_class) {
-                    jboolean modifiable;
-                    if (jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable) {
-                        classes[matched_count++] = classes[i];
-                    }
-                } else if (strncmp(signature + 1, _target_class, len) == 0 && signature[len + 1] == ';') {
-                    classes[matched_count++] = classes[i];
-                }
-            }
-            jvmti->Deallocate((unsigned char*)signature);
+        if (jvmti->GetClassSignature(classes[i], &signature, NULL) != 0) {
+            continue;
         }
+        size_t len;
+        if (signature[0] != 'L' || signature[(len = strlen(signature)) - 1] != ';') {
+            jvmti->Deallocate((unsigned char*)signature);
+            continue;
+        }
+
+        if (_targets.find(std::string(signature + 1, len - 2)) != _targets.end()) {
+            jvmti->Deallocate((unsigned char*)signature);
+            classes[matched_count++] = classes[i];
+            continue;
+        }
+
+        if (_targets.find("*") != _targets.end()) {
+            jboolean modifiable;
+            // Some classes are not modifiable. In wildcard-mode, we want to skip them quietly;
+            // when the class is specifically selected by the user we let JVMTI fail loudly.
+            if (jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable) {
+                classes[matched_count++] = classes[i];
+            }
+        }
+        jvmti->Deallocate((unsigned char*)signature);
     }
 
     if (matched_count > 0) {
@@ -1100,11 +1243,23 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     // Do not retransform if the profiling has stopped
     if (!_running) return;
 
-    bool wildcard_class = _target_class[0] == '*' && strlen(_target_class) == 1;
-    if (name == NULL || wildcard_class || strcmp(name, _target_class) == 0) {
-        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency);
+    if (name == NULL) {
+        // Make sure the class is rewritten, constant pool reconstitution
+        // doesn't always work (JDK-8216547)
+        BytecodeRewriter rewriter(class_data, class_data_len, EMPTY_METHOD_TARGETS);
         rewriter.rewrite(new_class_data, new_class_data_len);
+        return;
     }
+
+    auto it = _targets.find(name);
+    if (it == _targets.end()) {
+        it = _targets.find("*");
+        if (it == _targets.end()) {
+            return;
+        }
+    }
+    BytecodeRewriter rewriter(class_data, class_data_len, it->second);
+    rewriter.rewrite(new_class_data, new_class_data_len);
 }
 
 void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
