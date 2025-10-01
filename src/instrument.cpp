@@ -1054,6 +1054,9 @@ Error Instrument::check(Arguments& args) {
     if (!args._trace.empty() && args._event != NULL && strchr(args._event, '.') != NULL) {
         return Error("Running method tracing and Java method sampling in parallel is not supported");
     }
+    if (args._trace.empty() && strchr(args._event, '+') != NULL) {
+        return Error("Use 'trace' to specify a latency threshold");
+    }
 
     return Error::OK;
 }
