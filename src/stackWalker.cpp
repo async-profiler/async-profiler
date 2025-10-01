@@ -60,6 +60,7 @@ static jmethodID getMethodId(VMMethod* method) {
     return NULL;
 }
 
+
 int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
     const void* pc;
     uintptr_t fp;
