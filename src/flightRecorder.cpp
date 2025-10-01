@@ -676,6 +676,14 @@ class Recording {
         }
 
         writeBoolSetting(buf, T_METHOD_TRACE, "enabled", !args._trace.empty());
+        if (!args._trace.empty()) {
+            std::string targets = args._trace[0];
+            for (size_t i = 1; i < args._trace.size(); ++i) {
+                targets += "+";
+                targets += args._trace[i];
+            }
+            writeStringSetting(buf, T_METHOD_TRACE, "targets", targets.c_str());
+        }
 
         writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
         if (args._proc > 0) {
