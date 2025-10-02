@@ -37,6 +37,11 @@ on:
         required: false
         default: 0
         description: "Number of times to retry failed tests (default: 0)"
+      retry-count:
+        type: number
+        required: false
+        default: 0
+        description: "Number of times to retry failed tests (default: 0)"
 
 jobs:
   integration-test:
@@ -106,7 +111,6 @@ jobs:
           make build/test.jar
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
-          # Use the retry count from workflow input
           RETRY_COUNT=${{ inputs.retry-count }}
           if [[ $RETRY_COUNT -gt 0 ]]; then
             echo "Enabling test retries for ${{ inputs.test-platform }} (retry count: $RETRY_COUNT)"
