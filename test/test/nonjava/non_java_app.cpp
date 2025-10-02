@@ -66,7 +66,7 @@ void loadProfiler() {
 }
 
 void startProfiler() {
-    asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,cstack=vmx", outputCallback);
+    asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,timeout=10s,cstack=vmx", outputCallback);
     if (err != NULL) {
         fprintf(stderr, "%s\n", _asprof_error_str(err));
         exit(1);
