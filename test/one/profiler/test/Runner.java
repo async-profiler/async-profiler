@@ -189,11 +189,9 @@ public class Runner {
             long start = System.nanoTime();
             TestResult result = run(rt, decl);
 
-            int attempt = 1;
-            while (result.status() == TestStatus.FAIL && attempt <= retryCount) {
-                log.log(Level.WARNING, "Test failed, retrying (attempt " + attempt + "/" + retryCount + ")...");
+            while (result.status() == TestStatus.FAIL && retryCount-- > 0) {
+                log.log(Level.WARNING, "Test failed, retrying...");
                 result = run(rt, decl);
-                attempt++;
             }
 
             long durationNs = System.nanoTime() - start;
