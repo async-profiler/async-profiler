@@ -180,7 +180,7 @@ public class Runner {
         List<RunnableTest> allTests = decl.getRunnableTests();
         final int testCount = allTests.size();
         final int retryCount = Integer.parseInt(System.getProperty("retryCount", "0"));
-        
+
         int i = 1;
         long totalTestDuration = 0;
         List<String> failedTests = new ArrayList<>();
@@ -188,12 +188,14 @@ public class Runner {
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
             TestResult result = run(rt, decl);
-            
-            if (result.status() == TestStatus.FAIL && retryCount > 0) {
-                log.log(Level.WARNING, "Test failed, retrying...");
+
+            int attempt = 1;
+            while (result.status() == TestStatus.FAIL && attempt <= retryCount) {
+                log.log(Level.WARNING, "Test failed, retrying (attempt " + attempt + "/" + retryCount + ")...");
                 result = run(rt, decl);
+                attempt++;
             }
-            
+
             long durationNs = System.nanoTime() - start;
 
             totalTestDuration += durationNs;
