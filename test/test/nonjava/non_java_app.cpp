@@ -5,7 +5,6 @@
 
 #include <dirent.h>
 #include <dlfcn.h>
-#include <iostream>
 #include <jni.h>
 #include <limits.h>
 #include <pthread.h>
@@ -55,7 +54,7 @@ double nativeBurnCpu() {
 void loadProfiler() {
     void* lib = dlopen(profiler_lib_path, RTLD_NOW | RTLD_GLOBAL);
     if (lib == NULL) {
-        std::cerr << dlerror() << std::endl;
+        fprintf(stderr, "%s\n", dlerror());
         exit(1);
     }
 
@@ -69,7 +68,7 @@ void loadProfiler() {
 void startProfiler() {
     asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,cstack=vmx", outputCallback);
     if (err != NULL) {
-        std::cerr << _asprof_error_str(err) << std::endl;
+        fprintf(stderr, "%s\n", _asprof_error_str(err));
         exit(1);
     }
 }
@@ -86,7 +85,7 @@ void stopProfiler(char* output_file) {
     }
 
     if (err != NULL) {
-        std::cerr << _asprof_error_str(err) << std::endl;
+        fprintf(stderr, "%s\n", _asprof_error_str(err));
         exit(1);
     }
 }
@@ -96,7 +95,7 @@ void dumpProfiler(char* output_file) {
     snprintf(cmd, sizeof(cmd), "dump,file=%s", output_file);
     asprof_error_t err = _asprof_execute(cmd, outputCallback);
     if (err != NULL) {
-        std::cerr << _asprof_error_str(err) << std::endl;
+        fprintf(stderr, "%s\n", _asprof_error_str(err));
         exit(1);
     }
 }
@@ -104,7 +103,7 @@ void dumpProfiler(char* output_file) {
 void loadJvmLib() {
     char* java_home = getenv("TEST_JAVA_HOME");
     if (java_home == NULL) {
-        std::cerr << "TEST_JAVA_HOME is not set" << std::endl;
+        fprintf(stderr, "TEST_JAVA_HOME is not set\n");
         exit(1);
     }
 
@@ -122,7 +121,7 @@ void loadJvmLib() {
 
     DIR* dir = opendir(java_lib_home);
     if (dir == NULL) {
-        std::cerr << "Error opening directory: " << java_lib_home << std::endl;
+        fprintf(stderr, "Error opening directory: %s\n", java_lib_home);
         exit(1);
     }
 
@@ -140,7 +139,7 @@ void loadJvmLib() {
     closedir(dir);
 
     if (_jvm_lib == NULL) {
-        std::cerr << "Unable to find: libjvm" << std::endl;
+        fprintf(stderr, "Unable to find: libjvm\n");
         exit(1);
     }
 }
@@ -158,56 +157,56 @@ void startJvm() {
     vm_args.options = options;
     vm_args.ignoreUnrecognized = true;
 
-    CreateJvm createJvm = (CreateJvm)dlsym(_jvm_lib, "JNI_CreateJavaVM");
-    if (createJvm == NULL) {
-        std::cerr << "Unable to find: JNI_CreateJavaVM" << std::endl;
+    CreateJvm create_jvm = (CreateJvm)dlsym(_jvm_lib, "JNI_CreateJavaVM");
+    if (create_jvm == NULL) {
+        fprintf(stderr, "Unable to find: JNI_CreateJavaVM\n");
         exit(1);
     }
 
     // Create the JVM
-    jint rc = createJvm(&_jvm, (void**)&_env, &vm_args);
+    jint rc = create_jvm(&_jvm, (void**)&_env, &vm_args);
     if (rc != JNI_OK) {
-        std::cerr << "Failed to create JVM" << std::endl;
+        fprintf(stderr, "Failed to create JVM\n");
         exit(1);
     }
 }
 
 void executeJvmTask() {
-    jclass customClass = _env->FindClass("test/nonjava/JavaClass");
-    if (customClass == nullptr) {
-        std::cerr << "Can't find JavaClass" << std::endl;
+    jclass java_class = _env->FindClass("test/nonjava/JavaClass");
+    if (java_class == nullptr) {
+        fprintf(stderr, "Can't find JavaClass\n");
         exit(1);
     }
 
-    jmethodID cpuHeavyTask = _env->GetStaticMethodID(customClass, "cpuHeavyTask", "()D");
-    if (cpuHeavyTask == nullptr) {
-        std::cerr << "Can't find cpuHeavyTask" << std::endl;
+    jmethodID method = _env->GetStaticMethodID(java_class, "cpuHeavyTask", "()D");
+    if (method == nullptr) {
+        fprintf(stderr, "Can't find cpuHeavyTask\n");
         exit(1);
     }
 
     for (int i = 0; i < 300; ++i) {
-        jdouble result = _env->CallStaticDoubleMethod(customClass, cpuHeavyTask);
+        jdouble result = _env->CallStaticDoubleMethod(java_class, method);
         if (_env->ExceptionCheck()) {
             _env->ExceptionDescribe();
-            std::cerr << "Exception in cpuHeavyTask" << std::endl;
+            fprintf(stderr, "Exception in cpuHeavyTask\n");
             exit(1);
         }
-        std::cout << "Result: " << result << std::endl;
+        fprintf(stdout, "Result: %.02f\n", result);
     }
-    _env->DeleteLocalRef(customClass);
+    _env->DeleteLocalRef(java_class);
 }
 
 void stopJvm() {
     jint rc = _jvm->DestroyJavaVM();
     if (rc != JNI_OK) {
-        std::cerr << "Failed to destroy JVM" << std::endl;
+        fprintf(stderr, "Failed to destroy JVM\n");
         exit(1);
     }
 }
 
 void validateArgsCount(int argc, int expected) {
     if (argc < expected) {
-        std::cerr << "Test requires " << (expected - 1) << " arguments" << std::endl;
+        fprintf(stderr, "Test requires %d arguments\n", expected - 1);
         exit(1);
     }
 }
@@ -454,7 +453,7 @@ void testFlow6(int argc, char** argv) {
 
     startProfiler();
 
-    stopProfiler(argv[2]);
+    stopProfiler(NULL);
 
     pthread_t thread;
     pthread_create(&thread, NULL, startProfilerDifferentThread, NULL);
@@ -493,7 +492,7 @@ int main(int argc, char** argv) {
             testFlow6(argc, argv);
             break;
         default:
-            std::cerr << "Unknown flow: " << flow[0] << std::endl;
+            fprintf(stderr, "Unknown flow: %s\n", flow);
             exit(1);
     }
 
