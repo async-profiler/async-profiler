@@ -1026,7 +1026,6 @@ u64 Instrument::_interval;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
-
 Error Instrument::check(Arguments& args) {
     if (!_instrument_class_loaded) {
         if (!VM::loaded()) {
