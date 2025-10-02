@@ -679,7 +679,7 @@ class Recording {
         if (!args._trace.empty()) {
             std::string targets = args._trace[0];
             for (size_t i = 1; i < args._trace.size(); ++i) {
-                targets += "+";
+                targets += ";";
                 targets += args._trace[i];
             }
             writeStringSetting(buf, T_METHOD_TRACE, "targets", targets.c_str());
