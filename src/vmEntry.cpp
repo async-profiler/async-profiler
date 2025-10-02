@@ -454,6 +454,21 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
     return result;
 }
 
+SafeJvmContext::SafeJvmContext() : _attached(false) {
+    _safe = !VM::loaded() || VM::jni() != NULL;
+
+    if (!_safe && VM::attachThread() != NULL) {
+        _safe = true;
+        _attached = true;
+    }
+}
+
+SafeJvmContext::~SafeJvmContext() {
+    if (_attached) {
+        VM::detachThread();
+    }
+}
+
 
 extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {

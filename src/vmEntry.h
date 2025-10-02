@@ -144,6 +144,11 @@ class VM {
         return _vm->AttachCurrentThreadAsDaemon((void**)&jni, &args) == 0 ? jni : NULL;
     }
 
+    static JNIEnv* attachThread() {
+        JNIEnv* jni;
+        return _vm->AttachCurrentThreadAsDaemon((void**)&jni, NULL) == JNI_OK ? jni : NULL;
+    }
+
     static void detachThread() {
         _vm->DetachCurrentThread();
     }
@@ -185,6 +190,20 @@ class VM {
 
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
+};
+
+class SafeJvmContext {
+  private:
+    bool _attached;
+    bool _safe;
+
+  public:
+    SafeJvmContext();
+    ~SafeJvmContext();
+
+    bool safe() {
+        return _safe;
+    }
 };
 
 #endif // _VMENTRY_H

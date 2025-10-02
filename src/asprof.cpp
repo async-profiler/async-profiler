@@ -24,6 +24,11 @@ DLLEXPORT const char* asprof_error_str(asprof_error_t err) {
 }
 
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback) {
+    SafeJvmContext safe_jvm_context;
+    if (!safe_jvm_context.safe()) { // JVM exists but we failed to attach
+        return asprof_error("Could not attach to JVM");
+    }
+
     Arguments args;
     Error error = args.parse(command);
     if (error) {
