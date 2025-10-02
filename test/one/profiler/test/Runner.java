@@ -179,6 +179,8 @@ public class Runner {
         TestDeclaration decl = TestDeclaration.parse(args);
         List<RunnableTest> allTests = decl.getRunnableTests();
         final int testCount = allTests.size();
+        final int retryCount = Integer.parseInt(System.getProperty("retryCount", "0"));
+        
         int i = 1;
         long totalTestDuration = 0;
         List<String> failedTests = new ArrayList<>();
@@ -187,8 +189,8 @@ public class Runner {
             long start = System.nanoTime();
             TestResult result = run(rt, decl);
             
-            if (result.status() == TestStatus.FAIL && currentOs == Os.MACOS) {
-                log.log(Level.WARNING, "Test failed on macOs, retrying...");
+            if (result.status() == TestStatus.FAIL && retryCount > 0) {
+                log.log(Level.WARNING, "Test failed, retrying...");
                 result = run(rt, decl);
             }
             
