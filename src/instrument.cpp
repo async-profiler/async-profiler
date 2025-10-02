@@ -5,7 +5,6 @@
 
 #include <arpa/inet.h>
 #include <stdlib.h>
-#include <string>
 #include <string.h>
 #include <vector>
 #include "assert.h"

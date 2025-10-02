@@ -7,7 +7,7 @@
 #define _INSTRUMENT_H
 
 #include <jvmti.h>
-#include <string.h>
+#include <string>
 #include <unordered_map>
 #include <vector>
 #include "arch.h"
