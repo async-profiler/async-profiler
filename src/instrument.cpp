@@ -291,7 +291,7 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     Result rewriteCode(u16 access_flags, u16 descriptor_index, long latency);
-    Result rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, long latency);
+    Result rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, u64 latency);
     void rewriteLineNumberTable(const u16* relocation_table);
     void rewriteLocalVariableTable(const u16* relocation_table, int new_local_index);
     Result rewriteStackMapTable(const u16* relocation_table, int new_local_index);
@@ -437,7 +437,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, lon
         bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_non_static;
 
-        Result res = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table, latency);
+        Result res = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table, (u64) latency);
         if (res != Result::OK) {
             delete[] relocation_table;
             return res;
@@ -479,7 +479,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, lon
     return Result::OK;
 }
 
-Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, long latency) {
+Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, u64 latency) {
     // Method start is relocated
     u16 current_relocation = EXTRA_BYTECODES_ENTRY;
 
