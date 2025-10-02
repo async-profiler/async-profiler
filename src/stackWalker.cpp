@@ -267,7 +267,10 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         if (CodeHeap::contains(pc)) {
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
-                fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
+                if (anchor == NULL) {
+                    // Add an error frame only if we cannot recover
+                    fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
+                }
                 break;
             }
 
