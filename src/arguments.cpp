@@ -112,7 +112,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     reverse                 - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
 //     inverted                - toggles the layout for reversed stacktraces from icicle to flamegraph
 //                               and for default stacktraces from flamegraph to icicle
-// 
+//
 // It is possible to specify multiple dump options at the same time
 
 Error Arguments::parse(const char* args) {
