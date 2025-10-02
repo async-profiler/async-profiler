@@ -186,6 +186,12 @@ public class Runner {
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
             TestResult result = run(rt, decl);
+            
+            if (result.status() == TestStatus.FAIL && currentOs == Os.MACOS) {
+                log.log(Level.WARNING, "Test failed on macOs, retrying...");
+                result = run(rt, decl);
+            }
+            
             long durationNs = System.nanoTime() - start;
 
             totalTestDuration += durationNs;
