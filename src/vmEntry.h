@@ -146,7 +146,7 @@ class VM {
 
     static JNIEnv* attachThread() {
         JNIEnv* jni;
-        return _vm->AttachCurrentThreadAsDaemon((void**)&jni, NULL) == JNI_OK ? jni : NULL;
+        return _vm->AttachCurrentThreadAsDaemon((void**)&jni, NULL) == 0 ? jni : NULL;
     }
 
     static void detachThread() {
