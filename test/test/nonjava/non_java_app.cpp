@@ -413,6 +413,8 @@ void testFlow5(int argc, char** argv) {
 
     executeJvmTask();
 
+    stopProfiler(NULL);
+
     pthread_t thread;
     pthread_create(&thread, NULL, dumpProfile, argv[2]);
     pthread_join(thread, NULL);
