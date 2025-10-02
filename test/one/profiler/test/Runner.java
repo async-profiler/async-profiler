@@ -179,7 +179,7 @@ public class Runner {
         TestDeclaration decl = TestDeclaration.parse(args);
         List<RunnableTest> allTests = decl.getRunnableTests();
         final int testCount = allTests.size();
-        final int retryCount = Integer.parseInt(System.getProperty("retryCount", "0"));
+        int retryCount = Integer.parseInt(System.getProperty("retryCount", "0"));
 
         int i = 1;
         long totalTestDuration = 0;
