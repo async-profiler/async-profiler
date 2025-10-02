@@ -120,11 +120,9 @@ jobs:
           - runner: macos-15
             test-platform: macos-arm64
             java-version: "11"
-            retry-count: 0
           - runner: macos-15
             test-platform: macos-arm64
             java-version: "21"
-            retry-count: 0
           - runner: macos-13
             test-platform: macos-x64
             java-version: "17"
@@ -137,7 +135,7 @@ jobs:
       runner: ${{ matrix.runner }}
       java-version: ${{ matrix.java-version }}
       architecture: ${{ matrix.architecture || '' }}
-      retry-count: ${{ matrix.retry-count }}
+      retry-count: ${{ matrix.retry-count || 0 }}
 
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
