@@ -1343,6 +1343,9 @@ Error Profiler::check(Arguments& args) {
     if (!error && args._lock >= 0) {
         error = lock_tracer.check(args);
     }
+    if (!error && !args._trace.empty()) {
+        error = instrument.check(args);
+    }
 
     if (!error) {
         if (args._wall >= 0 && _engine == &wall_clock) {
