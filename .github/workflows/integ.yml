@@ -37,11 +37,6 @@ on:
         required: false
         default: 0
         description: "Number of times to retry failed tests (default: 0)"
-      retry-count:
-        type: number
-        required: false
-        default: 0
-        description: "Number of times to retry failed tests (default: 0)"
 
 jobs:
   integration-test:
