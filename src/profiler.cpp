@@ -1168,6 +1168,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("target-cpu is only supported with perf_events");
     } else if (_engine != &perf_events && args._record_cpu) {
         return Error("record-cpu is only supported with perf_events");
+    } else if (_engine == &instrument && !args._trace.empty()) {
+        return Error("Running method tracing and Java method sampling in parallel is not supported");
     }
 
     _cstack = args._cstack;
