@@ -162,13 +162,13 @@ class BytecodeRewriter {
     u16 _cpool_len;
 
     // one/profiler/Instrument.recordEntry()V
-    u16 _recordEntry_idx;
+    u16 _recordEntry_cpool_idx;
     // one/profiler/Instrument.recordExit(JJ)V
-    u16 _recordExit_idx;
+    u16 _recordExit_cpool_idx;
     // one/profiler/Instrument.recordExit(J)V
-    u16 _recordExit_latency0_idx;
+    u16 _recordExit_latency0_cpool_idx;
     // java/lang/System.nanoTime()J
-    u16 _nanoTime_idx;
+    u16 _nanoTime_cpool_idx;
 
     // Maps latency to the index in the constant pool
     std::unordered_map<long, long> _latency_constant_idx;
@@ -444,7 +444,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, lon
         }
     } else {
         put8(JVM_OPC_invokestatic);
-        put16(_recordEntry_idx);
+        put16(_recordEntry_cpool_idx);
         // nop ensures that tableswitch/lookupswitch needs no realignment
         put8(JVM_OPC_nop);
 
@@ -486,7 +486,7 @@ Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, 
     u32 code_start = _dst_len;
 
     put8(JVM_OPC_invokestatic);
-    put16(_nanoTime_idx);
+    put16(_nanoTime_cpool_idx);
 
     put8(JVM_OPC_lstore);
     put8(start_time_loc_index);
@@ -520,7 +520,7 @@ Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, 
             }
 
             put8(JVM_OPC_invokestatic);
-            put16(latency == 0 ? _recordExit_latency0_idx : _recordExit_idx);
+            put16(latency == 0 ? _recordExit_latency0_cpool_idx : _recordExit_cpool_idx);
         } else if (isNarrowJump(opcode) || isWideJump(opcode)) {
             jumps.push_back((i + 1U) << 16 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
@@ -949,7 +949,7 @@ Result BytecodeRewriter::rewriteClass() {
     put(cpool_start, cpool_end - cpool_start);
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
-    _recordEntry_idx = _cpool_len;
+    _recordEntry_cpool_idx = _cpool_len;
     putConstant(JVM_CONSTANT_Class, _cpool_len + 3);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 4, _cpool_len + 5);
     putConstant("one/profiler/Instrument");
@@ -957,18 +957,18 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant("()V");
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
-    _recordExit_idx = _cpool_len + 6;
+    _recordExit_cpool_idx = _cpool_len + 6;
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
     putConstant("recordExit");
     putConstant("(JJ)V");
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 11);
-    _recordExit_latency0_idx = _cpool_len + 10;
+    _recordExit_latency0_cpool_idx = _cpool_len + 10;
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 12);
     putConstant("(J)V");
 
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 14, _cpool_len + 15);
-    _nanoTime_idx = _cpool_len + 13;
+    _nanoTime_cpool_idx = _cpool_len + 13;
     putConstant(JVM_CONSTANT_Class, _cpool_len + 16);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 17, _cpool_len + 18);
     putConstant("java/lang/System");
