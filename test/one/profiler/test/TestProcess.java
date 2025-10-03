@@ -36,7 +36,7 @@ public class TestProcess implements Closeable {
 
     private static final String JAVA_HOME = System.getProperty("java.home");
 
-    private static final Pattern filePattern = Pattern.compile("(%[a-z][a-z0-9_]*)(\\.[a-z]+)?");
+    private static final Pattern filePattern = Pattern.compile("(%[a-zA-Z][a-zA-Z0-9_]*)(\\.[a-z]+)?");
 
     private static final MethodHandle pid = getPidHandle();
 
