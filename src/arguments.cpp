@@ -255,7 +255,8 @@ Error Arguments::parse(const char* args) {
                 _nofree = true;
 
             CASE("trace")
-                _trace.push_back(value);
+                // Workaround -Wstringop-overflow warning
+                if (value == arg + 6) appendToEmbeddedList(_trace, arg + 6);
 
             CASE("lock")
                 _lock = value == NULL ? DEFAULT_LOCK_INTERVAL : parseUnits(value, NANOS);
@@ -489,7 +490,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _trace.empty()) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _trace == 0) {
         _event = EVENT_CPU;
     }
 

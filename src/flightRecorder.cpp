@@ -675,12 +675,15 @@ class Recording {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
-        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", !args._trace.empty());
-        if (!args._trace.empty()) {
-            std::string targets = args._trace[0];
-            for (size_t i = 1; i < args._trace.size(); ++i) {
+        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", args._trace > 0);
+        if (args._trace > 0) {
+            std::vector<char*> targetsList;
+            args.readList(targetsList, args._trace);
+
+            std::string targets = targetsList[0];
+            for (size_t i = 1; i < targetsList.size(); ++i) {
                 targets += ";";
-                targets += args._trace[i];
+                targets += targetsList[i];
             }
             writeStringSetting(buf, T_METHOD_TRACE, "targets", targets.c_str());
         }

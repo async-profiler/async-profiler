@@ -1162,11 +1162,14 @@ Error handleTarget(Targets& targets, const char* s) {
 Error Instrument::setupTargetClassAndMethod(const Arguments& args) {
     _targets.clear();
     
-    if (args._trace.empty()) {
+    if (args._trace == 0) {
         Error error = handleTarget(_targets, args._event);
         if (error) return error;
     } else {
-        for (const char* s : args._trace) {
+        std::vector<char*> targetsList;
+        args.readList(targetsList, args._trace);
+
+        for (const char* s : targetsList) {
             Error error = handleTarget(_targets, s);
             if (error) return error;
         }

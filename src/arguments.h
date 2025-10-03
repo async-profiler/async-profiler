@@ -8,6 +8,7 @@
 
 #include <stddef.h>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 
@@ -178,7 +179,7 @@ class Arguments {
     Action _action;
     Counter _counter;
     const char* _event;
-    std::vector<const char*> _trace;
+    int _trace;
     int _timeout;
     long _interval;
     long _alloc;
@@ -238,7 +239,7 @@ class Arguments {
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _event(NULL),
-        _trace(),
+        _trace(0),
         _timeout(0),
         _interval(0),
         _alloc(-1),
@@ -317,10 +318,19 @@ class Arguments {
                (_lock      >= 0    ? EM_LOCK         : 0) |
                (_wall      >= 0    ? EM_WALL         : 0) |
                (_nativemem >= 0    ? EM_NATIVEMEM    : 0) |
-               (!_trace.empty()    ? EM_METHOD_TRACE : 0);
+               (_trace     >  0    ? EM_METHOD_TRACE : 0);
     }
 
     static long parseUnits(const char* str, const Multiplier* multipliers);
+
+    template <typename T>
+    typename std::enable_if<std::is_constructible<T, char*>::value, void>::type
+    readList(std::vector<T>& vector, int offset) const {
+        while (offset != 0) {
+            vector.push_back(_buf + offset);
+            offset = ((int*)(_buf + offset))[-1];
+        }
+    }
 
     friend class FrameName;
     friend class Recording;
