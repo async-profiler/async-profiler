@@ -889,7 +889,7 @@ bool BytecodeRewriter::findLatency(long& latency, u16 method_name_index, u16 met
         if (target.signature.length() == 1 && target.signature[0] == '*') {
             latency = target.latency;
             wildcard_found = true;
-        } else if (target.signature.compare(exp_signature) == 0) {
+        } else if (target.signature == exp_signature) {
             latency = target.latency;
             return true;
         }
