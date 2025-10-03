@@ -7,7 +7,6 @@
 #define _ARGUMENTS_H
 
 #include <stddef.h>
-#include <string>
 #include <vector>
 
 
@@ -237,7 +236,7 @@ class Arguments {
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _event(NULL),
-        _trace(0),
+        _trace(),
         _timeout(0),
         _interval(0),
         _alloc(-1),
