@@ -1050,7 +1050,7 @@ Error Instrument::check(Arguments& args) {
         _instrument_class_loaded = true;
     }
 
-    if (args._event != NULL && strchr(args._event, '+') != NULL) {
+    if (args._event != NULL && strchr(args._event, ':') != NULL) {
         return Error("Use 'trace' for latency profiling");
     }
 
@@ -1100,7 +1100,7 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
     size_t class_name_size = last_dot - s;
     std::string class_name(s, class_name_size);
 
-    if (class_name.find_first_of("+()") != std::string::npos) {
+    if (class_name.find_first_of(":()") != std::string::npos) {
         // E.g. wrong signature
         // the.package.name.ClassName.MethodName(Jjava.lang.String;)V
         return Error("Unexpected format for tracing target");
@@ -1114,21 +1114,21 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
         class_name[dot_idx] = '/';
     }
 
-    // We need to know what's the next special symbol (either '(' or '+')
+    // We need to know what's the next special symbol (either '(' or ':')
     // to figure the method name.
     std::string method_name;
 
-    const char* plus;
+    const char* colon;
 
     // Signature
     const char* bracket = strchr(last_dot, '(');
     std::string signature;
     if (bracket != NULL) {
-        plus = strchr(bracket, '+');
-        if (plus == NULL) {
+        colon = strchr(bracket, ':');
+        if (colon == NULL) {
             signature = std::string(bracket);
         } else {
-            size_t sig_size = plus - bracket;
+            size_t sig_size = colon - bracket;
             signature = std::string(bracket, sig_size);
         }
 
@@ -1137,13 +1137,13 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
         method_name = std::string(last_dot + 1, method_name_size);
     } else {
         signature = "*";
-        plus = strchr(last_dot, '+');
+        colon = strchr(last_dot, ':');
     }
 
     // Latency
     long latency = default_latency;
-    if (plus != NULL) {
-        latency = Arguments::parseUnits(plus + 1, NANOS);
+    if (colon != NULL) {
+        latency = Arguments::parseUnits(colon + 1, NANOS);
         if (latency == -1) {
             return Error("Invalid latency format in tracing target");
         }
@@ -1151,10 +1151,10 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
 
     // Fill in method_name in case signature is not provided
     if (bracket == NULL) {
-        if (plus == NULL) {
+        if (colon == NULL) {
             method_name = std::string(last_dot + 1);
         } else {
-            method_name = std::string(last_dot + 1, plus - last_dot - 1);
+            method_name = std::string(last_dot + 1, colon - last_dot - 1);
         }
     }
 

@@ -144,7 +144,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,trace=test.instrument.CpuBurner.burn+100ms,collapsed,file=%f",
+        agentArgs = "start,threads,trace=test.instrument.CpuBurner.burn:100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
@@ -162,7 +162,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,trace=test.instrument.CpuBurner.burn+100ms,interval=2,collapsed,file=%f",
+        agentArgs = "start,trace=test.instrument.CpuBurner.burn:100ms,interval=2,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
@@ -246,7 +246,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurnerManyTargets.class,
-        agentArgs = "start,trace=test.instrument.CpuBurnerManyTargets.burn1+50ms,trace=test.instrument.CpuBurner.burn+10ms,total,threads,collapsed,file=%f",
+        agentArgs = "start,trace=test.instrument.CpuBurnerManyTargets.burn1:50ms,trace=test.instrument.CpuBurner.burn:10ms,total,threads,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
@@ -263,7 +263,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurnerManyTargets.class,
-        agentArgs = "start,trace=test.instrument.CpuBurnerManyTargets.burn1+50ms,trace=test.instrument.CpuBurnerManyTargets.burn2+10ms,total,threads,collapsed,file=%f",
+        agentArgs = "start,trace=test.instrument.CpuBurnerManyTargets.burn1:50ms,trace=test.instrument.CpuBurnerManyTargets.burn2:10ms,total,threads,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
@@ -279,7 +279,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurnerManyTargets.class,
-        agentArgs = "start,trace=test.instrument.CpuBurnerManyTargets.burn1+50ms,trace=test.instrument.CpuBurnerManyTargets.burn2+1s,total,threads,collapsed,file=%f",
+        agentArgs = "start,trace=test.instrument.CpuBurnerManyTargets.burn1:50ms,trace=test.instrument.CpuBurnerManyTargets.burn2:1s,total,threads,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
@@ -320,7 +320,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,trace=test.instrument.CpuBurner.burn+100ms,jfr,file=%f",
+        agentArgs = "start,threads,trace=test.instrument.CpuBurner.burn:100ms,jfr,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
@@ -347,7 +347,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,trace=*.*+100ms,collapsed,file=%f",
+        agentArgs = "start,threads,trace=*.*:100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
@@ -366,7 +366,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,trace=test.instrument.CpuBurner.burn+100ms,total,collapsed,file=%f",
+        agentArgs = "start,threads,trace=test.instrument.CpuBurner.burn:100ms,total,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true
@@ -384,7 +384,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = Recursive.class,
-        agentArgs = "start,trace=test.instrument.Recursive.recursive+600ms,total,collapsed,file=%f",
+        agentArgs = "start,trace=test.instrument.Recursive.recursive:600ms,total,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
         error     = true

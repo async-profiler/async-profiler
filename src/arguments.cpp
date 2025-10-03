@@ -54,7 +54,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     live                    - build allocation profile from live objects only
 //     nativemem[=BYTES]       - profile native allocations with BYTES interval
 //     nofree                  - do not collect free calls in native allocation profiling
-//     trace=METHOD[+DURATION] - method to be traced with optional latency threshold
+//     trace=METHOD[:DURATION] - method to be traced with optional latency threshold
 //     lock[=DURATION]         - profile contended locks overflowing the DURATION ns bucket (default: 10us)
 //     wall[=NS]               - run wall clock profiling together with CPU profiling
 //     nobatch                 - legacy wall clock sampling without batch events
