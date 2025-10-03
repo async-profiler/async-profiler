@@ -711,8 +711,8 @@ class Recording {
     }
 
     void writeListSetting(Buffer* buf, int category, const char* key, const std::vector<const char*>& list) {
-        for (auto c : list) {
-            writeStringSetting(buf, category, key, c);
+        for (const char* s : list) {
+            writeStringSetting(buf, category, key, s);
         }
     }
 
