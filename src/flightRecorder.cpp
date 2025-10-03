@@ -642,8 +642,8 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "end", args._end);
-        writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._buf, args._include);
-        writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._buf, args._exclude);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._include);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._exclude);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jstackdepth", args._jstackdepth);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jfropts", args._jfr_options);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "chunksize", args._chunk_size);
@@ -675,17 +675,9 @@ class Recording {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
-        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", args._trace > 0);
-        if (args._trace > 0) {
-            std::vector<char*> target_list;
-            args.readList(target_list, args._trace);
-
-            std::string targets = target_list[0];
-            for (size_t i = 1; i < target_list.size(); ++i) {
-                targets += ";";
-                targets += target_list[i];
-            }
-            writeStringSetting(buf, T_METHOD_TRACE, "targets", targets.c_str());
+        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", !args._trace.empty());
+        if (!args._trace.empty()) {
+            writeListSetting(buf, T_METHOD_TRACE, "targets", args._trace);
         }
 
         writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
@@ -718,10 +710,9 @@ class Recording {
         writeStringSetting(buf, category, key, str);
     }
 
-    void writeListSetting(Buffer* buf, int category, const char* key, const char* base, int offset) {
-        while (offset != 0) {
-            writeStringSetting(buf, category, key, base + offset);
-            offset = ((int*)(base + offset))[-1];
+    void writeListSetting(Buffer* buf, int category, const char* key, const std::vector<const char*>& list) {
+        for (auto c : list) {
+            writeStringSetting(buf, category, key, c);
         }
     }
 

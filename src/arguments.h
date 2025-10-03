@@ -8,7 +8,6 @@
 
 #include <stddef.h>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 
@@ -168,7 +167,6 @@ class Arguments {
     char* _buf;
     bool _shared;
 
-    void appendToEmbeddedList(int& list, char* value);
     const char* expandFilePattern(const char* pattern);
 
     static long long hash(const char* arg);
@@ -179,7 +177,7 @@ class Arguments {
     Action _action;
     Counter _counter;
     const char* _event;
-    int _trace;
+    std::vector<const char*> _trace;
     int _timeout;
     long _interval;
     long _alloc;
@@ -196,8 +194,8 @@ class Arguments {
     const char* _unknown_arg;
     const char* _server;
     const char* _filter;
-    int _include;
-    int _exclude;
+    std::vector<const char*> _include;
+    std::vector<const char*> _exclude;
     unsigned char _mcache;
     bool _loop;
     bool _preloaded;
@@ -318,22 +316,10 @@ class Arguments {
                (_lock      >= 0    ? EM_LOCK         : 0) |
                (_wall      >= 0    ? EM_WALL         : 0) |
                (_nativemem >= 0    ? EM_NATIVEMEM    : 0) |
-               (_trace     >  0    ? EM_METHOD_TRACE : 0);
+               (!_trace.empty()    ? EM_METHOD_TRACE : 0);
     }
 
     static long parseUnits(const char* str, const Multiplier* multipliers);
-
-    template <typename T>
-    typename std::enable_if<std::is_constructible<T, char*>::value, void>::type
-    readList(std::vector<T>& vector, int offset) const {
-        while (offset != 0) {
-            vector.push_back(_buf + offset);
-            offset = ((int*)(_buf + offset))[-1];
-        }
-    }
-
-    friend class FrameName;
-    friend class Recording;
 };
 
 extern Arguments _global_args;

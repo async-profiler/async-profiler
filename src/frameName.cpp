@@ -88,8 +88,8 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
 
-    args.readList(_include, args._include);
-    args.readList(_exclude, args._exclude);
+    for (auto s : args._include) _include.push_back(s);
+    for (auto s : args._exclude) _exclude.push_back(s);
 
     Profiler::instance()->classMap()->collect(_class_names);
 }

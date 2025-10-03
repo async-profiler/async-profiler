@@ -255,8 +255,7 @@ Error Arguments::parse(const char* args) {
                 _nofree = true;
 
             CASE("trace")
-                // Workaround -Wstringop-overflow warning
-                if (value == arg + 6) appendToEmbeddedList(_trace, arg + 6);
+                _trace.push_back(value);
 
             CASE("lock")
                 _lock = value == NULL ? DEFAULT_LOCK_INTERVAL : parseUnits(value, NANOS);
@@ -373,12 +372,10 @@ Error Arguments::parse(const char* args) {
                 _filter = value == NULL ? "" : value;
 
             CASE("include")
-                // Workaround -Wstringop-overflow warning
-                if (value == arg + 8) appendToEmbeddedList(_include, arg + 8);
+                _include.push_back(value);
 
             CASE("exclude")
-                // Workaround -Wstringop-overflow warning
-                if (value == arg + 8) appendToEmbeddedList(_exclude, arg + 8);
+                _exclude.push_back(value);
 
             CASE("threads")
                 _threads = true;
@@ -490,7 +487,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _trace == 0) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _trace.empty()) {
         _event = EVENT_CPU;
     }
 
@@ -520,12 +517,6 @@ const char* Arguments::file() {
 // Returns true if the log file is a temporary file of asprof launcher
 bool Arguments::hasTemporaryLog() const {
     return _log != NULL && strncmp(_log, "/tmp/asprof-log.", 16) == 0;
-}
-
-// The linked list of string offsets is embedded right into _buf array
-void Arguments::appendToEmbeddedList(int& list, char* value) {
-    ((int*)value)[-1] = list;
-    list = (int)(value - _buf);
 }
 
 // Should match statically computed HASH(arg)
