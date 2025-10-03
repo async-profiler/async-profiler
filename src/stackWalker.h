@@ -7,6 +7,7 @@
 #define _STACKWALKER_H
 
 #include <stdint.h>
+#include "event.h"
 #include "vmEntry.h"
 
 
@@ -35,13 +36,13 @@ enum StackDetail {
 class StackWalker {
   private:
     static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
-                      StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp);
+                      StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp, EventType event_type);
 
   public:
     static int walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
     static int walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
-    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail);
-    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor);
+    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail, EventType event_type);
+    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor, EventType event_type);
 
     static void checkFault();
 };
