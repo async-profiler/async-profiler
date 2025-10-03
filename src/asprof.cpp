@@ -46,9 +46,10 @@ DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t out
     } else {
         FileWriter out(args.file());
         if (!out.is_open()) {
-            return asprof_error("Could not open output file");
+            error = Error("Could not open output file");
+        } else {
+            error = Profiler::instance()->runInternal(args, out);
         }
-        error = Profiler::instance()->runInternal(args, out);
     }
 
     if (attached) {
