@@ -257,13 +257,35 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         }
     }
 
-    // Walk until the bottom of the stack or until the first Java frame
+    JavaFrameAnchor* anchor = NULL;
+    if (detail > VM_BASIC && vm_thread != NULL && vm_thread->isJavaThread()) {
+        anchor = vm_thread->anchor();
+    }
+
+    unwind_loop:
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
-                fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
-            } else if (nm->isNMethod()) {
+                if (anchor == NULL) {
+                    // Add an error frame only if we cannot recover
+                    fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
+                }
+                break;
+            }
+
+            // Always prefer JavaFrameAnchor when it is available,
+            // since it provides reliable SP and FP.
+            // Do not treat the topmost stub as Java frame.
+            if (anchor != NULL && (depth > 0 || !nm->isStub())) {
+                if (anchor->getFrame(pc, sp, fp) && !nm->contains(pc)) {
+                    anchor = NULL;
+                    continue;  // NMethod has changed as a result of correction
+                }
+                anchor = NULL;
+            }
+
+            if (nm->isNMethod()) {
                 int level = nm->level();
                 FrameTypeId type = detail != VM_BASIC && level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
                 fillFrame(frames[depth++], type, 0, nm->method()->id());
@@ -347,16 +369,13 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 fillFrame(frames[depth++], BCI_ERROR, "break_interpreted");
                 break;
             } else if (detail < VM_EXPERT && nm->isEntryFrame(pc)) {
-                JavaFrameAnchor* anchor = JavaFrameAnchor::fromEntryFrame(fp);
-                if (anchor == NULL) {
+                JavaFrameAnchor* next_anchor = JavaFrameAnchor::fromEntryFrame(fp);
+                if (next_anchor == NULL) {
                     fillFrame(frames[depth++], BCI_ERROR, "break_entry_frame");
                     break;
                 }
                 uintptr_t prev_sp = sp;
-                sp = anchor->lastJavaSP();
-                fp = anchor->lastJavaFP();
-                pc = anchor->lastJavaPC();
-                if (sp == 0 || pc == NULL) {
+                if (!next_anchor->getFrame(pc, sp, fp)) {
                     // End of Java stack
                     break;
                 }
@@ -443,6 +462,14 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         if (inDeadZone(pc) || (pc == prev_pc && sp == prev_sp)) {
             break;
         }
+    }
+
+    // If we did not meet Java frame but current thread has JavaFrameAnchor set,
+    // retry stack walking from the anchor
+    if (anchor != NULL && anchor->getFrame(pc, sp, fp)) {
+        anchor = NULL;
+        while (depth > 0 && frames[depth - 1].method_id == NULL) depth--;  // pop unknown frames
+        goto unwind_loop;
     }
 
     if (vm_thread != NULL) vm_thread->exception() = saved_exception;
