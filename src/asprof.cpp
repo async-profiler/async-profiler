@@ -24,11 +24,6 @@ DLLEXPORT const char* asprof_error_str(asprof_error_t err) {
 }
 
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback) {
-    SafeJvmContext safe_jvm_context;
-    if (!safe_jvm_context.safe()) { // JVM exists but we failed to attach
-        return asprof_error("Could not attach to JVM");
-    }
-
     Arguments args;
     Error error = args.parse(command);
     if (error) {
@@ -37,21 +32,31 @@ DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t out
 
     Log::open(args);
 
+    bool attached = false;
+    if (args._action <= ACTION_CHECK && VM::loaded() && VM::jni() == NULL) {
+        if (VM::attachThread() == NULL) {
+            return asprof_error("Could not attach to the JVM");
+        }
+        attached = true;
+    }
+
     if (!args.hasOutputFile()) {
         CallbackWriter out(output_callback);
         error = Profiler::instance()->runInternal(args, out);
-        if (!error) {
-            return NULL;
-        }
     } else {
         FileWriter out(args.file());
         if (!out.is_open()) {
             return asprof_error("Could not open output file");
         }
         error = Profiler::instance()->runInternal(args, out);
-        if (!error) {
-            return NULL;
-        }
+    }
+
+    if (attached) {
+        VM::detachThread();
+    }
+
+    if (!error) {
+        return NULL;
     }
 
     return asprof_error(error.message());

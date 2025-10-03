@@ -192,18 +192,4 @@ class VM {
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
 };
 
-class SafeJvmContext {
-  private:
-    bool _attached;
-    bool _safe;
-
-  public:
-    SafeJvmContext();
-    ~SafeJvmContext();
-
-    bool safe() {
-        return _safe;
-    }
-};
-
 #endif // _VMENTRY_H
