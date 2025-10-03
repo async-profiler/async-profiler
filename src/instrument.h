@@ -15,9 +15,27 @@
 
 typedef std::string ClassName;
 typedef std::string MethodName;
-typedef std::string MethodSignature;
-typedef long Latency;
-typedef std::unordered_map<MethodName, std::unordered_map<MethodSignature, Latency>> MethodTargets;
+
+class MethodTarget {
+  public:
+    // Fictitious latency which disables method tracing and falls back to
+    // JVM method instrumentaton.
+    static const long NO_LATENCY = -1;
+
+    std::string signature;
+    long latency;
+
+    MethodTarget(std::string&& signature, long latency) :
+        signature(std::move(signature)),
+        latency(latency) {}
+
+    MethodTarget(const MethodTarget&) = delete;
+    MethodTarget& operator=(const MethodTarget&) = delete;
+    MethodTarget(MethodTarget&& other)
+        : signature(std::move(other.signature)), latency(other.latency) {}
+};
+
+typedef std::unordered_map<MethodName, std::vector<MethodTarget>> MethodTargets;
 typedef std::unordered_map<ClassName, MethodTargets> Targets;
 
 const MethodTargets EMPTY_METHOD_TARGETS;

@@ -299,6 +299,7 @@ class BytecodeRewriter {
     Result rewriteMethod(u16 access_flags, u16 descriptor_index, long latency);
     Result rewriteAttributes(u16 access_flags = 0, u16 descriptor_index = 0);
     Result rewriteCodeAttributes(const u16* relocation_table, int new_local_index);
+    bool findLatency(long& latency, u16 method_name_index, u16 method_desc_index);
     Result rewriteMembers(Scope scope);
     Result rewriteClass();
 
@@ -428,7 +429,18 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, lon
 
     // This contains the byte index, considering that long and double take two slots
     int new_local_index = -1;
-    if (latency >= 0) {
+    if (latency == MethodTarget::NO_LATENCY) {
+        put8(JVM_OPC_invokestatic);
+        put16(_recordEntry_cpool_idx);
+        // nop ensures that tableswitch/lookupswitch needs no realignment
+        put8(JVM_OPC_nop);
+
+        // The rest of the code is unchanged
+        put(code, code_length);
+        for (u16 i = 0; i <= code_length; ++i) relocation_table[i] = EXTRA_BYTECODES_SIMPLE_ENTRY;
+    } else {
+        assert(latency >= 0);
+
         // Find function signature (parameters + return value)
         const char* sig = _cpool[descriptor_index]->utf8();
         while (*sig != 0 && *sig != '(') sig++;
@@ -442,15 +454,6 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, lon
             delete[] relocation_table;
             return res;
         }
-    } else {
-        put8(JVM_OPC_invokestatic);
-        put16(_recordEntry_cpool_idx);
-        // nop ensures that tableswitch/lookupswitch needs no realignment
-        put8(JVM_OPC_nop);
-
-        // The rest of the code is unchanged
-        put(code, code_length);
-        for (u16 i = 0; i <= code_length; ++i) relocation_table[i] = EXTRA_BYTECODES_SIMPLE_ENTRY;
     }
 
     // Fix code length, we now know the real relocation
@@ -873,6 +876,27 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
     return Result::OK;
 }
 
+bool BytecodeRewriter::findLatency(long& latency, u16 method_name_index, u16 method_desc_index) {
+    auto name_it = _target_methods.find(_cpool[method_name_index]->as_string());
+    if (name_it == _target_methods.end()) {
+        name_it = _target_methods.find("*");
+    }
+    if (name_it == _target_methods.end()) return false;
+
+    bool wildcard_found = false;
+    std::string exp_signature = _cpool[method_desc_index]->as_string();
+    for (const MethodTarget& target : name_it->second) {
+        if (target.signature.length() == 1 && target.signature[0] == '*') {
+            latency = target.latency;
+            wildcard_found = true;
+        } else if (target.signature.compare(exp_signature) == 0) {
+            latency = target.latency;
+            return true;
+        }
+    }
+    return wildcard_found;
+}
+
 Result BytecodeRewriter::rewriteMembers(Scope scope) {
     u16 members_count = get16();
     put16(members_count);
@@ -887,32 +911,12 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
         u16 descriptor_index = get16();
         put16(descriptor_index);
 
-        bool need_rewrite = false;
+        long latency;
+        bool need_rewrite;
         if (scope == SCOPE_METHOD) {
             _method_name = _cpool[name_index];
-            need_rewrite = (access_flags & JVM_ACC_NATIVE) == 0;
-        }
-
-        long latency = -1;
-        if (need_rewrite) {
-            auto name_it = _target_methods.find(_cpool[name_index]->as_string());
-            if (name_it == _target_methods.end()) {
-                name_it = _target_methods.find("*");
-            }
-
-            if (name_it == _target_methods.end()) {
-                need_rewrite = false;
-            } else {
-                auto sig_it = name_it->second.find(_cpool[descriptor_index]->as_string());
-                if (sig_it == name_it->second.end()) {
-                    sig_it = name_it->second.find("*");
-                }
-
-                if (sig_it == name_it->second.end()) {
-                    need_rewrite = false;
-                } else {
-                    latency = sig_it->second;
-                }
+            if ((access_flags & JVM_ACC_NATIVE) == 0) {
+                need_rewrite = findLatency(latency, name_index, descriptor_index);
             }
         }
 
@@ -977,13 +981,13 @@ Result BytecodeRewriter::rewriteClass() {
 
     u16 new_cpool_len = _cpool_len + 19;
     for (const auto& name_it : _target_methods) {
-        for (const auto& sig_it : name_it.second) {
-            long latency = sig_it.second;
-            if (latency < 0) continue; // no need to register this latency
-            if (_latency_constant_idx.find(latency) != _latency_constant_idx.end()) continue;
+        for (const MethodTarget& target : name_it.second) {
+            if (_latency_constant_idx.find(target.latency) != _latency_constant_idx.end()) continue;
+            if (target.latency == MethodTarget::NO_LATENCY) continue;
+            assert(target.latency >= 0);
 
-            putLongConstant((u64) latency);
-            _latency_constant_idx[latency] = new_cpool_len;
+            putLongConstant(target.latency);
+            _latency_constant_idx[target.latency] = new_cpool_len;
             new_cpool_len += 2;
         }
     }
@@ -1082,7 +1086,7 @@ void Instrument::stop() {
     _targets.clear();
 }
 
-Error handleTarget(Targets& targets, const char* s) {
+Error handleTarget(Targets& targets, const char* s, long default_latency) {
     // Expected formats:
     // - the.package.name.ClassName.MethodName
     // - the.package.name.ClassName.MethodName+50ms
@@ -1137,7 +1141,7 @@ Error handleTarget(Targets& targets, const char* s) {
     }
 
     // Latency
-    long latency = 0;
+    long latency = default_latency;
     if (plus != NULL) {
         latency = Arguments::parseUnits(plus + 1, NANOS);
         if (latency == -1) {
@@ -1154,7 +1158,7 @@ Error handleTarget(Targets& targets, const char* s) {
         }
     }
 
-    targets[std::move(class_name)][std::move(method_name)][std::move(signature)] = latency;
+    targets[std::move(class_name)][std::move(method_name)].emplace_back(std::move(signature), latency);
 
     return Error::OK;
 }
@@ -1163,14 +1167,14 @@ Error Instrument::setupTargetClassAndMethod(const Arguments& args) {
     _targets.clear();
     
     if (args._trace == 0) {
-        Error error = handleTarget(_targets, args._event);
+        Error error = handleTarget(_targets, args._event, MethodTarget::NO_LATENCY);
         if (error) return error;
     } else {
         std::vector<char*> target_list;
         args.readList(target_list, args._trace);
 
         for (const char* s : target_list) {
-            Error error = handleTarget(_targets, s);
+            Error error = handleTarget(_targets, s, 0 /* default_latency */);
             if (error) return error;
         }
     }

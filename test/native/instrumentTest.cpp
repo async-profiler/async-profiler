@@ -137,84 +137,112 @@ TEST_CASE(Instrument_test_instructionBytes_largeTableswitch) {
     CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 16 + (high - low + 1) * 4);
 }
 
-TEST_CASE(Instrument_test_handleTarget_noLatency) {
+TEST_CASE(Instrument_test_handleTarget_default) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName");
+    Error e = handleTarget(t, "my.pkg.ClassName.MethodName", -28);
     CHECK_EQ(e.message(), NULL);
     CHECK_EQ(t.size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"]["MethodName"].size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"]["*"], 0);
+
+    const MethodTarget& target = t["my/pkg/ClassName"]["MethodName"][0];
+    CHECK_EQ(target.signature.compare("*"), 0);
+    CHECK_EQ(target.latency, -28);
 }
 
 TEST_CASE(Instrument_test_handleTarget_latency) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName+20ns");
+    Error e = handleTarget(t, "my.pkg.ClassName.MethodName+20ns", MethodTarget::NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
     CHECK_EQ(t.size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"]["MethodName"].size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"]["*"], 20);
+
+    const MethodTarget& target = t["my/pkg/ClassName"]["MethodName"][0];
+    CHECK_EQ(target.signature.compare("*"), 0);
+    CHECK_EQ(target.latency, 20);
 }
 
 TEST_CASE(Instrument_test_handleTarget_signatureAndLatency) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V+20ns");
+    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V+20ns", MethodTarget::NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
     CHECK_EQ(t.size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"]["MethodName"].size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"]["(Ljava/time/Duration;)V"], 20);
+
+    const MethodTarget& target = t["my/pkg/ClassName"]["MethodName"][0];
+    CHECK_EQ(target.signature.compare("(Ljava/time/Duration;)V"), 0);
+    CHECK_EQ(target.latency, 20);
 }
 
 TEST_CASE(Instrument_test_handleTarget_manyClasses) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V+20ns");
+    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V+20ns", MethodTarget::NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
-    e = handleTarget(t, "my.pkg.AnotherClass.MethodName()V+100ms");
+    e = handleTarget(t, "my.pkg.AnotherClass.MethodName()V+100ms", MethodTarget::NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
     CHECK_EQ(t.size(), 2);
     CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"]["MethodName"].size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"]["(Ljava/time/Duration;)V"], 20);
+
+    const MethodTarget& target = t["my/pkg/ClassName"]["MethodName"][0];
+    CHECK_EQ(target.signature.compare("(Ljava/time/Duration;)V"), 0);
+    CHECK_EQ(target.latency, 20);
+
     CHECK_EQ(t["my/pkg/AnotherClass"].size(), 1);
     CHECK_EQ(t["my/pkg/AnotherClass"]["MethodName"].size(), 1);
-    CHECK_EQ(t["my/pkg/AnotherClass"]["MethodName"]["()V"], 100000000);
+
+    const MethodTarget& another_target = t["my/pkg/AnotherClass"]["MethodName"][0];
+    CHECK_EQ(another_target.signature.compare("()V"), 0);
+    CHECK_EQ(another_target.latency, 100000000);
 }
 
 TEST_CASE(Instrument_test_handleTarget_manyMethods) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V+20ns");
+    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V+20ns", MethodTarget::NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
-    e = handleTarget(t, "my.pkg.ClassName.AnotherMethod()V+100ms");
+    e = handleTarget(t, "my.pkg.ClassName.AnotherMethod()V+100ms", MethodTarget::NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
     CHECK_EQ(t.size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"].size(), 2);
     CHECK_EQ(t["my/pkg/ClassName"]["MethodName"].size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"]["(Ljava/time/Duration;)V"], 20);
     CHECK_EQ(t["my/pkg/ClassName"]["AnotherMethod"].size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["AnotherMethod"]["()V"], 100000000);
+
+    const MethodTarget& target = t["my/pkg/ClassName"]["MethodName"][0];
+    CHECK_EQ(target.signature.compare("(Ljava/time/Duration;)V"), 0);
+    CHECK_EQ(target.latency, 20);
+
+    const MethodTarget& another_target = t["my/pkg/ClassName"]["AnotherMethod"][0];
+    CHECK_EQ(another_target.signature.compare("()V"), 0);
+    CHECK_EQ(another_target.latency, 100000000);
 }
 
 TEST_CASE(Instrument_test_handleTarget_manySignatures) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V+20ns");
+    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V+20ns", MethodTarget::NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
-    e = handleTarget(t, "my.pkg.ClassName.MethodName()V+100ms");
+    e = handleTarget(t, "my.pkg.ClassName.MethodName()V+100ms", MethodTarget::NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
     CHECK_EQ(t.size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"]["MethodName"].size(), 2);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"]["(Ljava/time/Duration;)V"], 20);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"]["()V"], 100000000);
+
+    const MethodTarget& target = t["my/pkg/ClassName"]["MethodName"][0];
+    CHECK_EQ(target.signature.compare("(Ljava/time/Duration;)V"), 0);
+    CHECK_EQ(target.latency, 20);
+
+    const MethodTarget& another_target = t["my/pkg/ClassName"]["MethodName"][1];
+    CHECK_EQ(another_target.signature.compare("()V"), 0);
+    CHECK_EQ(another_target.latency, 100000000);
 }
 
 TEST_CASE(Instrument_test_handleTarget_wrongSignature) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava.time.Duration;)V+20ns");
+    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava.time.Duration;)V+20ns", MethodTarget::NO_LATENCY);
     CHECK_EQ((bool) e.message(), true);
 }
 

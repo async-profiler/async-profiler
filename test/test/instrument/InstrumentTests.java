@@ -119,6 +119,31 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
+        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,jfr,file=%f",
+        jvmArgs   = "-Xverify:all",
+        output    = true,
+        error     = true
+    )
+    public void instrumentJfr(TestProcess p) throws Exception {
+        p.waitForExit();
+        assertNoVerificationErrors(p);
+        assert p.exitCode() == 0;
+
+        boolean found = false;
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                assert !event.getEventType().getName().equals("jdk.MethodTrace") : "Should not contain jdk.MethodTrace events";
+                if (event.getEventType().getName().equals("jdk.ExecutionSample")) {
+                    found = true;
+                }
+            }
+        }
+        assert found : "jdk.ExecutionSample not found";
+    }
+
+    @Test(
+        mainClass = CpuBurner.class,
         agentArgs = "start,threads,trace=test.instrument.CpuBurner.burn+100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
