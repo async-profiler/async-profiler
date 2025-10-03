@@ -75,6 +75,22 @@ public class OtlpTests {
         assert p.exitCode() == 0;
     }
 
+    @Test(mainClass = OtlpSignalCorrelationTest.class, jvmArgs = "-Djava.library.path=build/lib")
+    public void signalCorrelation(TestProcess p) throws Exception {
+        classpathCheck();
+
+        p.waitForExit();
+        assert p.exitCode() == 0;
+    }
+
+    @Test(mainClass = OtlpSignalCorrelationWithRestartTest.class, jvmArgs = "-Djava.library.path=build/lib")
+    public void signalCorrelationWithRestart(TestProcess p) throws Exception {
+        classpathCheck();
+
+        p.waitForExit();
+        assert p.exitCode() == 0;
+    }
+
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -123,7 +139,7 @@ public class OtlpTests {
         return scopeProfiles.getProfiles(0);
     }
 
-    private static Optional<AnyValue> getAttribute(Sample sample, ProfilesDictionary dictionary, String name) {
+    static Optional<AnyValue> getAttribute(Sample sample, ProfilesDictionary dictionary, String name) {
         for (int index : sample.getAttributeIndicesList()) {
             KeyValue kv = dictionary.getAttributeTable(index);
             if (name.equals(kv.getKey())) {
