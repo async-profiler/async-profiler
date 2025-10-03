@@ -677,13 +677,13 @@ class Recording {
 
         writeBoolSetting(buf, T_METHOD_TRACE, "enabled", args._trace > 0);
         if (args._trace > 0) {
-            std::vector<char*> targetsList;
-            args.readList(targetsList, args._trace);
+            std::vector<char*> target_list;
+            args.readList(target_list, args._trace);
 
-            std::string targets = targetsList[0];
-            for (size_t i = 1; i < targetsList.size(); ++i) {
+            std::string targets = target_list[0];
+            for (size_t i = 1; i < target_list.size(); ++i) {
                 targets += ";";
-                targets += targetsList[i];
+                targets += target_list[i];
             }
             writeStringSetting(buf, T_METHOD_TRACE, "targets", targets.c_str());
         }

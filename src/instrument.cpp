@@ -1166,10 +1166,10 @@ Error Instrument::setupTargetClassAndMethod(const Arguments& args) {
         Error error = handleTarget(_targets, args._event);
         if (error) return error;
     } else {
-        std::vector<char*> targetsList;
-        args.readList(targetsList, args._trace);
+        std::vector<char*> target_list;
+        args.readList(target_list, args._trace);
 
-        for (const char* s : targetsList) {
+        for (const char* s : target_list) {
             Error error = handleTarget(_targets, s);
             if (error) return error;
         }
