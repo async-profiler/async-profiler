@@ -97,7 +97,42 @@ public class InstrumentTests {
         assert p.exitCode() == 0;
 
         assert !out.contains("java\\/lang\\/Thread\\.run ");
+        assert out.contains("java\\/lang\\/Thread\\.<init> ");
         assert out.contains("java\\/lang\\/String\\.<init> ");
+    }
+
+    @Test(
+        mainClass = CpuBurner.class,
+        agentArgs = "start,event=java.lang.*.<init>,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all",
+        output    = true,
+        error     = true
+    )
+    public void instrumentAllJavaLangInit(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p);
+        assert p.exitCode() == 0;
+
+        assert !out.contains("java\\/lang\\/Thread\\.run ");
+        assert out.contains("java\\/lang\\/Thread\\.<init> ");
+        assert out.contains("java\\/lang\\/String\\.<init> ");
+    }
+
+    @Test(
+        mainClass = CpuBurner.class,
+        agentArgs = "start,event=java.lang.Thread.<in*,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all",
+        output    = true,
+        error     = true
+    )
+    public void instrumentThreadInitWildcard(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p);
+        assert p.exitCode() == 0;
+
+        assert !out.contains("java\\/lang\\/Thread\\.run ");
+        assert !out.contains("java\\/lang\\/String\\.<init> ");
+        assert out.contains("java\\/lang\\/Thread\\.<init> ");
     }
 
     @Test(

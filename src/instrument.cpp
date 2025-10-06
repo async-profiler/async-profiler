@@ -1204,16 +1204,15 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
         }
 
         for (const auto& target : _targets) {
-            if (target.first.length() == 1 && target.first[0] == '*') {
+            if (matchesPattern(signature + 1, len - 2, target.first)) {
                 jboolean modifiable;
-                // Some classes are not modifiable. In wildcard-mode, we want to skip them quietly;
-                // when the class is specifically selected by the user we let JVMTI fail loudly.
-                if (jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable) {
+                if (target.first[target.first.length() - 1] != '*' ||
+                    jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable) {
+                    // Some classes are not modifiable. In wildcard-mode, we want to skip
+                    // them quietly; when the class is specifically selected by the user
+                    // we let JVMTI fail loudly.
                     classes[matched_count++] = classes[i];
                 }
-                break;
-            } else if (matchesPattern(signature + 1, len - 2, target.first)) {
-                classes[matched_count++] = classes[i];
                 break;
             }
         }
