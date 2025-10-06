@@ -916,22 +916,19 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
         u16 descriptor_index = get16();
         put16(descriptor_index);
 
-        long latency;
-        bool need_rewrite;
         if (scope == SCOPE_METHOD) {
             _method_name = _cpool[name_index];
-            if ((access_flags & JVM_ACC_NATIVE) == 0) {
-                need_rewrite = findLatency(latency, name_index, descriptor_index);
+            long latency;
+            if ((access_flags & JVM_ACC_NATIVE) == 0 &&
+                findLatency(latency, name_index, descriptor_index)) {
+                Result res = rewriteMethod(access_flags, descriptor_index, latency);
+                if (res != Result::OK) return res;
+                continue;
             }
         }
 
-        if (need_rewrite) {
-            Result res = rewriteMethod(access_flags, descriptor_index, latency);
-            if (res != Result::OK) return res;    
-        } else {
-            Result res = rewriteAttributes(access_flags, descriptor_index);
-            if (res != Result::OK) return res;
-        }
+        Result res = rewriteAttributes(access_flags, descriptor_index);
+        if (res != Result::OK) return res;
     }
     return Result::OK;
 }
