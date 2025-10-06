@@ -1169,7 +1169,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("target-cpu is only supported with perf_events");
     } else if (_engine != &perf_events && args._record_cpu) {
         return Error("record-cpu is only supported with perf_events");
-    } else if (_engine == &instrument && VM::loaded() && !vm_capabilities.available()) {
+    } else if (_engine == &instrument && VM::loaded() && !VMCapabilities::available()) {
         return Error("Could not attach to the JVM");
     }
 
@@ -1247,7 +1247,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         startTimer();
     }
 
-    _started_with_vm = vm_capabilities.available();
+    _started_with_vm = VMCapabilities::available();
     return Error::OK;
 
 error5:
@@ -1281,7 +1281,7 @@ Error Profiler::stop(bool restart) {
     }
 
     VMCapabilities vm_capabilities;
-    if (_started_with_vm && !vm_capabilities.available()) {
+    if (_started_with_vm && !VMCapabilities::available()) {
         return Error("Profiler started with VM, unable to attach to VM, couldn't stop");
     }
 
