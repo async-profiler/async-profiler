@@ -36,6 +36,20 @@ static inline u16 alignUp4(u16 i) {
     return (i & ~3) + 4;
 }
 
+static bool matchesPattern(const char* value, size_t len, const std::string& pattern) {
+    if (len == 0 || pattern.empty()) return false;
+    return (
+        // wildcard match
+        (
+            pattern[pattern.length() - 1] == '*' &&
+            len >= pattern.length() - 1 &&
+            memcmp(pattern.c_str(), value, pattern.length() - 1) == 0
+        ) ||
+        // full match
+        strncmp(pattern.c_str(), value, len) == 0
+    );
+}
+
 enum ConstantTag {
     // Available since JDK 11
     CONSTANT_Dynamic = 17,
@@ -104,11 +118,8 @@ class Constant {
         return info() == len && memcmp(utf8(), value, len) == 0;
     }
 
-    bool matches(const char* value, u16 len) const {
-        if (len > 0 && value[len - 1] == '*') {
-            return info() >= len - 1 && memcmp(utf8(), value, len - 1) == 0;
-        }
-        return equals(value, len);
+    bool matches(const std::string& pattern) const {
+        return matchesPattern(utf8(), info(), pattern);
     }
 
     static u8 parameterSlots(const char* method_sig) {
@@ -877,24 +888,17 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
 }
 
 bool BytecodeRewriter::findLatency(long& latency, u16 method_name_index, u16 method_desc_index) {
-    auto name_it = _target_methods.find(_cpool[method_name_index]->as_string());
-    if (name_it == _target_methods.end()) {
-        name_it = _target_methods.find("*");
-    }
-    if (name_it == _target_methods.end()) return false;
-
-    bool wildcard_found = false;
-    std::string exp_signature = _cpool[method_desc_index]->as_string();
-    for (const MethodTarget& target : name_it->second) {
-        if (target.signature.length() == 1 && target.signature[0] == '*') {
-            latency = target.latency;
-            wildcard_found = true;
-        } else if (target.signature == exp_signature) {
-            latency = target.latency;
-            return true;
+    for (const auto& name_it : _target_methods) {
+        if (_cpool[method_name_index]->matches(name_it.first)) {
+            for (const auto& target : name_it.second) {
+                if (_cpool[method_desc_index]->matches(target.signature)) {
+                    latency = target.latency;
+                    return true;
+                }
+            }
         }
     }
-    return wildcard_found;
+    return false;
 }
 
 Result BytecodeRewriter::rewriteMembers(Scope scope) {
@@ -1199,18 +1203,18 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
             continue;
         }
 
-        if (_targets.find(std::string(signature + 1, len - 2)) != _targets.end()) {
-            jvmti->Deallocate((unsigned char*)signature);
-            classes[matched_count++] = classes[i];
-            continue;
-        }
-
-        if (_targets.find("*") != _targets.end()) {
-            jboolean modifiable;
-            // Some classes are not modifiable. In wildcard-mode, we want to skip them quietly;
-            // when the class is specifically selected by the user we let JVMTI fail loudly.
-            if (jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable) {
+        for (const auto& target : _targets) {
+            if (target.first.length() == 1 && target.first[0] == '*') {
+                jboolean modifiable;
+                // Some classes are not modifiable. In wildcard-mode, we want to skip them quietly;
+                // when the class is specifically selected by the user we let JVMTI fail loudly.
+                if (jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable) {
+                    classes[matched_count++] = classes[i];
+                }
+                break;
+            } else if (matchesPattern(signature + 1, len - 2, target.first)) {
                 classes[matched_count++] = classes[i];
+                break;
             }
         }
         jvmti->Deallocate((unsigned char*)signature);
@@ -1246,15 +1250,14 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
         return;
     }
 
-    auto it = _targets.find(name);
-    if (it == _targets.end()) {
-        it = _targets.find("*");
-        if (it == _targets.end()) {
+    size_t len = strlen(name);
+    for (const auto& target : _targets) {
+        if (matchesPattern(name, len, target.first)) {
+            BytecodeRewriter rewriter(class_data, class_data_len, target.second);
+            rewriter.rewrite(new_class_data, new_class_data_len);
             return;
         }
     }
-    BytecodeRewriter rewriter(class_data, class_data_len, it->second);
-    rewriter.rewrite(new_class_data, new_class_data_len);
 }
 
 void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {

@@ -7,8 +7,8 @@
 #define _INSTRUMENT_H
 
 #include <jvmti.h>
+#include <map>
 #include <string>
-#include <unordered_map>
 #include <vector>
 #include "arch.h"
 #include "engine.h"
@@ -35,8 +35,8 @@ class MethodTarget {
         : signature(std::move(other.signature)), latency(other.latency) {}
 };
 
-typedef std::unordered_map<MethodName, std::vector<MethodTarget>> MethodTargets;
-typedef std::unordered_map<ClassName, MethodTargets> Targets;
+typedef std::map<MethodName, std::vector<MethodTarget>> MethodTargets;
+typedef std::map<ClassName, MethodTargets> Targets;
 
 const MethodTargets EMPTY_METHOD_TARGETS;
 

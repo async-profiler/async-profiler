@@ -246,4 +246,20 @@ TEST_CASE(Instrument_test_handleTarget_wrongSignature) {
     CHECK_EQ((bool) e.message(), true);
 }
 
+TEST_CASE(Instrument_test_matchesPattern) {
+    CHECK_EQ(matchesPattern("someValue", 9, "someValue"), true);
+    CHECK_EQ(matchesPattern("someValue", 9, "someValu*"), true);
+    CHECK_EQ(matchesPattern("someValue", 9, "s*"), true);
+    CHECK_EQ(matchesPattern("someValue", 9, "*"), true);
+    CHECK_EQ(matchesPattern("someValue", 9, "someValx*"), false);
+    // cpool strings are not zero-terminated
+    CHECK_EQ(matchesPattern("someValuexyz", 9, "someValu*"), true);
+    CHECK_EQ(matchesPattern("someValuexyz", 9, "someValue"), true);
+}
+
+TEST_CASE(Instrument_test_matchesPattern_empty) {
+    CHECK_EQ(matchesPattern("", 0, "someValx*"), false);
+    CHECK_EQ(matchesPattern("someValue", 9, ""), false);
+}
+
 #endif // __linux__
