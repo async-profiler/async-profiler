@@ -110,7 +110,7 @@ void dumpProfiler(char* output_file) {
 }
 
 void loadJvmLib() {
-    char* java_home = getenv("JAVA_HOME");
+    char* java_home = getenv("TEST_JAVA_HOME");
     if (java_home == NULL) {
         fprintf(stderr, "TEST_JAVA_HOME is not set\n");
         exit(1);
