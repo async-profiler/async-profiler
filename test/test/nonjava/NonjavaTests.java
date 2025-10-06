@@ -75,4 +75,15 @@ public class NonjavaTests {
         Output out = p.readFile("%profile");
         assert out.contains("cpuHeavyTask");
     }
+
+    // Profile is re-started on a different native thread from the one that started the JVM/profiler,
+    // and profiler is stopped on a 3rd different native thread
+    @Test(sh = "%testbin/non_java_app 7 %profile.jfr", output = true)
+    public void startStopDifferentThreadsJfr(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        Output out = Output.convertJfrToCollapsed(p.getFilePath("%profile"));
+        assert out.contains("cpuHeavyTask");
+    }
 }

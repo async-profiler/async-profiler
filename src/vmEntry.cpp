@@ -32,7 +32,7 @@ int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
 bool VM::_zing = false;
 
-GetCreatedJavaVMs VM::_getCreatedJavaVMs = NULL;
+GetCreatedJavaVMs VMCapabilities::_getCreatedJavaVMs = NULL;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -110,7 +110,7 @@ static void* resolveMethodIdEnd() {
 
 // Workaround for JDK-8308341: since JNI_GetCreatedJavaVMs may return an uninitialized JVM,
 // we verify the readiness of the JVM by presence of "VM Thread" and "Service Thread".
-bool VM::hasJvmThreads() {
+bool VMCapabilities::hasJvmThreads() {
     char thread_name[32];
     int threads_found = 0;
 
@@ -302,7 +302,7 @@ bool VM::init(JavaVM* vm, bool attach) {
 }
 
 // Try to find a running JVM instance and attach to it
-void VM::tryAttach() {
+void VMCapabilities::tryAttach() {
     if (_getCreatedJavaVMs == NULL) {
         void* lib_handle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY | RTLD_NOLOAD);
         if (lib_handle != NULL) {
@@ -324,11 +324,16 @@ void VM::tryAttach() {
     jint get_env_result = vm->GetEnv((void**)&env, JNI_VERSION_1_6);
     if (get_env_result == JNI_OK) {
         // Current thread already belongs to the running JVM
-        VM::init(vm, true);
+        if (VM::init(vm, true)) {
+            _available = true;
+        }
     } else if (get_env_result == JNI_EDETACHED) {
         // There is a running JVM, but we need to check it is initialized
         if (hasJvmThreads() && vm->AttachCurrentThreadAsDaemon((void**)&env, NULL) == JNI_OK) {
-            VM::init(vm, true);
+            if (VM::init(vm, true)) {
+                _available = true;
+                _attached = true;
+            }
         }
     }
 }
@@ -453,6 +458,36 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
 
     return result;
 }
+
+thread_local bool VMCapabilities::_available = false;
+
+VMCapabilities::VMCapabilities() : _attached(false) {
+    _available = false;
+
+    if (!VM::loaded()) {
+        return;
+    }
+
+    if (VM::jni()) {
+        _available = true;
+        return;
+    }
+
+    if (VM::attachThread()) {
+        _attached = true;
+        _available = true;
+        return;
+    }
+}
+
+VMCapabilities::~VMCapabilities() {
+    _available = false;
+
+    if (_attached) {
+        VM::detachThread();
+    }
+}
+
 
 extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {

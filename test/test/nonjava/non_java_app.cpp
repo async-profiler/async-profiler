@@ -65,8 +65,17 @@ void loadProfiler() {
     _asprof_init();
 }
 
-void startProfiler() {
-    asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,timeout=10s,cstack=vmx", outputCallback);
+void startProfiler(char* output_file) {
+    asprof_error_t err;
+
+    if (output_file == NULL) {
+        err = _asprof_execute("start,event=cpu,interval=1ms,timeout=10s,cstack=vmx", outputCallback);
+    } else {
+        char cmd[4096];
+        snprintf(cmd, sizeof(cmd), "start,event=cpu,interval=1ms,timeout=10s,cstack=vmx,file=%s", output_file);
+        err = _asprof_execute(cmd, outputCallback);
+    }
+
     if (err != NULL) {
         fprintf(stderr, "%s\n", _asprof_error_str(err));
         exit(1);
@@ -101,7 +110,7 @@ void dumpProfiler(char* output_file) {
 }
 
 void loadJvmLib() {
-    char* java_home = getenv("TEST_JAVA_HOME");
+    char* java_home = getenv("JAVA_HOME");
     if (java_home == NULL) {
         fprintf(stderr, "TEST_JAVA_HOME is not set\n");
         exit(1);
@@ -235,7 +244,7 @@ void testFlow1(int argc, char** argv) {
 
     startJvm();
 
-    startProfiler();
+    startProfiler(NULL);
 
     executeJvmTask();
 
@@ -266,7 +275,7 @@ void testFlow2(int argc, char** argv) {
 
     loadJvmLib();
 
-    startProfiler();
+    startProfiler(NULL);
 
     startJvm();
 
@@ -305,7 +314,7 @@ void testFlow3(int argc, char** argv) {
 
     loadJvmLib();
 
-    startProfiler();
+    startProfiler(NULL);
 
     startJvm();
 
@@ -314,7 +323,7 @@ void testFlow3(int argc, char** argv) {
 
     stopProfiler(argv[2]);
 
-    startProfiler();
+    startProfiler(NULL);
 
     nativeBurnCpu();
     executeJvmTask();
@@ -366,7 +375,7 @@ void testFlow4(int argc, char** argv) {
 
     nanosleep(&wait_time, NULL);
 
-    startProfiler();
+    startProfiler(NULL);
 
     nanosleep(&wait_time, NULL);
 
@@ -409,7 +418,7 @@ void testFlow5(int argc, char** argv) {
 
     startJvm();
 
-    startProfiler();
+    startProfiler(NULL);
 
     executeJvmTask();
 
@@ -423,7 +432,7 @@ void testFlow5(int argc, char** argv) {
 }
 
 void* startProfilerDifferentThread(void* arg) {
-    startProfiler();
+    startProfiler((char*)arg);
     return NULL;
 }
 
@@ -453,7 +462,7 @@ void testFlow6(int argc, char** argv) {
 
     startJvm();
 
-    startProfiler();
+    startProfiler(NULL);
 
     stopProfiler(NULL);
 
@@ -468,6 +477,53 @@ void testFlow6(int argc, char** argv) {
     stopJvm();
 }
 
+void* stopProfilerDifferentThread(void* arg) {
+    stopProfiler((char*)arg);
+    return NULL;
+}
+
+/*
+Here is the flow of the test:
+1. Load the profiler
+2. Load the JVM library
+3. Start the JVM
+4. Start the profiler
+5. Stop the profiler
+6. Start the profiler on a different thread
+7. Execute the JVM task
+8. Stop the profiler on a different thread
+9. Stop the JVM
+
+Expected output:
+The profiler should be able to profile the JVM task.
+
+Explanation:
+The JVM is loaded and started before the profiling session,
+so profiler correctly dump profiling details related to the JVM process.
+*/
+void testFlow7(int argc, char** argv) {
+    loadProfiler();
+
+    loadJvmLib();
+
+    startJvm();
+
+    startProfiler(NULL);
+
+    stopProfiler(NULL);
+
+    pthread_t thread1;
+    pthread_create(&thread1, NULL, startProfilerDifferentThread, argv[2]);
+    pthread_join(thread1, NULL);
+
+    executeJvmTask();
+
+    pthread_t thread2;
+    pthread_create(&thread2, NULL, stopProfilerDifferentThread, NULL);
+    pthread_join(thread2, NULL);
+
+    stopJvm();
+}
 
 int main(int argc, char** argv) {
     validateArgsCount(argc, 3);
@@ -492,6 +548,9 @@ int main(int argc, char** argv) {
             break;
         case '6':
             testFlow6(argc, argv);
+            break;
+        case '7':
+            testFlow7(argc, argv);
             break;
         default:
             fprintf(stderr, "Unknown flow: %s\n", flow);

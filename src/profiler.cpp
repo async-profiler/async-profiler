@@ -1038,7 +1038,7 @@ Engine* Profiler::activeEngine() {
 }
 
 Error Profiler::checkJvmCapabilities() {
-    if (VM::loaded()) {
+    if (VMCapabilities::available()) {
         if (!VMStructs::hasJavaThreadId()) {
             return Error("Could not find Thread ID field. Unsupported JVM?");
         }
@@ -1068,9 +1068,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiler already started");
     }
 
+    VMCapabilities vm_capabilities;
     // If profiler is started from a native app, try to detect a running JVM and attach to it
     if (!VM::loaded()) {
-        VM::tryAttach();
+        vm_capabilities.tryAttach();
     }
 
     Error error = checkJvmCapabilities();
@@ -1084,6 +1085,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
         return Error("Only JFR output supports multiple events");
+    } else if (VM::loaded() && !VMCapabilities::available() && (_event_mask & (EM_ALLOC | EM_LOCK))) {
+        return Error("Could not attach to the JVM");
     } else if (!VM::loaded() && (_event_mask & (EM_ALLOC | EM_LOCK))) {
         return Error("Profiling event is not supported with non-Java processes");
     }
@@ -1166,6 +1169,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("target-cpu is only supported with perf_events");
     } else if (_engine != &perf_events && args._record_cpu) {
         return Error("record-cpu is only supported with perf_events");
+    } else if (_engine == &instrument && VM::loaded() && !vm_capabilities.available()) {
+        return Error("Could not attach to the JVM");
     }
 
     _cstack = args._cstack;
@@ -1242,6 +1247,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         startTimer();
     }
 
+    _started_with_vm = vm_capabilities.available();
     return Error::OK;
 
 error5:
@@ -1272,6 +1278,11 @@ Error Profiler::stop(bool restart) {
     MutexLocker ml(_state_lock);
     if (_state != RUNNING) {
         return Error("Profiler is not active");
+    }
+
+    VMCapabilities vm_capabilities;
+    if (_started_with_vm && !vm_capabilities.available()) {
+        return Error("Profiler started with VM, unable to attach to VM, couldn't stop");
     }
 
     uninstallTraps();
@@ -1313,6 +1324,7 @@ Error Profiler::check(Arguments& args) {
         return Error("Profiler already started");
     }
 
+    VMCapabilities vm_capabilities;
     Error error = checkJvmCapabilities();
 
     if (!error && args._event != NULL) {
@@ -1368,6 +1380,8 @@ Error Profiler::dump(Writer& out, Arguments& args) {
     if (_state != IDLE && _state != RUNNING) {
         return Error("Profiler has not started");
     }
+
+    VMCapabilities vm_capabilities;
 
     if (_state == RUNNING) {
         updateJavaThreadNames();
@@ -1803,7 +1817,7 @@ u64 Profiler::addTimeout(u64 start_micros, int timeout) {
 }
 
 void Profiler::startTimer() {
-    if (VM::loaded()) {
+    if (VMCapabilities::available()) {
         JNIEnv* jni = VM::jni();
         jclass Thread = jni->FindClass("java/lang/Thread");
         jmethodID init = jni->GetMethodID(Thread, "<init>", "(Ljava/lang/String;)V");

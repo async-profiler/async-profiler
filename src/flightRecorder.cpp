@@ -745,7 +745,7 @@ class Recording {
     }
 
     void writeJvmInfo(Buffer* buf) {
-        if (_agent_properties == NULL && !(VM::loaded() && parseAgentProperties())) {
+        if (_agent_properties == NULL && !(VMCapabilities::available() && parseAgentProperties())) {
             return;
         }
 
