@@ -1259,7 +1259,7 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
 
     char* filename_tmp = NULL;
     const char* master_recording_file = NULL;
-    if (args._jfr_sync != NULL && VMCapabilities::available()) {
+    if (args._jfr_sync != NULL) {
         Error error = startMasterRecording(args, master_recording_file = filename);
         if (error) {
             return error;

@@ -1171,6 +1171,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Could not attach to the JVM");
     }
 
+    if (args._jfr_sync && !VMCapabilities::available()) {
+        return Error("jfrsync is only allowed for java applications");
+    }
+
     _cstack = args._cstack;
     if (_cstack == CSTACK_DWARF && !DWARF_SUPPORTED) {
         return Error("DWARF unwinding is not supported on this platform");
