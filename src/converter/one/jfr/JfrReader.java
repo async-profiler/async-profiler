@@ -60,6 +60,7 @@ public class JfrReader implements Closeable {
     public final Dictionary<StackTrace> stackTraces = new Dictionary<>();
     public final Map<String, String> settings = new HashMap<>();
     public final Map<String, Map<Integer, String>> enums = new HashMap<>();
+    public final Dictionary<Long> javaThreads = new Dictionary<>();
 
     private final Dictionary<Constructor<? extends Event>> customEvents = new Dictionary<>();
 
@@ -460,6 +461,7 @@ public class JfrReader implements Closeable {
             long javaThreadId = getVarlong();
             readFields(fieldCount - 4);
             threads.put(id, javaName != null ? javaName : osName);
+            javaThreads.put(id, javaThreadId);
         }
     }
 
