@@ -1050,10 +1050,6 @@ Error Instrument::check(Arguments& args) {
         _instrument_class_loaded = true;
     }
 
-    if (args._event != NULL && strchr(args._event, ':') != NULL) {
-        return Error("Use 'trace' for latency profiling");
-    }
-
     return Error::OK;
 }
 
