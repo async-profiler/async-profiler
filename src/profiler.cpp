@@ -926,7 +926,7 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 void Profiler::updateJavaThreadNames() {
-    if (_update_thread_names && VM::loaded()) {
+    if (_update_thread_names && VMCapabilities::available()) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint thread_count;
         jthread* thread_objects;
@@ -1085,9 +1085,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
         return Error("Only JFR output supports multiple events");
-    } else if (VM::loaded() && !VMCapabilities::available() && (_event_mask & (EM_ALLOC | EM_LOCK))) {
-        return Error("Could not attach to the JVM");
-    } else if (!VM::loaded() && (_event_mask & (EM_ALLOC | EM_LOCK))) {
+    } else if (!VMCapabilities::available() && (_event_mask & (EM_ALLOC | EM_LOCK))) {
         return Error("Profiling event is not supported with non-Java processes");
     }
 
@@ -1169,7 +1167,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("target-cpu is only supported with perf_events");
     } else if (_engine != &perf_events && args._record_cpu) {
         return Error("record-cpu is only supported with perf_events");
-    } else if (_engine == &instrument && VM::loaded() && !VMCapabilities::available()) {
+    } else if (_engine == &instrument && !VMCapabilities::available()) {
         return Error("Could not attach to the JVM");
     }
 
@@ -1178,7 +1176,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("DWARF unwinding is not supported on this platform");
     } else if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
-    } else if (_cstack >= CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
+    } else if (_cstack >= CSTACK_VM && VMCapabilities::available() && !VMStructs::hasStackStructs()) {
         return Error("VMStructs stack walking is not supported on this JVM/platform");
     }
 
@@ -1351,7 +1349,7 @@ Error Profiler::check(Arguments& args) {
             return Error("DWARF unwinding is not supported on this platform");
         } else if (args._cstack == CSTACK_LBR && _engine != &perf_events) {
             return Error("Branch stack is supported only with PMU events");
-        } else if (args._cstack >= CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
+        } else if (args._cstack >= CSTACK_VM && VMCapabilities::available() && !VMStructs::hasStackStructs()) {
             return Error("VMStructs stack walking is not supported on this JVM/platform");
         }
     }
@@ -1461,7 +1459,7 @@ void Profiler::unlockAll() {
 }
 
 void Profiler::switchThreadEvents(jvmtiEventMode mode) {
-    if (_thread_events_state != mode && VM::loaded()) {
+    if (_thread_events_state != mode && VMCapabilities::available()) {
         jvmtiEnv* jvmti = VM::jvmti();
         jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_START, NULL);
         jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_END, NULL);
@@ -1862,6 +1860,7 @@ void Profiler::stopTimer() {
 void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
     u64 sleep_until = _jfr.active() ? current_micros + 1000000 : _stop_time;
+    VMCapabilities vm_capabilities;
 
     while (true) {
         {

@@ -190,7 +190,7 @@ void FrameName::javaMethodName(jmethodID method) {
         _str.assign(buf);
     }
 
-    if (method_class) {
+    if (method_class && _jni != NULL) {
         _jni->DeleteLocalRef(method_class);
     }
     jvmti->Deallocate((unsigned char*)class_name);

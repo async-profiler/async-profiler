@@ -154,7 +154,7 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_tim
         }
     }
 
-    if (method_class) {
+    if (method_class && _jni != NULL) {
         _jni->DeleteLocalRef(method_class);
     }
     jvmti->Deallocate((unsigned char*)method_sig);

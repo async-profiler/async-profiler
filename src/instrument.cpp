@@ -982,7 +982,7 @@ volatile bool Instrument::_running;
 
 Error Instrument::check(Arguments& args) {
     if (!_instrument_class_loaded) {
-        if (!VM::loaded()) {
+        if (!VMCapabilities::available()) {
             return Error("Profiling event is not supported with non-Java processes");
         }
 
