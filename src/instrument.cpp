@@ -920,7 +920,8 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
             _method_name = _cpool[name_index];
             long latency;
             if ((access_flags & JVM_ACC_NATIVE) == 0 &&
-                findLatency(latency, name_index, descriptor_index)) {
+                findLatency(latency, name_index, descriptor_index)
+            ) {
                 Result res = rewriteMethod(access_flags, descriptor_index, latency);
                 if (res != Result::OK) return res;
                 continue;
