@@ -539,7 +539,7 @@ class Recording {
     }
 
     static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures& f) {
-        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s",
+        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
                  f.unwind_comp   ? "unwind_comp"   : "-",
@@ -547,6 +547,7 @@ class Recording {
                  f.java_anchor   ? "java_anchor"   : "-",
                  f.gc_traces     ? "gc_traces"     : "-",
                  f.stats         ? "stats"         : "-",
+                 f.jnienv        ? "jnienv"        : "-",
                  f.probe_sp      ? "probesp"       : "-",
                  f.vtable_target ? "vtable"        : "-",
                  f.comp_task     ? "comptask"      : "-",
@@ -1381,11 +1382,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
 
     jobject jfilename = env->NewStringUTF(filename);
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
-    int event_mask = (args._event != NULL ? 1 : 0) |
-                     (args._alloc >= 0 ? 2 : 0) |
-                     (args._lock >= 0 ? 4 : 0) |
-                     (args._latency >= 0 ? 8 : 0) |
-                     ((args._jfr_options ^ JFR_SYNC_OPTS) << 4);
+
+    int event_mask = args.eventMask() |
+                     ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
 

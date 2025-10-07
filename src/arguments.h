@@ -93,6 +93,17 @@ enum JfrOption {
     JFR_SYNC_OPTS   = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD | NO_HEAP_SUMMARY
 };
 
+// Keep this in sync with JfrSync.java
+enum EventMask {
+    EM_CPU          = 1,
+    EM_ALLOC        = 2,
+    EM_LOCK         = 4,
+    EM_WALL         = 8,
+    EM_NATIVEMEM    = 16,
+    EM_METHOD_TRACE = 32
+};
+constexpr int EVENT_MASK_SIZE = 6;
+
 struct StackWalkFeatures {
     // Stack recovery techniques used to workaround AsyncGetCallTrace flaws
     unsigned short unknown_java  : 1;
@@ -106,14 +117,15 @@ struct StackWalkFeatures {
     unsigned short stats         : 1;
 
     // Additional HotSpot-specific features
+    unsigned short jnienv        : 1;
     unsigned short probe_sp      : 1;
     unsigned short vtable_target : 1;
     unsigned short comp_task     : 1;
     unsigned short pc_addr       : 1;
-    unsigned short _reserved     : 5;
+    unsigned short _reserved     : 4;
 
     StackWalkFeatures() : unknown_java(1), unwind_stub(1), unwind_comp(1), unwind_native(1), java_anchor(1), gc_traces(1),
-                          stats(0), probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
+                          stats(0), jnienv(0), probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
     }
 };
 
@@ -292,6 +304,14 @@ class Arguments {
 
     bool hasOption(JfrOption option) const {
         return (_jfr_options & option) != 0;
+    }
+
+    int eventMask() const {
+        return (_event     != NULL ? (_latency >= 0 ? EM_METHOD_TRACE : EM_CPU) : 0) |
+               (_alloc     >= 0    ? EM_ALLOC                                   : 0) |
+               (_lock      >= 0    ? EM_LOCK                                    : 0) |
+               (_wall      >= 0    ? EM_WALL                                    : 0) |
+               (_nativemem >= 0    ? EM_NATIVEMEM                               : 0);
     }
 
     friend class FrameName;

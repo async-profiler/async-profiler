@@ -1,0 +1,80 @@
+name: build-template
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        type: string
+        required: true
+      runner:
+        type: string
+        required: true
+      container-image:
+        type: string
+        required: false
+
+env:
+  build_java_distribution: corretto
+  build_java_version: 11
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.container-image && format('public.ecr.aws/async-profiler/asprof-builder-{0}', inputs.container-image) || '' }}
+    name: "build and unit test (${{ inputs.platform }})"
+    steps:
+      - name: Run container setup
+        if: inputs.container-image != ''
+        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.build_java_distribution }}
+          java-version: ${{ env.build_java_version }}
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Build and unit test
+        id: build
+        run: |
+          set -x
+          HASH=${GITHUB_SHA:0:7}
+          case "${{ inputs.platform }}" in
+            macos*)
+              brew install gcovr
+              make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
+            ;;
+            *)
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
+              echo "debug_archive=$(find . -type f -name "async-profiler-*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
+            ;;
+          esac
+          echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
+        shell: bash
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+      - name: Set artifact name
+        id: set_artifact_name
+        run: echo "artifact_name=async-profiler-${{ inputs.platform }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+        shell: bash
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set_artifact_name.outputs.artifact_name }}
+          path: ${{ steps.build.outputs.archive }}
+          if-no-files-found: error
+      - name: Upload debug info
+        uses: actions/upload-artifact@v4
+        if: inputs.platform != 'macos'
+        with:
+          name: ${{ steps.set_artifact_name.outputs.artifact_name }}-debug
+          path: ${{ steps.build.outputs.debug_archive }}
+          if-no-files-found: error
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage-${{ inputs.platform }}
+          path: build/test/coverage/
+          if-no-files-found: error

@@ -4,6 +4,7 @@
  */
 
 #include <dlfcn.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include "asprof.h"
@@ -104,6 +105,32 @@ int MallocTracer::_patched_libs = 0;
 bool MallocTracer::_initialized = false;
 volatile bool MallocTracer::_running = false;
 
+static pthread_t _current_thread;
+static bool _nested_malloc = false;
+
+// Test if calloc() implementation calls malloc()
+static void* nested_malloc_hook(size_t size) {
+    if (pthread_self() == _current_thread) {
+        _nested_malloc = true;
+    }
+    return _orig_malloc(size);
+}
+
+// In some implementations, specifically on musl, calloc() calls malloc() internally,
+// and posix_memalign() calls aligned_alloc(). Detect such cases to prevent double-accounting.
+static void detectNestedMalloc() {
+    CodeCache* libc = Profiler::instance()->findLibraryByAddress((void*)_orig_calloc);
+    if (libc == NULL) {
+        return;
+    }
+
+    libc->patchImport(im_malloc, (void*)nested_malloc_hook);
+
+    _current_thread = pthread_self();
+    free(_orig_calloc(1, 1));
+    _current_thread = pthread_t(0);
+}
+
 void MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
@@ -114,6 +141,8 @@ void MallocTracer::initialize() {
     SAVE_IMPORT(realloc);
     SAVE_IMPORT(posix_memalign);
     SAVE_IMPORT(aligned_alloc);
+
+    detectNestedMalloc();
 
     lib->mark(
         [](const char* s) -> bool {
@@ -150,8 +179,7 @@ void MallocTracer::patchLibraries() {
         cc->patchImport(im_free, (void*)free_hook);
         cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
 
-        if (OS::isMusl()) {
-            // On musl, calloc() calls malloc() internally, and posix_memalign() calls aligned_alloc().
+        if (_nested_malloc) {
             // Use dummy hooks to prevent double-accounting. Dummy frames from AP are introduced
             // to preserve the frame link to the original caller (see #1226).
             cc->patchImport(im_calloc, (void*)calloc_hook_dummy);

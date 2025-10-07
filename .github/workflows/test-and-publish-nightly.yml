@@ -8,14 +8,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  java_default_distribution: corretto
-  java_default_version: 11
-
 jobs:
   build-jars:
     runs-on: ubuntu-latest
-    name: Build JARs
+    name: build / jars
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -27,231 +23,125 @@ jobs:
           name: async-profiler-jars
           path: build/jar/*
           if-no-files-found: error
-  build-and-upload-binaries:
-    strategy:
-      matrix:
-        include:
-          - runson:
-              display: linux-arm64
-              name: ubuntu-24.04-arm
-            image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
-          - runson:
-              display: linux-x64
-              name: ubuntu-latest
-            image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
-          - runson:
-              display: macos
-              name: macos-15
-    runs-on: ${{ matrix.runson.name }}
-    container:
-      image: ${{ matrix.image }}
-      volumes: ${{ fromJSON(matrix.volumes || '[]') }}
-    name: "Build and unit test (${{ matrix.runson.display }})"
-    steps:
-      - name: Run container setup
-        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: ${{ matrix.java-distribution || env.java_default_distribution }}
-          java-version: ${{ matrix.java-version || env.java_default_version }}
-      - name: Checkout sources
-        uses: actions/checkout@v4
-      - name: Build and unit test
-        id: build
-        run: |
-          set -x
-          HASH=${GITHUB_SHA:0:7}
-          case "${{ matrix.runson.display }}" in
-            macos*)
-              brew install gcovr
-              make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
-            ;;
-            *)
-              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
-              echo "debug_archive=$(find . -type f -name "async-profiler-*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
-            ;;
-          esac
-          echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
-        shell: bash
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-      - name: Set artifact name
-        id: set_artifact_name
-        run: echo "artifact_name=async-profiler-${{ matrix.runson.display }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
-        shell: bash
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-      - name: Upload binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.set_artifact_name.outputs.artifact_name }}
-          path: ${{ steps.build.outputs.archive }}
-          if-no-files-found: error
-      - name: Upload debug info
-        uses: actions/upload-artifact@v4
-        if: matrix.runson.display != 'macos'
-        with:
-          name: ${{ steps.set_artifact_name.outputs.artifact_name }}-debug
-          path: ${{ steps.build.outputs.debug_archive }}
-          if-no-files-found: error
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-coverage-${{ matrix.runson.display }}
-          path: build/test/coverage/
-          if-no-files-found: error
-  integration-tests:
-    needs: build-and-upload-binaries
+
+  build-linux-arm64:
+    name: build / linux-arm64
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: linux-arm64
+      runner: ubuntu-24.04-arm
+      container-image: "arm:latest"
+
+  build-linux-x64:
+    name: build / linux-x64
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: linux-x64
+      runner: ubuntu-latest
+      container-image: x86:latest
+
+  build-macos:
+    name: build / macos
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: macos
+      runner: macos-15
+
+  integ-linux-x64:
+    name: integ / linux-x64
+    needs: build-linux-x64
     strategy:
       fail-fast: false
       matrix:
-        runson:
-          - display: linux-x64
-            # Using "latest" here as the build and test will any ways run inside a container which we control
-            name: ubuntu-latest
-        java-version: [8, 11, 17, 21, 24]
+        test-platform: [linux-x64]
+        java-version: [8, 11, 17, 21, 25]
         java-distribution: [corretto]
-        image: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
+        container-image: [x86:latest]
         include:
-          - runson:
-              display: macos-arm64
-              name: macos-15
+          - test-platform: linux-x64-alpine
+            container-image: alpine:corretto-11
+            use-builtin-jdk: true
+            java-distribution: corretto
             java-version: 11
-            java-distribution: corretto
-            # Not using container for mac-os as we have images only for linux
-            image: ""
-            # ARM MacOS should take fat binaries built on ARM
-            asprof-binaries-job: macos
-          - runson:
-              display: macos-arm64
-              name: macos-15
-            java-version: 21
-            java-distribution: corretto
-            # Not using container for mac-os as we have images only for linux
-            image: ""
-            # ARM MacOS should take fat binaries built on ARM
-            asprof-binaries-job: macos
-          - runson:
-              display: macos-x64
-              name: macos-13
-            java-version: 17
-            java-distribution: corretto
-            architecture: x64
-            image: ""
-            # x64 MacOS should take fat binaries built on ARM
-            asprof-binaries-job: macos
-          - runson:
-              display: linux-arm64
-              # There is no "latest" tag available (yet) as ARM runners are still in public preview
-              name: ubuntu-24.04-arm
-            java-version: 11
-            java-distribution: corretto
-            image: public.ecr.aws/async-profiler/asprof-builder-arm:latest
-          - runson:
-              display: alpine
-              name: ubuntu-latest
-            java-version: 11
-            java-distribution: corretto
-            asprof-binaries-job: linux-x64
-            image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
-          - runson:
-              display: amazonlinux2
-              name: ubuntu-latest
-            java-version: 11
-            java-distribution: corretto
-            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
+          - test-platform: linux-x64-AL2
+            container-image: amazonlinux:2
             # GHA provides Node.js by attaching a volume to the container. The container path is
             # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
-            volumes: '["/tmp/node20:/__e/node20"]'
-            asprof-binaries-job: linux-x64
-          - runson:
-              display: amazonlinux2023
-              name: ubuntu-latest
+            container-volumes: '["/tmp/node20:/__e/node20"]'
             java-version: 11
             java-distribution: corretto
-            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2023
-            asprof-binaries-job: linux-x64
-    runs-on: ${{ matrix.runson.name }}
-    container:
-      image: ${{ matrix.image }}
-      options: --privileged
-      volumes: ${{ fromJSON(matrix.volumes || '[]') }}
-    name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
-    steps:
-      - name: Run container setup
-        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
-        if: matrix.runson.display != 'alpine'
-        with:
-          distribution: ${{ matrix.java-distribution }}
-          java-version: ${{ matrix.java-version }}
-          architecture: ${{ matrix.architecture }}
-      - name: Checkout sources
-        uses: actions/checkout@v4
-      - name: Set variables
-        id: set_variables
-        run: |
-          echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
-          echo "artifact_name=async-profiler-${{ matrix.asprof-binaries-job || matrix.runson.display }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
-        shell: bash
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-      - name: Download async-profiler release artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ steps.set_variables.outputs.artifact_name }}
-          path: async_profiler_release
-      - name: Download async-profiler JAR artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: async-profiler-jars
-          path: jar_artifacts
-      - name: Extract async-profiler artifact
-        id: extract_artifact
-        run: |
-          release_archive=$(basename $(find async_profiler_release -type f -iname "async-profiler-*" ))
-          case "${{ matrix.runson.name }}" in
-            macos*)
-              unzip async_profiler_release/$release_archive
-            ;;
-            *)
-              tar xvf async_profiler_release/$release_archive
-            ;;
-          esac
-          echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
-          echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
-      - name: Download Protobuf Java runtime
-        run: |
-          mkdir -p test/deps
-          cd test/deps
-          curl -L -O "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$PB_JAVA_VERSION/protobuf-java-$PB_JAVA_VERSION.jar"
-        env:
-          PB_JAVA_VERSION: "4.31.1"
-      - name: Run integration tests
-        run: |
-          mkdir -p build/jar
-          cp ${{ steps.extract_artifact.outputs.jars_directory }}/* build/jar
-          make build/test.jar
-          cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
-          cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
-          make test-java -j
-      - name: Upload integration test logs
-        uses: actions/upload-artifact@v4
-        # Always upload, especially after test failure
-        if: always()
-        with:
-          name: integration-test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}-${{ steps.set_variables.outputs.short_sha }}
-          path: |
-            build/test/logs/
-            hs_err*.log
+          - test-platform: linux-x64-AL2023
+            container-image: amazonlinux:2023
+            java-version: 11
+            java-distribution: corretto
+          - test-platform: linux-x64-alpaquita
+            container-image: alpaquita:x86_64-liberica-21
+            use-builtin-jdk: true
+            java-distribution: liberica
+            java-version: 21
+    uses: ./.github/workflows/integ.yml
+    with:
+      platform: linux-x64
+      test-platform: ${{ matrix.test-platform }}
+      runner: ubuntu-latest
+      container-image: ${{ matrix.container-image }}
+      container-volumes: ${{ matrix.container-volumes || '' }}
+      java-version: ${{ matrix.java-version }}
+      java-distribution: ${{ matrix.java-distribution }}
+      use-builtin-jdk: ${{ matrix.use-builtin-jdk || false }}
+
+  integ-linux-arm64:
+    name: integ / linux-arm64
+    needs: build-linux-arm64
+    strategy:
+      fail-fast: false
+      matrix:
+        test-platform: [linux-arm64]
+        java-version: [8, 11, 17, 21, 25]
+        java-distribution: [corretto]
+        container-image: [arm:latest]
+    uses: ./.github/workflows/integ.yml
+    with:
+      platform: linux-arm64
+      test-platform: ${{ matrix.test-platform }}
+      runner: ubuntu-24.04-arm
+      container-image: ${{ matrix.container-image }}
+      container-volumes: ${{ matrix.container-volumes || '' }}
+      java-version: ${{ matrix.java-version }}
+      java-distribution: ${{ matrix.java-distribution }}
+
+  integ-macos:
+    name: integ / macos
+    needs: build-macos
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            test-platform: macos-arm64
+            java-version: "11"
+          - runner: macos-15
+            test-platform: macos-arm64
+            java-version: "21"
+          - runner: macos-13
+            test-platform: macos-x64
+            java-version: "17"
+            architecture: x64
+            retry-count: 1
+    uses: ./.github/workflows/integ.yml
+    with:
+      platform: macos
+      test-platform: ${{ matrix.test-platform }}
+      runner: ${{ matrix.runner }}
+      java-version: ${{ matrix.java-version }}
+      architecture: ${{ matrix.architecture || '' }}
+      retry-count: ${{ matrix.retry-count || 0 }}
+
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     name: publish (nightly)
     runs-on: ubuntu-latest
-    needs: [build-jars, integration-tests]
+    needs: [build-jars, integ-linux-x64, integ-linux-arm64, integ-macos]
     steps:
       - name: Download async-profiler binaries and jars
         uses: actions/download-artifact@v4

@@ -584,7 +584,7 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
                "(%15[^)]) "             /*  2 comm (read until ')')                 */
                "%c %d "                 /*  3 state, 4 ppid                         */
                "%*d %*d %*d %*d %*u "   /*  5-9 skip                                */
-               "%llu %*llu %llu %*llu " /* 10-13 minflt,-,majflt,-                  */
+               "%llu %*u %llu %*u "     /* 10-13 minflt,-,majflt,-                  */
                "%llu %llu "             /* 14-15 utime, stime                       */
                "%*d %*d %*d %*d "       /* 16-19 skip                               */
                "%d "                    /* 20 threads                               */

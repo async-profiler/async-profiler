@@ -73,6 +73,9 @@ public abstract class JfrConverter extends Classifier {
             threadStates = getThreadStates(true);
         } else if (args.wall) {
             threadStates = getThreadStates(false);
+        } else if (args.cpuTime) {
+            threadStates = new BitSet();
+            threadStates.set(ExecutionSample.CPU_TIME_SAMPLE);
         }
 
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;

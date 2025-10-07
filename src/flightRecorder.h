@@ -21,6 +21,8 @@ class FlightRecorder {
     void stopMasterRecording();
 
   public:
+    static const LogLevel MIN_LOG_LEVEL = LogLevel::LOG_DEBUG;
+
     FlightRecorder() : _rec(NULL) {
     }
 

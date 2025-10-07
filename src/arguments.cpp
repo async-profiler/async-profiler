@@ -324,6 +324,7 @@ Error Arguments::parse(const char* args) {
             CASE("features")
                 if (value != NULL) {
                     if (strstr(value, "stats"))    _features.stats = 1;
+                    if (strstr(value, "jnienv"))   _features.jnienv = 1;
                     if (strstr(value, "probesp"))  _features.probe_sp = 1;
                     if (strstr(value, "vtable"))   _features.vtable_target = 1;
                     if (strstr(value, "comptask")) _features.comp_task = 1;

@@ -1,0 +1,116 @@
+name: integration-test-template
+
+on:
+  workflow_call:
+    inputs:
+      test-platform:
+        type: string
+        required: true
+      platform:
+        type: string
+        required: true
+      architecture:
+        type: string
+        required: false
+      java-version:
+        type: string
+        required: true
+      java-distribution:
+        type: string
+        required: false
+        default: "corretto"
+      runner:
+        type: string
+        required: true
+      container-image:
+        type: string
+        required: false
+      container-volumes:
+        type: string
+        required: false
+      use-builtin-jdk:
+        type: boolean
+        required: false
+        default: false
+      retry-count:
+        type: number
+        required: false
+        default: 0
+
+jobs:
+  integration-test:
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.container-image && format('public.ecr.aws/async-profiler/asprof-builder-{0}', inputs.container-image) || '' }}
+      options: --privileged
+      volumes: ${{ fromJSON(inputs.container-volumes || '[]') }}
+    name: "${{ inputs.test-platform }}, ${{ inputs.java-distribution }} ${{ inputs.java-version }}"
+    steps:
+      - name: Run container setup
+        if: inputs.container-image != ''
+        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
+        if: ${{ !inputs.use-builtin-jdk }}
+        with:
+          distribution: ${{ inputs.java-distribution }}
+          java-version: ${{ inputs.java-version }}
+          architecture: ${{ inputs.architecture }}
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Set variables
+        id: set_variables
+        run: |
+          echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "artifact_name=async-profiler-${{ inputs.platform }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+        shell: bash
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+      - name: Download async-profiler release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.set_variables.outputs.artifact_name }}
+          path: async_profiler_release
+      - name: Download async-profiler JAR artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: async-profiler-jars
+          path: jar_artifacts
+      - name: Extract async-profiler artifact
+        id: extract_artifact
+        run: |
+          release_archive=$(basename $(find async_profiler_release -type f -iname "async-profiler-*" ))
+          case "${{ inputs.runner }}" in
+            macos*)
+              unzip async_profiler_release/$release_archive
+            ;;
+            *)
+              tar xvf async_profiler_release/$release_archive
+            ;;
+          esac
+          echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
+          echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+      - name: Download Protobuf Java runtime
+        run: |
+          mkdir -p test/deps
+          cd test/deps
+          curl -L -O "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$PB_JAVA_VERSION/protobuf-java-$PB_JAVA_VERSION.jar"
+        env:
+          PB_JAVA_VERSION: "4.31.1"
+      - name: Run integration tests
+        run: |
+          mkdir -p build/jar
+          cp ${{ steps.extract_artifact.outputs.jars_directory }}/* build/jar
+          make build/test.jar
+          cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
+          cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
+          make test-java RETRY_COUNT=${{ inputs.retry-count }} -j
+      - name: Upload integration test logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-logs-${{ inputs.test-platform }}-${{ inputs.java-version }}-${{ steps.set_variables.outputs.short_sha }}
+          path: |
+            build/test/logs/
+            hs_err*.log

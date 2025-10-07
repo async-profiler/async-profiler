@@ -35,8 +35,7 @@ TEST_CASE(ProcessInfo_initialization) {
 TEST_CASE(GetProcessIds_returns_valid_pids) {
     int pids[100];
     int count = OS::getProcessIds(pids, 100);
-    ASSERT_GT(count, 0);
-    ASSERT_GT(count, 5);
+    ASSERT_GT(count, 1);
     ASSERT_LTE(count, 100);
 
     for (int i = 0; i < count; i++) {

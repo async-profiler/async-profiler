@@ -51,6 +51,7 @@ class VMStructs {
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
     static int _anchor_fp_offset;
+    static int _blob_size_offset;
     static int _frame_size_offset;
     static int _frame_complete_offset;
     static int _code_offset;
@@ -118,6 +119,8 @@ class VMStructs {
     static jfieldID _tid;
     static jfieldID _klass;
     static int _tls_index;
+    static intptr_t _env_offset;
+    static void* _java_thread_vtbl[6];
 
     typedef void (*LockFunc)(void*);
     static LockFunc _lock_func;
@@ -330,6 +333,16 @@ class JavaFrameAnchor : VMStructs {
     void setLastJavaPC(const void* pc) {
         *(const void**) at(_anchor_pc_offset) = pc;
     }
+
+    bool getFrame(const void*& pc, uintptr_t& sp, uintptr_t& fp) {
+        if (lastJavaPC() != NULL && lastJavaSP() != 0) {
+            pc = lastJavaPC();
+            sp = lastJavaSP();
+            fp = lastJavaFP();
+            return true;
+        }
+        return false;
+    }
 };
 
 class VMThread : VMStructs {
@@ -351,6 +364,22 @@ class VMThread : VMStructs {
     static int nativeThreadId(JNIEnv* jni, jthread thread);
 
     int osThreadId();
+
+    JNIEnv* jni();
+
+    const void** vtable() {
+        return *(const void***)this;
+    }
+
+    // This thread is considered a JavaThread if at least 2 of the selected 3 vtable entries
+    // match those of a known JavaThread (which is either application thread or AttachListener).
+    // Indexes were carefully chosen to work on OpenJDK 8 to 25, both product an debug builds.
+    bool isJavaThread() {
+        const void** vtbl = vtable();
+        return (vtbl[1] == _java_thread_vtbl[1]) +
+               (vtbl[3] == _java_thread_vtbl[3]) +
+               (vtbl[5] == _java_thread_vtbl[5]) >= 2;
+    }
 
     int state() {
         return _thread_state_offset >= 0 ? *(int*) at(_thread_state_offset) : 0;
@@ -409,6 +438,10 @@ class VMMethod : VMStructs {
 
 class NMethod : VMStructs {
   public:
+    int size() {
+        return *(int*) at(_blob_size_offset);
+    }
+
     int frameSize() {
         return *(int*) at(_frame_size_offset);
     }
@@ -456,6 +489,10 @@ class NMethod : VMStructs {
             return *(void**) at(-_nmethod_entry_offset);
         }
     }
+    
+    bool contains(const void* pc) {
+        return pc >= this && pc < at(size());
+    }
 
     bool isFrameCompleteAt(const void* pc) {
         return pc >= code() + frameCompleteOffset();
@@ -477,6 +514,11 @@ class NMethod : VMStructs {
     bool isInterpreter() {
         const char* n = name();
         return n != NULL && strcmp(n, "Interpreter") == 0;
+    }
+
+    bool isStub() {
+        const char* n = name();
+        return n != NULL && strncmp(n, "StubRoutines", 12) == 0;
     }
 
     VMMethod* method() {

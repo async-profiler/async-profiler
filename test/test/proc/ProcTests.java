@@ -218,6 +218,9 @@ public class ProcTests {
 
     @Test(mainClass = MemoryIntensiveApp.class, jvmVer = {11, Integer.MAX_VALUE}, jvmArgs = "-XX:+AlwaysPreTouch -XX:InitialRAMPercentage=10", os = Os.LINUX)
     public void processSamplingWithMemoryThreshold(TestProcess p) throws Exception {
+        // -XX:+AlwaysPreTouch will delay JVM startup, which makes it possible for "kill(pid, SIGQUIT);" in asprof
+        // to be called before the JVM installs the signal handlers, which will cause the process to exit early
+        Thread.sleep(1000);
         p.profile("--proc 1 -d 2 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
