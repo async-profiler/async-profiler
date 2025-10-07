@@ -47,7 +47,7 @@ static bool matchesPattern(const char* value, size_t len, const std::string& pat
             memcmp(pattern.c_str(), value, pattern.length() - 1) == 0
         ) ||
         // full match
-        strncmp(pattern.c_str(), value, len) == 0
+        memcmp(pattern.c_str(), value, len) == 0
     );
 }
 
