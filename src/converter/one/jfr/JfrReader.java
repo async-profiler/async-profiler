@@ -53,6 +53,7 @@ public class JfrReader implements Closeable {
     public final Dictionary<JfrClass> types = new Dictionary<>();
     public final Map<String, JfrClass> typesByName = new HashMap<>();
     public final Dictionary<String> threads = new Dictionary<>();
+    public final Dictionary<Long> javaThreads = new Dictionary<>();
     public final Dictionary<ClassRef> classes = new Dictionary<>();
     public final Dictionary<String> strings = new Dictionary<>();
     public final Dictionary<byte[]> symbols = new Dictionary<>();
@@ -60,7 +61,6 @@ public class JfrReader implements Closeable {
     public final Dictionary<StackTrace> stackTraces = new Dictionary<>();
     public final Map<String, String> settings = new HashMap<>();
     public final Map<String, Map<Integer, String>> enums = new HashMap<>();
-    public final Dictionary<Long> javaThreads = new Dictionary<>();
 
     private final Dictionary<Constructor<? extends Event>> customEvents = new Dictionary<>();
 
