@@ -92,7 +92,7 @@ static dlopen_t _orig_dlopen = NULL;
 static void* dlopen_hook(const char* filename, int flags) {
     Log::debug("dlopen: %s", filename);
     void* result = _orig_dlopen(filename, flags);
-    if (result != NULL && filename != NULL || (flags & RTLD_NOLOAD) == 0) {
+    if (result != NULL && filename != NULL && (flags & RTLD_NOLOAD) == 0) {
         Profiler::instance()->updateSymbols(false);
         Hooks::patchLibraries();
         MallocTracer::installHooks();
