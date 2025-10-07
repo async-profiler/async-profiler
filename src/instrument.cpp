@@ -1205,11 +1205,13 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
         for (const auto& target : _targets) {
             if (matchesPattern(signature + 1, len - 2, target.first)) {
                 jboolean modifiable;
-                if (target.first[target.first.length() - 1] != '*' ||
-                    jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable) {
-                    // Some classes are not modifiable. In wildcard-mode, we want to skip
+                if (
+                    target.first[target.first.length() - 1] != '*' ||
+                    // Some classes are not modifiable. With wildcard matching we skip
                     // them quietly; when the class is specifically selected by the user
                     // we let JVMTI fail loudly.
+                    (jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable)
+                ) {
                     classes[matched_count++] = classes[i];
                 }
                 break;
