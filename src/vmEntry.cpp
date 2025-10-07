@@ -481,9 +481,9 @@ VMCapabilities::VMCapabilities() : _attached(false) {
 }
 
 VMCapabilities::~VMCapabilities() {
-    _available = false;
 
     if (_attached) {
+        _available = false;
         VM::detachThread();
     }
 }
