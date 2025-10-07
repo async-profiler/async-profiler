@@ -452,7 +452,9 @@ public class JfrReader implements Closeable {
     }
 
     private void readThreads(int fieldCount) {
-        int count = threads.preallocate(getVarint());
+        int count = getVarint();
+        threads.preallocate(count);
+        javaThreads.preallocate(count);
         for (int i = 0; i < count; i++) {
             long id = getVarlong();
             String osName = getString();
