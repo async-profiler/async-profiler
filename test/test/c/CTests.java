@@ -28,6 +28,11 @@ public class CTests {
         assert preloadFile == null || preloadFile.length() == 0;
     }
 
+    /**
+     * In this test two profilers are active in the native application,
+     * * In the first case one profiler is started via preload while the other is started via C-APIs
+     * * In The second case both profilers are started via C-APIs
+     */
     @Test(sh = "LD_PRELOAD=%lib %testbin/multiple_profilers preload %profiler_2.jfr", env = {"ASPROF_COMMAND=start,nativemem,file=%profiler_1.jfr"}, nameSuffix = "preload")
     // On macOS dlopen on a copied file can result in the same shared object from a dlopen on the original file
     // otool -D build/test/lib/libasyncProfiler-copy.dylib; otool -D build/lib/libasyncProfiler.dylib
