@@ -265,7 +265,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     unwind_loop:
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
-
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
                 if (anchor == NULL) {
