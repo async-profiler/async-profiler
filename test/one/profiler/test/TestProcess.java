@@ -90,7 +90,6 @@ public class TestProcess implements Closeable {
             }
         }
         pb.environment().put("TEST_JAVA_HOME", JAVA_HOME);
-        pb.environment().put("DYLD_FORCE_FLAT_NAMESPACE", "1");
 
         this.p = pb.start();
 

@@ -5,6 +5,7 @@
 
 package test.c;
 
+import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
@@ -27,15 +28,17 @@ public class CTests {
         assert preloadFile == null || preloadFile.length() == 0;
     }
 
-    @Test(sh = "LD_PRELOAD=%lib %testbin/multiple_profilers %api_file.jfr", env = {"ASPROF_COMMAND=start,nativemem,file=%preload_file.jfr"})
+    @Test(sh = "LD_PRELOAD=%lib %testbin/multiple_profilers preload %profiler_2.jfr", env = {"ASPROF_COMMAND=start,nativemem,file=%profiler_1.jfr"}, nameSuffix = "preload")
+    @Test(sh = "LD_PRELOAD=%lib %testbin/multiple_profilers api %profiler_1.jfr %profiler_2.jfr", nameSuffix = "api", os = Os.MACOS)
+    @Test(sh = "%testbin/multiple_profilers api %profiler_1.jfr %profiler_2.jfr", nameSuffix = "api", os = Os.LINUX)
     public void twoProfilers(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
-        Output preloadProfiler = Output.convertJfrToCollapsed(p.getFilePath("%preload_file"), "--nativemem");
-        Output apiProfiler = Output.convertJfrToCollapsed(p.getFilePath("%api_file"), "--wall");
+        Output preloadProfiler = Output.convertJfrToCollapsed(p.getFilePath("%profiler_1"), "--nativemem");
+        Output apiProfiler = Output.convertJfrToCollapsed(p.getFilePath("%profiler_2"), "--wall");
 
-        assert preloadProfiler.contains("sampleMalloc");
+        assert preloadProfiler.contains("doMalloc");
         assert apiProfiler.total() >= 10;
     }
 }

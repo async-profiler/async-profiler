@@ -260,7 +260,7 @@ test-cpp: build-test-cpp
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 	# generate copies of libasyncProfiler for testing multiple profilers
-	cp -f build/$(LIB_PROFILER) build/test/lib/libasyncProfiler.$(SOEXT)
+	cp -f build/$(LIB_PROFILER) build/test/lib/libasyncProfiler-copy.$(SOEXT)
 	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false

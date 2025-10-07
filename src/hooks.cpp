@@ -92,7 +92,7 @@ static dlopen_t _orig_dlopen = NULL;
 static void* dlopen_hook(const char* filename, int flags) {
     Log::debug("dlopen: %s", filename);
     void* result = _orig_dlopen(filename, flags);
-    if (result != NULL && filename != NULL) {
+    if (result != NULL && filename != NULL || (flags & RTLD_NOLOAD) == 0) {
         Profiler::instance()->updateSymbols(false);
         Hooks::patchLibraries();
         MallocTracer::installHooks();
@@ -114,9 +114,9 @@ bool Hooks::init() {
     Profiler::instance()->updateSymbols(false);
 
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)Hooks::init);
-    _orig_pthread_create = SAVE_IMPORT(pthread_create);
-    _orig_pthread_exit = SAVE_IMPORT(pthread_exit);
-    _orig_dlopen = SAVE_IMPORT(dlopen);
+    SAVE_IMPORT(pthread_create);
+    SAVE_IMPORT(pthread_exit);
+    SAVE_IMPORT(dlopen);
 
     patchLibraries();
 

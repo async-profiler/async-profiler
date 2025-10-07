@@ -10,9 +10,9 @@
 #include "profiler.h"
 #include "vmStructs.h"
 
-// Reference intercepted functions at least once to ensure
+// Invoke functions we may intercept so the GOT entries are resolved
 // GOT entries are present in the generated shared library
-static void resolveSymbols() {
+static void resolveGotEntries() {
     static volatile intptr_t sink;
 
     void* p0 = malloc(1);
@@ -48,7 +48,7 @@ class LateInitializer {
             dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
         }
 
-        resolveSymbols();
+        resolveGotEntries();
 
         if (!checkJvmLoaded()) {
             const char* command = getenv("ASPROF_COMMAND");
