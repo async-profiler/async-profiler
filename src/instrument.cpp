@@ -1143,7 +1143,7 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
     long latency = default_latency;
     if (colon != NULL) {
         latency = Arguments::parseUnits(colon + 1, NANOS);
-        if (latency == -1) {
+        if (latency < 0) {
             return Error("Invalid latency format in tracing target");
         }
     }
