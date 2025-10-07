@@ -76,6 +76,7 @@ public class JfrReader implements Closeable {
     private int activeSetting;
     private int malloc;
     private int free;
+    private int cpuTimeSample;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -183,6 +184,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
+            } else if (type == cpuTimeSample) {
+                if (cls == null || cls == ExecutionSample.class) return (E) readCPUTimeSample();
             } else if (type == malloc) {
                 if (cls == null || cls == MallocEvent.class) return (E) readMallocEvent(true);
             } else if (type == free) {
@@ -241,6 +244,16 @@ public class JfrReader implements Closeable {
         long allocationSize = getVarlong();
         long tlabSize = tlab ? getVarlong() : 0;
         return new AllocationSample(time, tid, stackTraceId, classId, allocationSize, tlabSize);
+    }
+
+    private ExecutionSample readCPUTimeSample() {
+        long time = getVarlong();
+        int stackTraceId = getVarint();
+        int tid = getVarint();
+        boolean failed = getBoolean();
+        long samplingPeriod = getVarlong();
+        boolean biased = getBoolean();
+        return new ExecutionSample(time, tid, stackTraceId, ExecutionSample.CPU_TIME_SAMPLE, 1);
     }
 
     private MallocEvent readMallocEvent(boolean hasSize) {
@@ -574,6 +587,7 @@ public class JfrReader implements Closeable {
         activeSetting = getTypeId("jdk.ActiveSetting");
         malloc = getTypeId("profiler.Malloc");
         free = getTypeId("profiler.Free");
+        cpuTimeSample = getTypeId("jdk.CPUTimeSample");
 
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);
@@ -636,6 +650,10 @@ public class JfrReader implements Closeable {
 
     public byte getByte() {
         return buf.get();
+    }
+
+    public boolean getBoolean() {
+        return buf.get() != 0;
     }
 
     public String getString() {

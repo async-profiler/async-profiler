@@ -51,6 +51,7 @@ class VMStructs {
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
     static int _anchor_fp_offset;
+    static int _blob_size_offset;
     static int _frame_size_offset;
     static int _frame_complete_offset;
     static int _code_offset;
@@ -332,6 +333,16 @@ class JavaFrameAnchor : VMStructs {
     void setLastJavaPC(const void* pc) {
         *(const void**) at(_anchor_pc_offset) = pc;
     }
+
+    bool getFrame(const void*& pc, uintptr_t& sp, uintptr_t& fp) {
+        if (lastJavaPC() != NULL && lastJavaSP() != 0) {
+            pc = lastJavaPC();
+            sp = lastJavaSP();
+            fp = lastJavaFP();
+            return true;
+        }
+        return false;
+    }
 };
 
 class VMThread : VMStructs {
@@ -429,6 +440,10 @@ class VMMethod : VMStructs {
 
 class NMethod : VMStructs {
   public:
+    int size() {
+        return *(int*) at(_blob_size_offset);
+    }
+
     int frameSize() {
         return *(int*) at(_frame_size_offset);
     }
@@ -476,6 +491,10 @@ class NMethod : VMStructs {
             return *(void**) at(-_nmethod_entry_offset);
         }
     }
+    
+    bool contains(const void* pc) {
+        return pc >= this && pc < at(size());
+    }
 
     bool isFrameCompleteAt(const void* pc) {
         return pc >= code() + frameCompleteOffset();
@@ -497,6 +516,11 @@ class NMethod : VMStructs {
     bool isInterpreter() {
         const char* n = name();
         return n != NULL && strcmp(n, "Interpreter") == 0;
+    }
+
+    bool isStub() {
+        const char* n = name();
+        return n != NULL && strncmp(n, "StubRoutines", 12) == 0;
     }
 
     VMMethod* method() {

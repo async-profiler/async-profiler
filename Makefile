@@ -60,7 +60,8 @@ TEST_GEN_DIR=test/gen
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
-TEST_FLAGS=-DlogDir=$(LOG_DIR) -DlogLevel=$(LOG_LEVEL) -Dskip='$(subst $(COMMA), ,$(SKIP))'
+RETRY_COUNT=0
+TEST_FLAGS=-DlogDir=$(LOG_DIR) -DlogLevel=$(LOG_LEVEL) -Dskip='$(subst $(COMMA), ,$(SKIP))' -DretryCount=$(RETRY_COUNT)
 
 # always sort SOURCES so zInit is last.
 SOURCES := $(sort $(wildcard src/*.cpp))

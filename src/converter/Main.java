@@ -98,7 +98,8 @@ public class Main {
                 "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap, otlp\n" +
                 "\n" +
                 "JFR options:\n" +
-                "     --cpu              CPU profile\n" +
+                "     --cpu              CPU profile (ExecutionSample)\n" +
+                "     --cpu-time         CPU profile (CPUTimeSample)\n" +
                 "     --wall             Wall clock profile\n" +
                 "     --alloc            Allocation profile\n" +
                 "     --live             Live object profile\n" +

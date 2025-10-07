@@ -12,7 +12,9 @@ public class ComptaskTests {
         mainClass = Main.class,
         agentArgs = "start,features=comptask,collapsed,interval=1ms,file=%profile",
         jvmArgs = "-Xcomp",
-        jvm = Jvm.HOTSPOT
+        jvm = Jvm.HOTSPOT,
+        // TODO: remove version filter after the fix for JDK-8367689 is released
+        jvmVer = {8, 24}
     )
     @Test(
         mainClass = Main.class,
