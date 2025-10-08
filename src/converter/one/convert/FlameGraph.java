@@ -9,6 +9,8 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
@@ -33,6 +35,12 @@ public class FlameGraph implements Comparator<Frame> {
     private long lastTotal;
     private long mintotal;
 
+    // Differential fg variables
+    private final Map<String, Long> deltaMap = new HashMap<>();
+    private long maxdelta = 1;
+    private long timemax = 0;
+    private double factor = 1.0;
+
     public FlameGraph(Arguments args) {
         this.args = args;
     }
@@ -41,27 +49,71 @@ public class FlameGraph implements Comparator<Frame> {
         CallStack stack = new CallStack();
 
         try (BufferedReader br = new BufferedReader(in)) {
-            for (String line; (line = br.readLine()) != null; ) {
-                int space = line.lastIndexOf(' ');
-                if (space <= 0) continue;
-
-                long ticks = Long.parseLong(line.substring(space + 1));
-
-                for (int from = 0, to; from < space; from = to + 1) {
-                    if ((to = line.indexOf(';', from)) < 0) to = space;
-                    String name = line.substring(from, to);
-                    byte type = detectType(name);
-                    if ((type & HAS_SUFFIX) != 0) {
-                        name = name.substring(0, name.length() - 4);
-                        type ^= HAS_SUFFIX;
-                    }
-                    stack.push(name, type);
+            for (String line; (line = br.readLine()) != null;) {
+                if (args.differential) {
+                    parseDifferentialLine(line, stack);
+                } else {
+                    parseRegularLine(line, stack);
                 }
-
-                addSample(stack, ticks);
-                stack.clear();
             }
         }
+    }
+
+    private void parseDifferentialLine(String line, CallStack stack) {
+        // Parse differential format: "stack count1 count2"
+        int lastSpace = line.lastIndexOf(' ');
+        if (lastSpace <= 0) return;
+
+        long count2 = Long.parseLong(line.substring(lastSpace + 1));
+        String remaining = line.substring(0, lastSpace);
+
+        int secondLastSpace = remaining.lastIndexOf(' ');
+        if (secondLastSpace <= 0) return; // Invalid differential format
+
+        long count1 = Long.parseLong(remaining.substring(secondLastSpace + 1));
+        String stackPart = remaining.substring(0, secondLastSpace);
+
+        long delta = count2 - count1;
+
+        for (int from = 0, to; from < stackPart.length(); from = to + 1) {
+            if ((to = stackPart.indexOf(';', from)) < 0) to = stackPart.length();
+            String funcName = stackPart.substring(from, to);
+
+            byte funcType = detectType(funcName);
+            if ((funcType & HAS_SUFFIX) != 0) {
+                funcName = funcName.substring(0, funcName.length() - 4);
+            }
+
+            deltaMap.put(funcName, deltaMap.getOrDefault(funcName, 0L) + delta);
+        }
+
+        maxdelta = Math.max(maxdelta, Math.abs(delta));
+        buildStackAndAddSample(stackPart, count2, stack);
+    }
+
+    private void parseRegularLine(String line, CallStack stack) {
+        int lastSpace = line.lastIndexOf(' ');
+        if (lastSpace <= 0) return;
+
+        long samples = Long.parseLong(line.substring(lastSpace + 1));
+        String stackPart = line.substring(0, lastSpace);
+        buildStackAndAddSample(stackPart, samples, stack);
+    }
+
+    private void buildStackAndAddSample(String stackPart, long ticks, CallStack stack) {
+        for (int from = 0, to; from < stackPart.length(); from = to + 1) {
+            if ((to = stackPart.indexOf(';', from)) < 0) to = stackPart.length();
+            String name = stackPart.substring(from, to);
+            byte type = detectType(name);
+            if ((type & HAS_SUFFIX) != 0) {
+                name = name.substring(0, name.length() - 4);
+                type ^= HAS_SUFFIX;
+            }
+            stack.push(name, type);
+        }
+
+        addSample(stack, ticks);
+        stack.clear();
     }
 
     public void parseHtml(Reader in) throws IOException {
@@ -186,7 +238,7 @@ public class FlameGraph implements Comparator<Frame> {
         out.print(Math.min(depth * 16, 32767));
 
         tail = printTill(out, tail, "/*title:*/");
-        out.print(args.title);
+        out.print(!deltaMap.isEmpty() ? "Differential Flame Graph" : args.title);
 
         // inverted toggles the layout for reversed stacktraces from icicle to flamegraph
         // and for default stacktraces from flamegraphs to icicle.
@@ -198,6 +250,24 @@ public class FlameGraph implements Comparator<Frame> {
 
         tail = printTill(out, tail, "/*cpool:*/");
         printCpool(out);
+
+        // Inject differential data right after unpack(cpool); but before frames
+        tail = printTill(out, tail, "unpack(cpool);");
+        out.print("unpack(cpool);");
+
+        if (!deltaMap.isEmpty()) {
+            out.print("\n\n// Differential data\n");
+            out.print("const deltaMap = {\n");
+            boolean first = true;
+            for (Map.Entry<String, Long> entry : deltaMap.entrySet()) {
+                if (!first) out.print(",\n");
+                out.print("  '" + escapeJs(entry.getKey()) + "': " + entry.getValue());
+                first = false;
+            }
+            out.print("\n};\n");
+            out.print("const timemax = " + root.total + ";\n");
+            out.print("const factor = " + factor + ";\n");
+        }
 
         tail = printTill(out, tail, "/*frames:*/");
         printFrame(out, root, 0, 0);
@@ -314,6 +384,13 @@ public class FlameGraph implements Comparator<Frame> {
         }
 
         return include != null;
+    }
+
+    private static String escapeJs(String s) {
+        return s.replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
     }
 
     private Frame addChild(Frame frame, String title, byte type, long ticks) {

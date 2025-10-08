@@ -35,11 +35,26 @@ public class Main {
             }
         }
 
+        // Special handling for differential mode with 2 input files
+        if (args.differential && fileCount == 2 && !isDirectory) {
+            try {
+                String file1 = args.files.get(0);
+                String file2 = args.files.get(1);
+                String output = lastFile;
+
+                processDifferential(file1, file2, output, args);
+                return;
+            } catch (IOException e) {
+                // Fall back to regular processing
+            }
+        }
+
         for (int i = 0; i < fileCount; i++) {
             String input = args.files.get(i);
             String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
 
-            System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
+            System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) +
+                    (args.differential ? " (differential mode)" : "") + " ");
             System.out.flush();
 
             long startTime = System.nanoTime();
@@ -65,6 +80,60 @@ public class Main {
             }
         } else {
             FlameGraph.convert(input, output, args);
+        }
+    }
+
+    private static void processDifferential(String file1, String file2, String output, Arguments args)
+            throws IOException {
+        System.out.print("Creating differential flame graph: " + getFileName(file1) + " vs " + getFileName(file2)
+                + " -> " + getFileName(output) + " ");
+        System.out.flush();
+
+        long startTime = System.nanoTime();
+
+        try {
+            String collapsed1 = getCollapsedFile(file1, args);
+            String collapsed2 = getCollapsedFile(file2, args);
+
+            // Create differential collapsed file
+            String tempDiff = output + ".tmp.diff.collapsed";
+            DiffFolded.process(collapsed1, collapsed2, tempDiff);
+
+            convert(tempDiff, output, args);
+
+            // Clean up temporary files
+            if (!collapsed1.equals(file1))
+                new File(collapsed1).delete();
+            if (!collapsed2.equals(file2))
+                new File(collapsed2).delete();
+            new File(tempDiff).delete();
+
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Failed to create differential: " + e.getMessage(), e);
+        }
+
+        long endTime = System.nanoTime();
+        System.out.print("# " + (endTime - startTime) / 1000000 / 1000.0 + " s\n");
+    }
+
+    private static String getCollapsedFile(String inputFile, Arguments args) throws IOException {
+        if (inputFile.endsWith(".collapsed")) {
+            return inputFile;
+        } else if (isJfr(inputFile)) {
+            String tempCollapsed = inputFile + ".tmp.collapsed";
+            Arguments tempArgs = new Arguments("--differential", "--output", "collapsed");
+            convert(inputFile, tempCollapsed, tempArgs);
+            return tempCollapsed;
+        } else if (inputFile.endsWith(".html")) {
+            String tempCollapsed = inputFile + ".tmp.collapsed";
+            Arguments tempArgs = new Arguments("--differential", "--output", "collapsed");
+            convert(inputFile, tempCollapsed, tempArgs);
+            return tempCollapsed;
+        } else {
+            // Assume it's collapsed format (could be .txt, .folded, etc.)
+            return inputFile;
         }
     }
 
@@ -115,6 +184,7 @@ public class Main {
                 "     --bci              Show bytecode indices\n" +
                 "     --simple           Simple class names instead of FQN\n" +
                 "     --norm             Normalize names of hidden classes / lambdas\n" +
+                "     --differential     Enable differential mode (auto-enables --norm)\n" +
                 "     --dot              Dotted class names\n" +
                 "     --from TIME        Start time in ms (absolute or relative)\n" +
                 "     --to TIME          End time in ms (absolute or relative)\n" +

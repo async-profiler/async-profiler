@@ -61,14 +61,45 @@
 		[0xcce880, 20, 20, 20],
 	];
 
-	function getColor(p) {
+	function getColor(p, title) {
+		// Check if we have differential data and this frame has a delta
+		if (typeof deltaMap !== 'undefined' && deltaMap.hasOwnProperty(title)) {
+			return getDifferentialColor(deltaMap[title]);
+		}
+		
 		const v = Math.random();
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
 	}
 
+	function getDifferentialColor(delta) {
+		// Brendan Gregg's differential coloring algorithm
+		// Start with white (255, 255, 255)
+		let r = 255, g = 255, b = 255;
+		
+		// Find the maximum absolute delta for scaling
+		let maxDelta = 1;
+		if (typeof deltaMap !== 'undefined') {
+			for (const key in deltaMap) {
+				maxDelta = Math.max(maxDelta, Math.abs(deltaMap[key]));
+			}
+		}
+		
+		if (delta > 0) {
+			// Positive delta: red (reduce green and blue)
+			g = b = Math.floor(210 * (maxDelta - delta) / maxDelta);
+		} else if (delta < 0) {
+			// Negative delta: blue (reduce red and green)
+			r = g = Math.floor(210 * (maxDelta + delta) / maxDelta);
+		}
+		// Zero delta stays white
+		
+		return 'rgb(' + r + ',' + g + ',' + b + ')';
+	}
+
 	function f(key, level, left, width, inln, c1, int) {
+		const title = cpool[key >>> 3];
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
-			color: getColor(palette[key & 7]), title: cpool[key >>> 3],
+			color: getColor(palette[key & 7], title), title: title,
 			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
 	}
@@ -218,7 +249,15 @@
 				hl.style.top = ((inverted ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
 				hl.firstChild.textContent = f.title;
 				hl.style.display = 'block';
-				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
+				// Tooltip generation - include differential percentage if available (following Brendan's approach)
+				var deltaInfo = '';
+				if (typeof deltaMap !== 'undefined' && deltaMap[f.title] !== undefined) {
+					var delta = deltaMap[f.title];
+					var deltapct = (100 * delta) / (timemax * factor);
+					var deltapctStr = (delta > 0 ? '+' : '') + deltapct.toFixed(2);
+					deltaInfo = '; ' + deltapctStr + '%';
+				}
+				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%' + deltaInfo + ')';
 				canvas.style.cursor = 'pointer';
 				canvas.onclick = function() {
 					if (event.altKey && h >= root.level) {
