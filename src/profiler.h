@@ -16,8 +16,10 @@
 #include "engine.h"
 #include "event.h"
 #include "flightRecorder.h"
+#include "linearAllocator.h"
 #include "log.h"
 #include "mutex.h"
+#include "otlp.h"
 #include "spinLock.h"
 #include "threadFilter.h"
 #include "trap.h"
@@ -39,6 +41,8 @@ union CallTraceBuffer {
 class FrameName;
 class NMethod;
 class StackContext;
+
+struct Chunk;
 
 enum State {
     NEW,
@@ -64,11 +68,13 @@ class Profiler {
     FlightRecorder _jfr;
     Engine* _engine;
     Engine* _alloc_engine;
+    LinearAllocator _trace_context_allocator;
     int _event_mask;
 
     u64 _start_time;
     u64 _stop_time;
     int _epoch;
+    static thread_local int _last_epoch;
     u32 _gc_id;
     WaitableMutex _timer_lock;
     void* _timer_id;
@@ -88,6 +94,10 @@ class Profiler {
     bool _add_cpu_frame;
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
+
+    // Thread-local storage for trace correlation
+    static thread_local uint8_t _trace_context_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE];
+    static thread_local void* _last_trace_context_ptr;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
@@ -162,6 +172,7 @@ class Profiler {
         _thread_filter(),
         _call_trace_storage(),
         _jfr(),
+        _trace_context_allocator(sizeof(Chunk) + Otlp::TRACE_CONTEXT_SIZE),
         _start_time(0),
         _epoch(0),
         _gc_id(0),
@@ -190,6 +201,7 @@ class Profiler {
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
     CodeCacheArray* nativeLibs() { return &_native_libs; }
+    static uint8_t* traceBuffer() { return _trace_context_buffer; }
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, Writer& out);
