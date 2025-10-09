@@ -131,29 +131,9 @@ static void detectNestedMalloc() {
     _current_thread = pthread_t(0);
 }
 
-// Call each intercepted function at least once to ensure
-// its GOT entry is updated with a correct target address
-static void resolveMallocSymbols() {
-    static volatile intptr_t sink;
-
-    void* p0 = malloc(1);
-    void* p1 = realloc(p0, 2);
-    void* p2 = calloc(1, 1);
-    void* p3 = aligned_alloc(1, 1);
-    void* p4 = NULL;
-    if (posix_memalign(&p4, sizeof(void*), sizeof(void*)) == 0) free(p4);
-    free(p3);
-    free(p2);
-    free(p1);
-
-    sink = (intptr_t)p1 + (intptr_t)p2 + (intptr_t)p3 + (intptr_t)p4;
-}
-
 void MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
-
-    resolveMallocSymbols();
 
     SAVE_IMPORT(malloc);
     SAVE_IMPORT(free);
