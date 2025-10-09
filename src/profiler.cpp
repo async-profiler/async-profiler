@@ -971,7 +971,7 @@ bool Profiler::excludeTrace(FrameName* fn, CallTrace* trace) {
     }
 
     for (int i = 0; i < trace->num_frames; i++) {
-        const char* frame_name = fn->name(trace->frames[i], true);
+        const char* frame_name = fn->name(UNPACK(trace, i), true);
         if (check_exclude && fn->exclude(frame_name)) {
             return true;
         }
@@ -1476,7 +1476,7 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
         if (counter == 0) continue;
 
         for (int j = trace->num_frames - 1; j >= 0; j--) {
-            const char* frame_name = fn.name(trace->frames[j]);
+            const char* frame_name = fn.name(UNPACK(trace, j));
             out << frame_name << (j == 0 ? ' ' : ';');
         }
         // Beware of locale-sensitive conversion
@@ -1519,27 +1519,30 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
             if (args._reverse) {
                 // Thread frames always come first
                 if (_add_sched_frame) {
-                    const char* frame_name = fn.name(trace->frames[--num_frames]);
+                    num_frames--;
+                    const char* frame_name = fn.name(UNPACK(trace, num_frames));
                     f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
                 }
                 if (_add_thread_frame) {
-                    const char* frame_name = fn.name(trace->frames[--num_frames]);
+                    num_frames--;
+                    const char* frame_name = fn.name(UNPACK(trace, num_frames));
                     f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
                 }
                 if (_add_cpu_frame) {
-                    const char* frame_name = fn.name(trace->frames[--num_frames]);
+                    num_frames--;
+                    const char* frame_name = fn.name(UNPACK(trace, num_frames));
                     f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
                 }
 
                 for (int j = 0; j < num_frames; j++) {
-                    const char* frame_name = fn.name(trace->frames[j]);
-                    FrameTypeId frame_type = fn.type(trace->frames[j]);
+                    const char* frame_name = fn.name(UNPACK(trace, j));
+                    FrameTypeId frame_type = fn.type(UNPACK(trace, j));
                     f = flamegraph.addChild(f, frame_name, frame_type, counter);
                 }
             } else {
                 for (int j = num_frames - 1; j >= 0; j--) {
-                    const char* frame_name = fn.name(trace->frames[j]);
-                    FrameTypeId frame_type = fn.type(trace->frames[j]);
+                    const char* frame_name = fn.name(UNPACK(trace, j));
+                    FrameTypeId frame_type = fn.type(UNPACK(trace, j));
                     f = flamegraph.addChild(f, frame_name, frame_type, counter);
                 }
             }
@@ -1610,7 +1613,7 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
 
             CallTrace* trace = it->trace;
             for (int j = 0; j < trace->num_frames; j++) {
-                const char* frame_name = fn.name(trace->frames[j]);
+                const char* frame_name = fn.name(UNPACK(trace, j));
                 snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
                 out << buf;
             }
@@ -1622,7 +1625,7 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     if (args._dump_flat > 0) {
         std::map<std::string, MethodSample> histogram;
         for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
-            const char* frame_name = fn.name(it->trace->frames[0]);
+            const char* frame_name = fn.name(UNPACK(it->trace, 0));
             histogram[frame_name].add(it->samples, it->counter);
         }
 
@@ -1690,8 +1693,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
         u32 thread_name_idx = 0;
         for (int j = 0; j < trace->num_frames; j++) {
-            if (trace->frames[j].bci == BCI_THREAD_ID) {
-                int tid = (int)(uintptr_t) trace->frames[j].method_id;
+            if (trace->bci(j) == BCI_THREAD_ID) {
+                int tid = (int)(uintptr_t) trace->methodId(j);
                 MutexLocker ml(_thread_names_lock);
                 ThreadMap::iterator it = _thread_names.find(tid);
                 if (it != _thread_names.end()) {
@@ -1701,7 +1704,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
             }
 
             // To be written below in Profile.location_indices
-            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
+            location_indices.push_back(functions.indexOf(fn.name(UNPACK(trace, j))));
             ++frames_seen;
         }
         if (thread_name_idx != 0) {

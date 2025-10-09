@@ -199,13 +199,21 @@ u64 CallTraceStorage::calcHash(int num_frames, ASGCT_CallFrame* frames) {
 }
 
 CallTrace* CallTraceStorage::storeCallTrace(int num_frames, ASGCT_CallFrame* frames) {
-    const size_t header_size = sizeof(CallTrace) - sizeof(ASGCT_CallFrame);
-    CallTrace* buf = (CallTrace*)_allocator.alloc(header_size + num_frames * sizeof(ASGCT_CallFrame));
+    const size_t header_size = sizeof(CallTrace) - sizeof(Packed_ASGCT_CallFrame);
+
+    CallTrace* buf = (CallTrace*)_allocator.alloc(header_size + ((num_frames + 1) >> 1) * sizeof(Packed_ASGCT_CallFrame));
     if (buf != NULL) {
         buf->num_frames = num_frames;
-        // Do not use memcpy inside signal handler
-        for (int i = 0; i < num_frames; i++) {
-            buf->frames[i] = frames[i];
+        for (int i = 0, j = 0; i < num_frames / 2; ++i, j += 2) {
+            buf->frames[i].bci1 = frames[j].bci;
+            buf->frames[i].bci2 = frames[j+1].bci;
+            buf->frames[i].method_id1 = frames[j].method_id;
+            buf->frames[i].method_id2 = frames[j+1].method_id;
+        }
+        if (num_frames % 2 != 0) {
+            int i = num_frames / 2;
+            buf->frames[i].bci1 = frames[num_frames - 1].bci;
+            buf->frames[i].method_id1 = frames[num_frames - 1].method_id;
         }
     }
     return buf;

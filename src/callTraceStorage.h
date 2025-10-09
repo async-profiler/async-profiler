@@ -15,9 +15,35 @@
 
 class LongHashTable;
 
+struct Packed_ASGCT_CallFrame {
+    jint bci1;
+    jint bci2;
+
+    jmethodID method_id1;
+    jmethodID method_id2;
+};
+
+#define UNPACK(trace, i) trace->bci(i), trace->methodId(i)
+
 struct CallTrace {
     int num_frames;
-    ASGCT_CallFrame frames[1];
+    Packed_ASGCT_CallFrame frames[1];
+
+    const jmethodID methodId(int j) const {
+        const Packed_ASGCT_CallFrame& packed = frames[j / 2];
+        if (j % 2 == 0) {
+            return packed.method_id1;
+        }
+        return packed.method_id2;
+    }
+
+    const jint bci(int j) const {
+        const Packed_ASGCT_CallFrame& packed = frames[j / 2];
+        if (j % 2 == 0) {
+            return packed.bci1;
+        }
+        return packed.bci2;
+    }
 };
 
 struct CallTraceSample {

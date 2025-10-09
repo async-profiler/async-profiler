@@ -940,10 +940,10 @@ class Recording {
             buf->putVar32(0);  // truncated
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
-                MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
+                MethodInfo* mi = lookup->resolveMethod(UNPACK(trace, i));
                 buf->putVar32(mi->_key);
                 if (mi->_type == FRAME_INTERPRETED) {
-                    jint bci = trace->frames[i].bci;
+                    jint bci = trace->bci(i);
                     FrameTypeId type = FrameType::decode(bci);
                     bci = (bci & 0x10000) ? 0 : (bci & 0xffff);
                     buf->putVar32(mi->getLineNumber(bci));

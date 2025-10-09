@@ -254,29 +254,29 @@ void FrameName::javaClassName(const char* symbol, size_t length, int style) {
     }
 }
 
-const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
-    if (frame.method_id == NULL) {
+const char* FrameName::name(jint bci, jmethodID method_id, bool for_matching) {
+    if (method_id == NULL) {
         return "[unknown]";
     }
 
-    switch (frame.bci) {
+    switch (bci) {
         case BCI_NATIVE_FRAME:
-            return decodeNativeSymbol((const char*)frame.method_id);
+            return decodeNativeSymbol((const char*)method_id);
 
         case BCI_ALLOC:
         case BCI_ALLOC_OUTSIDE_TLAB:
         case BCI_LOCK:
         case BCI_PARK: {
-            const char* symbol = _class_names[(uintptr_t)frame.method_id];
+            const char* symbol = _class_names[(uintptr_t)method_id];
             javaClassName(symbol, strlen(symbol), _style | STYLE_DOTTED);
             if (!for_matching && !(_style & STYLE_DOTTED)) {
-                _str += frame.bci == BCI_ALLOC_OUTSIDE_TLAB ? "_[k]" : "_[i]";
+                _str += bci == BCI_ALLOC_OUTSIDE_TLAB ? "_[k]" : "_[i]";
             }
             return _str.c_str();
         }
 
         case BCI_THREAD_ID: {
-            int tid = (int)(uintptr_t)frame.method_id;
+            int tid = (int)(uintptr_t)method_id;
             MutexLocker ml(_thread_names_lock);
             ThreadMap::iterator it = _thread_names.find(tid);
             if (for_matching) {
@@ -294,25 +294,25 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
 
         case BCI_ADDRESS: {
             char buf[32];
-            snprintf(buf, sizeof(buf), "%p", frame.method_id);
+            snprintf(buf, sizeof(buf), "%p", method_id);
             return _str.assign(buf).c_str();
         }
 
         case BCI_ERROR:
-            return _str.assign("[").append((const char*)frame.method_id).append("]").c_str();
+            return _str.assign("[").append((const char*)method_id).append("]").c_str();
 
         case BCI_CPU: {
-            int cpu = ((int)(uintptr_t)frame.method_id) & 0x7fff;
+            int cpu = ((int)(uintptr_t)method_id) & 0x7fff;
             char buf[32];
             snprintf(buf, sizeof(buf), "[CPU-%d]", cpu);
             return _str.assign(buf).c_str();
         }
 
         default: {
-            const char* type_suffix = typeSuffix(FrameType::decode(frame.bci));
+            const char* type_suffix = typeSuffix(FrameType::decode(bci));
 
-            JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
-            if (it != _cache.end() && it->first == frame.method_id) {
+            JMethodCache::iterator it = _cache.lower_bound(method_id);
+            if (it != _cache.end() && it->first == method_id) {
                 it->second[0] = _cache_epoch;
                 const char* name = it->second.c_str() + 1;
                 if (type_suffix != NULL) {
@@ -321,8 +321,8 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
                 return name;
             }
 
-            javaMethodName(frame.method_id);
-            _cache.insert(it, JMethodCache::value_type(frame.method_id, std::string(1, _cache_epoch) + _str));
+            javaMethodName(method_id);
+            _cache.insert(it, JMethodCache::value_type(method_id, std::string(1, _cache_epoch) + _str));
             if (type_suffix != NULL) {
                 _str += type_suffix;
             }
@@ -331,14 +331,14 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
     }
 }
 
-FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {
-    if (frame.method_id == NULL) {
+FrameTypeId FrameName::type(jint bci, jmethodID method_id) {
+    if (method_id == NULL) {
         return FRAME_NATIVE;
     }
 
-    switch (frame.bci) {
+    switch (bci) {
         case BCI_NATIVE_FRAME: {
-            const char* name = (const char*)frame.method_id;
+            const char* name = (const char*)method_id;
             if ((name[0] == '_' && name[1] == 'Z') ||
                 (name[0] == '_' && name[1] == 'R') ||
                 (name[0] == '+' && name[1] == '[') ||
@@ -365,7 +365,7 @@ FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {
             return FRAME_NATIVE;
 
         default:
-            return FrameType::decode(frame.bci);
+            return FrameType::decode(bci);
     }
 }
 
