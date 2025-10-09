@@ -60,7 +60,7 @@ bool CpuEngine::setupThreadHook() {
         return true;
     }
 
-    if (!VM::loaded()) {
+    if (!VMCapabilities::available()) {
         static void* dummy_pthread_entry;
         _pthread_entry = &dummy_pthread_entry;
         return true;

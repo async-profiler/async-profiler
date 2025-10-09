@@ -51,6 +51,7 @@ class Profiler {
   private:
     Mutex _state_lock;
     State _state;
+    bool _started_with_vm;
     Trap _begin_trap;
     Trap _end_trap;
     bool _nostop;
@@ -157,6 +158,7 @@ class Profiler {
   public:
     Profiler() :
         _state(NEW),
+        _started_with_vm(true),
         _begin_trap(2),
         _end_trap(3),
         _thread_filter(),

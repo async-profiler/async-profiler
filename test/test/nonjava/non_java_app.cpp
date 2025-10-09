@@ -5,7 +5,6 @@
 
 #include <dirent.h>
 #include <dlfcn.h>
-#include <iostream>
 #include <jni.h>
 #include <limits.h>
 #include <pthread.h>
@@ -55,7 +54,7 @@ double nativeBurnCpu() {
 void loadProfiler() {
     void* lib = dlopen(profiler_lib_path, RTLD_NOW | RTLD_GLOBAL);
     if (lib == NULL) {
-        std::cerr << dlerror() << std::endl;
+        fprintf(stderr, "%s\n", dlerror());
         exit(1);
     }
 
@@ -66,20 +65,46 @@ void loadProfiler() {
     _asprof_init();
 }
 
-void startProfiler() {
-    asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,cstack=vmx", outputCallback);
+void startProfiler(char* output_file) {
+    asprof_error_t err;
+
+    if (output_file == NULL) {
+        err = _asprof_execute("start,event=cpu,interval=1ms,timeout=10s,cstack=vmx", outputCallback);
+    } else {
+        char cmd[4096];
+        snprintf(cmd, sizeof(cmd), "start,event=cpu,interval=1ms,timeout=10s,cstack=vmx,file=%s", output_file);
+        err = _asprof_execute(cmd, outputCallback);
+    }
+
     if (err != NULL) {
-        std::cerr << _asprof_error_str(err) << std::endl;
+        fprintf(stderr, "%s\n", _asprof_error_str(err));
         exit(1);
     }
 }
 
 void stopProfiler(char* output_file) {
+    asprof_error_t err;
+
+    if (output_file == NULL) {
+        err = _asprof_execute("stop", outputCallback);
+    } else {
+        char cmd[4096];
+        snprintf(cmd, sizeof(cmd), "stop,file=%s", output_file);
+        err = _asprof_execute(cmd, outputCallback);
+    }
+
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", _asprof_error_str(err));
+        exit(1);
+    }
+}
+
+void dumpProfiler(char* output_file) {
     char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "stop,file=%s", output_file);
+    snprintf(cmd, sizeof(cmd), "dump,file=%s", output_file);
     asprof_error_t err = _asprof_execute(cmd, outputCallback);
     if (err != NULL) {
-        std::cerr << _asprof_error_str(err) << std::endl;
+        fprintf(stderr, "%s\n", _asprof_error_str(err));
         exit(1);
     }
 }
@@ -87,7 +112,7 @@ void stopProfiler(char* output_file) {
 void loadJvmLib() {
     char* java_home = getenv("TEST_JAVA_HOME");
     if (java_home == NULL) {
-        std::cerr << "TEST_JAVA_HOME is not set" << std::endl;
+        fprintf(stderr, "TEST_JAVA_HOME is not set\n");
         exit(1);
     }
 
@@ -105,7 +130,7 @@ void loadJvmLib() {
 
     DIR* dir = opendir(java_lib_home);
     if (dir == NULL) {
-        std::cerr << "Error opening directory: " << java_lib_home << std::endl;
+        fprintf(stderr, "Error opening directory: %s\n", java_lib_home);
         exit(1);
     }
 
@@ -123,7 +148,7 @@ void loadJvmLib() {
     closedir(dir);
 
     if (_jvm_lib == NULL) {
-        std::cerr << "Unable to find: libjvm" << std::endl;
+        fprintf(stderr, "Unable to find: libjvm\n");
         exit(1);
     }
 }
@@ -141,56 +166,56 @@ void startJvm() {
     vm_args.options = options;
     vm_args.ignoreUnrecognized = true;
 
-    CreateJvm createJvm = (CreateJvm)dlsym(_jvm_lib, "JNI_CreateJavaVM");
-    if (createJvm == NULL) {
-        std::cerr << "Unable to find: JNI_CreateJavaVM" << std::endl;
+    CreateJvm create_jvm = (CreateJvm)dlsym(_jvm_lib, "JNI_CreateJavaVM");
+    if (create_jvm == NULL) {
+        fprintf(stderr, "Unable to find: JNI_CreateJavaVM\n");
         exit(1);
     }
 
     // Create the JVM
-    jint rc = createJvm(&_jvm, (void**)&_env, &vm_args);
+    jint rc = create_jvm(&_jvm, (void**)&_env, &vm_args);
     if (rc != JNI_OK) {
-        std::cerr << "Failed to create JVM" << std::endl;
+        fprintf(stderr, "Failed to create JVM\n");
         exit(1);
     }
 }
 
 void executeJvmTask() {
-    jclass customClass = _env->FindClass("test/nonjava/JavaClass");
-    if (customClass == nullptr) {
-        std::cerr << "Can't find JavaClass" << std::endl;
+    jclass java_class = _env->FindClass("test/nonjava/JavaClass");
+    if (java_class == nullptr) {
+        fprintf(stderr, "Can't find JavaClass\n");
         exit(1);
     }
 
-    jmethodID cpuHeavyTask = _env->GetStaticMethodID(customClass, "cpuHeavyTask", "()D");
-    if (cpuHeavyTask == nullptr) {
-        std::cerr << "Can't find cpuHeavyTask" << std::endl;
+    jmethodID method = _env->GetStaticMethodID(java_class, "cpuHeavyTask", "()D");
+    if (method == nullptr) {
+        fprintf(stderr, "Can't find cpuHeavyTask\n");
         exit(1);
     }
 
     for (int i = 0; i < 300; ++i) {
-        jdouble result = _env->CallStaticDoubleMethod(customClass, cpuHeavyTask);
+        jdouble result = _env->CallStaticDoubleMethod(java_class, method);
         if (_env->ExceptionCheck()) {
             _env->ExceptionDescribe();
-            std::cerr << "Exception in cpuHeavyTask" << std::endl;
+            fprintf(stderr, "Exception in cpuHeavyTask\n");
             exit(1);
         }
-        std::cout << "Result: " << result << std::endl;
+        fprintf(stdout, "Result: %.02f\n", result);
     }
-    _env->DeleteLocalRef(customClass);
+    _env->DeleteLocalRef(java_class);
 }
 
 void stopJvm() {
     jint rc = _jvm->DestroyJavaVM();
     if (rc != JNI_OK) {
-        std::cerr << "Failed to destroy JVM" << std::endl;
+        fprintf(stderr, "Failed to destroy JVM\n");
         exit(1);
     }
 }
 
 void validateArgsCount(int argc, int expected) {
     if (argc < expected) {
-        std::cerr << "Test requires " << (expected - 1) << " arguments" << std::endl;
+        fprintf(stderr, "Test requires %d arguments\n", expected - 1);
         exit(1);
     }
 }
@@ -219,7 +244,7 @@ void testFlow1(int argc, char** argv) {
 
     startJvm();
 
-    startProfiler();
+    startProfiler(NULL);
 
     executeJvmTask();
 
@@ -250,7 +275,7 @@ void testFlow2(int argc, char** argv) {
 
     loadJvmLib();
 
-    startProfiler();
+    startProfiler(NULL);
 
     startJvm();
 
@@ -289,7 +314,7 @@ void testFlow3(int argc, char** argv) {
 
     loadJvmLib();
 
-    startProfiler();
+    startProfiler(NULL);
 
     startJvm();
 
@@ -298,7 +323,7 @@ void testFlow3(int argc, char** argv) {
 
     stopProfiler(argv[2]);
 
-    startProfiler();
+    startProfiler(NULL);
 
     nativeBurnCpu();
     executeJvmTask();
@@ -309,11 +334,15 @@ void testFlow3(int argc, char** argv) {
 }
 
 void* jvmThreadWrapper(void* arg) {
+    volatile bool* run_jvm = (volatile bool*)arg;
+
     loadJvmLib();
 
     startJvm();
 
-    while (1) executeJvmTask();
+    while (*run_jvm) executeJvmTask();
+
+    stopJvm();
 
     return NULL;
 }
@@ -335,20 +364,165 @@ Explanation:
 The same as flow 1, except that profiler will have to attach the caller thread to the JVM.
 */
 void testFlow4(int argc, char** argv) {
+    volatile bool run_jvm = true;
+
     struct timespec wait_time = {(time_t)(2), 0L};
 
     loadProfiler();
 
     pthread_t thread;
-    pthread_create(&thread, NULL, jvmThreadWrapper, NULL);
+    pthread_create(&thread, NULL, jvmThreadWrapper, (void*)&run_jvm);
 
     nanosleep(&wait_time, NULL);
 
-    startProfiler();
+    startProfiler(NULL);
 
     nanosleep(&wait_time, NULL);
 
     stopProfiler(argv[2]);
+
+    run_jvm = false;
+
+    pthread_join(thread, NULL);
+}
+
+
+void* dumpProfile(void* arg) {
+    char* output_file = (char*)arg;
+    dumpProfiler(output_file);
+    return NULL;
+}
+
+/*
+Here is the flow of the test:
+1. Load the profiler
+2. Load the JVM library
+3. Start the JVM
+4. Start the profiler
+5. Execute the JVM task
+6. Stop the profiler
+7. Dump the profiler on a different thread
+8. Stop the JVM
+
+Expected output:
+The profiler should be able to profile the JVM task.
+
+Explanation:
+The JVM is loaded and started before the profiling session,
+so profiler correctly dump profiling details related to the JVM process.
+*/
+void testFlow5(int argc, char** argv) {
+    loadProfiler();
+
+    loadJvmLib();
+
+    startJvm();
+
+    startProfiler(NULL);
+
+    executeJvmTask();
+
+    stopProfiler(NULL);
+
+    pthread_t thread;
+    pthread_create(&thread, NULL, dumpProfile, argv[2]);
+    pthread_join(thread, NULL);
+
+    stopJvm();
+}
+
+void* startProfilerDifferentThread(void* arg) {
+    startProfiler((char*)arg);
+    return NULL;
+}
+
+/*
+Here is the flow of the test:
+1. Load the profiler
+2. Load the JVM library
+3. Start the JVM
+4. Start the profiler
+5. Stop the profiler
+6. Start the profiler on a different thread
+7. Execute the JVM task
+7. Stop the profiler on the original thread
+8. Stop the JVM
+
+Expected output:
+The profiler should be able to profile the JVM task.
+
+Explanation:
+The JVM is loaded and started before the profiling session,
+so profiler correctly dump profiling details related to the JVM process.
+*/
+void testFlow6(int argc, char** argv) {
+    loadProfiler();
+
+    loadJvmLib();
+
+    startJvm();
+
+    startProfiler(NULL);
+
+    stopProfiler(NULL);
+
+    pthread_t thread;
+    pthread_create(&thread, NULL, startProfilerDifferentThread, NULL);
+    pthread_join(thread, NULL);
+
+    executeJvmTask();
+
+    stopProfiler(argv[2]);
+
+    stopJvm();
+}
+
+void* stopProfilerDifferentThread(void* arg) {
+    stopProfiler((char*)arg);
+    return NULL;
+}
+
+/*
+Here is the flow of the test:
+1. Load the profiler
+2. Load the JVM library
+3. Start the JVM
+4. Start the profiler
+5. Stop the profiler
+6. Start the profiler on a different thread
+7. Execute the JVM task
+8. Stop the profiler on a different thread
+9. Stop the JVM
+
+Expected output:
+The profiler should be able to profile the JVM task.
+
+Explanation:
+The JVM is loaded and started before the profiling session,
+so profiler correctly dump profiling details related to the JVM process.
+*/
+void testFlow7(int argc, char** argv) {
+    loadProfiler();
+
+    loadJvmLib();
+
+    startJvm();
+
+    startProfiler(NULL);
+
+    stopProfiler(NULL);
+
+    pthread_t thread1;
+    pthread_create(&thread1, NULL, startProfilerDifferentThread, argv[2]);
+    pthread_join(thread1, NULL);
+
+    executeJvmTask();
+
+    pthread_t thread2;
+    pthread_create(&thread2, NULL, stopProfilerDifferentThread, NULL);
+    pthread_join(thread2, NULL);
+
+    stopJvm();
 }
 
 int main(int argc, char** argv) {
@@ -369,8 +543,17 @@ int main(int argc, char** argv) {
         case '4':
             testFlow4(argc, argv);
             break;
+        case '5':
+            testFlow5(argc, argv);
+            break;
+        case '6':
+            testFlow6(argc, argv);
+            break;
+        case '7':
+            testFlow7(argc, argv);
+            break;
         default:
-            std::cerr << "Unknown flow: " << flow[0] << std::endl;
+            fprintf(stderr, "Unknown flow: %s\n", flow);
             exit(1);
     }
 

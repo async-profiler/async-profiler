@@ -685,7 +685,7 @@ class Recording {
             writeIntSetting(buf, T_PROCESS_SAMPLE, "proc", args._proc);
         }
 
-        writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VM::loaded() && VMStructs::libjvm()->hasDebugSymbols());
+        writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VMCapabilities::available() && VMStructs::libjvm()->hasDebugSymbols());
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "kernelSymbols", Symbols::haveKernelSymbols());
     }
 
@@ -745,7 +745,7 @@ class Recording {
     }
 
     void writeJvmInfo(Buffer* buf) {
-        if (_agent_properties == NULL && !(VM::loaded() && parseAgentProperties())) {
+        if (_agent_properties == NULL && !(VMCapabilities::available() && parseAgentProperties())) {
             return;
         }
 
@@ -777,7 +777,7 @@ class Recording {
         jvmtiEnv* jvmti = VM::jvmti();
         jint count;
         char** keys;
-        if (!VM::loaded() || jvmti->GetSystemProperties(&count, &keys) != 0) {
+        if (!VMCapabilities::available() || jvmti->GetSystemProperties(&count, &keys) != 0) {
             return;
         }
 

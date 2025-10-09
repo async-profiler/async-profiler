@@ -105,8 +105,6 @@ class VM {
     static bool _openj9;
     static bool _zing;
 
-    static GetCreatedJavaVMs _getCreatedJavaVMs;
-
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
@@ -114,7 +112,6 @@ class VM {
     static void applyPatch(char* func, const char* patch, const char* end_patch);
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
-    static bool hasJvmThreads();
 
   public:
     static AsyncGetCallTrace _asyncGetCallTrace;
@@ -122,8 +119,6 @@ class VM {
     static JVM_MemoryFunc _freeMemory;
 
     static bool init(JavaVM* vm, bool attach);
-
-    static void tryAttach();
 
     static bool loaded() {
         return _jvmti != NULL;
@@ -142,6 +137,11 @@ class VM {
         JNIEnv* jni;
         JavaVMAttachArgs args = {JNI_VERSION_1_6, (char*)name, NULL};
         return _vm->AttachCurrentThreadAsDaemon((void**)&jni, &args) == 0 ? jni : NULL;
+    }
+
+    static JNIEnv* attachThread() {
+        JNIEnv* jni;
+        return _vm->AttachCurrentThreadAsDaemon((void**)&jni, NULL) == 0 ? jni : NULL;
     }
 
     static void detachThread() {
@@ -185,6 +185,25 @@ class VM {
 
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
+};
+
+class VMCapabilities {
+  private:
+    static GetCreatedJavaVMs _getCreatedJavaVMs;
+    static thread_local bool _available;
+    bool _attached;
+
+    static bool hasJvmThreads();
+
+  public:
+    VMCapabilities();
+    ~VMCapabilities();
+
+    void tryAttach();
+
+    static bool available() {
+        return _available;
+    }
 };
 
 #endif // _VMENTRY_H

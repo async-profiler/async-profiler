@@ -21,7 +21,7 @@ void TSC::enable(Clock clock) {
     }
 
     if (!_initialized) {
-        if (VM::loaded()) {
+        if (VMCapabilities::available()) {
             JNIEnv* env = VM::jni();
 
             jfieldID jvm;
