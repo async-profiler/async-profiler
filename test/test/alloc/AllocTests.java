@@ -41,9 +41,11 @@ public class AllocTests {
         assert out.contains("java\\.util\\.HashMap\\$Node\\[]");
     }
 
-    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
+    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%profile", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
+    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=vm,flamegraph,file=%profile", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB", nameSuffix = "VM")
+    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=vmx,flamegraph,file=%profile", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB", nameSuffix = "VMX")
     public void startup(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        Output out = p.waitForExit("%profile");
         out = out.convertFlameToCollapsed();
         assert out.contains("JNI_CreateJavaVM");
         assert out.contains("java/lang/ClassLoader\\.loadClass");
@@ -51,6 +53,12 @@ public class AllocTests {
         assert out.contains("java\\.lang\\.Thread");
         assert out.contains("java\\.lang\\.String");
         assert out.contains("int\\[]");
+
+        if (p.test().nameSuffix().equals("VMX")) { // VMX doesn't do any frame skipping
+            assert out.contains("InterpreterRuntime::");
+        } else {
+            assert !out.contains("InterpreterRuntime::");
+        }
     }
 
     @Test(mainClass = MapReaderOpt.class, agentArgs = "start,event=G1CollectedHeap::humongous_obj_allocate", jvmArgs = "-XX:+UseG1GC -XX:G1HeapRegionSize=1M -Xmx4g -Xms4g", os = Os.LINUX)
