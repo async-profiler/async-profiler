@@ -141,6 +141,9 @@ bool VM::init(JavaVM* vm, bool attach) {
         return false;
     }
 
+    Profiler* profiler = Profiler::instance();
+    profiler->updateSymbols(false);
+
     bool is_hotspot = false;
     bool is_zero_vm = false;
     char* prop;
@@ -177,9 +180,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     _totalMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_TotalMemory");
     _freeMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_FreeMemory");
 
-    Profiler* profiler = Profiler::instance();
     if (VMStructs::libjvm() == NULL) {
-        profiler->updateSymbols(false);
         VMStructs::init(profiler->findLibraryByAddress((const void*)_asyncGetCallTrace));
     }
 
