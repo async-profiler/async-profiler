@@ -29,11 +29,11 @@ struct CallTrace {
     int num_frames;
     Packed_ASGCT_CallFrame frames[1];
 
-    const jint bci(u32 j) const {
+    jint bci(u32 j) const {
         return *(firstBciPtr(j) + (j & 1));
     }
 
-    const jmethodID methodId(u32 j) const {
+    jmethodID methodId(u32 j) const {
         const jmethodID* base = (jmethodID*) (firstBciPtr(j) + 2);
         return *(base + (j & 1));
     }
