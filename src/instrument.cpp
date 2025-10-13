@@ -1120,19 +1120,19 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
     const char* colon;
 
     // Signature
-    const char* bracket = strchr(last_dot, '(');
+    const char* paren = strchr(last_dot, '(');
     std::string signature;
-    if (bracket != NULL) {
-        colon = strchr(bracket, ':');
+    if (paren != NULL) {
+        colon = strchr(paren, ':');
         if (colon == NULL) {
-            signature = std::string(bracket);
+            signature = std::string(paren);
         } else {
-            size_t sig_size = colon - bracket;
-            signature = std::string(bracket, sig_size);
+            size_t sig_size = colon - paren;
+            signature = std::string(paren, sig_size);
         }
 
         // We also know the boundaries for method_name know
-        size_t method_name_size = bracket - last_dot - 1;
+        size_t method_name_size = paren - last_dot - 1;
         method_name = std::string(last_dot + 1, method_name_size);
     } else {
         signature = "*";
@@ -1149,7 +1149,7 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
     }
 
     // Fill in method_name in case signature is not provided
-    if (bracket == NULL) {
+    if (paren == NULL) {
         if (colon == NULL) {
             method_name = std::string(last_dot + 1);
         } else {
