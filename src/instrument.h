@@ -9,6 +9,7 @@
 #include <jvmti.h>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include "arch.h"
 #include "engine.h"
 
@@ -17,7 +18,7 @@ typedef std::string Method; // name and signature
 typedef long Latency;
 
 typedef std::map<Method, Latency> MethodTargets;
-typedef std::map<ClassName, MethodTargets> Targets;
+typedef std::unordered_map<ClassName, MethodTargets> Targets;
 
 const MethodTargets EMPTY_METHOD_TARGETS;
 
