@@ -1087,9 +1087,9 @@ void Instrument::stop() {
 Error handleTarget(Targets& targets, const char* s, long default_latency) {
     // Expected formats:
     // - the.package.name.ClassName.MethodName
-    // - the.package.name.ClassName.MethodName+50ms
+    // - the.package.name.ClassName.MethodName:50ms
     // - the.package.name.ClassName.MethodName(Jjava/lang/String;)V
-    // - the.package.name.ClassName.MethodName(Jjava/lang/String;)V+50ms
+    // - the.package.name.ClassName.MethodName(Jjava/lang/String;)V:50ms
 
     const char* last_dot = strrchr(s, '.');
     if (last_dot == NULL) {
