@@ -893,15 +893,15 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
     return Result::OK;
 }
 
-bool findLatency(const MethodTargets* target_methods, const Constant* method_name, const Constant* method_desc, long& latency) {
-    std::string method = method_name->as_string() + method_desc->as_string();
+bool findLatency(const MethodTargets* target_methods, const std::string&& method_name, const std::string&& method_desc, long& latency) {
+    std::string method = method_name + method_desc;
     for (const auto& target : *target_methods) {
         if (
             // Try to match the whole method descriptor
             matchesPattern(method.c_str(), method.length(), target.first) ||
             // Or, try to match only the name if the pattern does not contain the signature
-            (method_name->info() == target.first.length() &&
-                memcmp(method_name->utf8(), target.first.c_str(), target.first.length()) == 0)
+            (method_name.length() == target.first.length() &&
+                memcmp(method_name.c_str(), target.first.c_str(), target.first.length()) == 0)
         ) {
             latency = target.second;
             return true;
@@ -928,7 +928,8 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
             _method_name = _cpool[name_index];
             long latency;
             if ((access_flags & JVM_ACC_NATIVE) == 0 &&
-                findLatency(_target_methods, _cpool[name_index], _cpool[descriptor_index], latency)
+                findLatency(_target_methods, _cpool[name_index]->as_string(),
+                            _cpool[descriptor_index]->as_string(), latency)
             ) {
                 Result res = rewriteMethod(access_flags, descriptor_index, latency);
                 if (res != Result::OK) return res;
