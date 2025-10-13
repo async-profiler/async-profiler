@@ -186,7 +186,10 @@ class BytecodeRewriter {
     // Maps latency to the index in the constant pool
     std::unordered_map<u64, u16> _latency_cpool_idx;
 
-    const MethodTargets& _target_methods;
+    // '_targets' will be used when the name of the class is not
+    // known beforehand. Only one shall be non-empty.
+    const Targets* _targets;
+    const MethodTargets* _target_methods;
 
     // Reader
 
@@ -316,7 +319,7 @@ class BytecodeRewriter {
     Result rewriteClass();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const MethodTargets& target_methods) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const MethodTargets* target_methods, const Targets* targets = nullptr) :
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
@@ -325,7 +328,10 @@ class BytecodeRewriter {
         _cpool(NULL),
         _class_name(nullptr),
         _method_name(nullptr),
-        _target_methods(target_methods) {}
+        _target_methods(target_methods),
+        _targets(targets) {
+        assert((_target_methods == nullptr) != (_targets == nullptr)); // Exactly one non-empty
+    }
 
     ~BytecodeRewriter() {
         delete[] _cpool;
@@ -888,9 +894,9 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
     return Result::OK;
 }
 
-bool findLatency(const MethodTargets& target_methods, const Constant* method_name, const Constant* method_desc, long& latency) {
+bool findLatency(const MethodTargets* target_methods, const Constant* method_name, const Constant* method_desc, long& latency) {
     std::string method = method_name->as_string() + method_desc->as_string();
-    for (const auto& target : target_methods) {
+    for (const auto& target : *target_methods) {
         if (
             // Try to match the whole method descriptor
             matchesPattern(method.c_str(), method.length(), target.first) ||
@@ -958,6 +964,23 @@ Result BytecodeRewriter::rewriteClass() {
     const u8* cpool_end = _src;
     put(cpool_start, cpool_end - cpool_start);
 
+    if (_target_methods == nullptr) {
+        for (int i = 1; i < _cpool_len; i += _cpool[i]->slots()) {
+            if (_cpool[i]->tag() != JVM_CONSTANT_Class) continue;
+
+            u16 name_idx = _cpool[i]->info();
+            const auto& it = _targets->find(_cpool[name_idx]->as_string());
+            if (it == _targets->end()) {
+                _target_methods = &EMPTY_METHOD_TARGETS;
+            } else {
+                _target_methods = &it->second;
+            }
+            break;
+        }
+        // JVM_CONSTANT_Class should always be present
+        assert(_target_methods != nullptr);
+    }
+
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
     _recordEntry_cpool_idx = _cpool_len;
     putConstant(JVM_CONSTANT_Class, _cpool_len + 3);
@@ -986,7 +1009,7 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant("()J");
 
     u16 new_cpool_len = _cpool_len + 19;
-    for (const auto& target : _target_methods) {
+    for (const auto& target : *_target_methods) {
         long latency = target.second;
         // latency == 0 does not need a spot in the map
         if (latency > 0 && _latency_cpool_idx[latency] == 0) {
@@ -1219,7 +1242,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     if (name == NULL) {
         // Make sure the class is rewritten, constant pool reconstitution
         // doesn't always work (JDK-8216547)
-        BytecodeRewriter rewriter(class_data, class_data_len, EMPTY_METHOD_TARGETS);
+        BytecodeRewriter rewriter(class_data, class_data_len, nullptr, &_targets);
         rewriter.rewrite(new_class_data, new_class_data_len);
         return;
     }
@@ -1227,7 +1250,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     size_t len = strlen(name);
     for (const auto& target : _targets) {
         if (matchesPattern(name, len, target.first)) {
-            BytecodeRewriter rewriter(class_data, class_data_len, target.second);
+            BytecodeRewriter rewriter(class_data, class_data_len, &target.second);
             rewriter.rewrite(new_class_data, new_class_data_len);
             return;
         }
