@@ -1077,12 +1077,12 @@ Error Instrument::start(Arguments& args) {
 
 void Instrument::stop() {
     if (!_running) return;
+    _running = false;
 
     jvmtiEnv* jvmti = VM::jvmti();
     retransformMatchedClasses(jvmti);  // undo transformation
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
 
-    _running = false;
     _targets.clear();
 }
 
