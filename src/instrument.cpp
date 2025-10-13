@@ -894,19 +894,21 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
 }
 
 bool findLatency(const MethodTargets* target_methods, const std::string&& method_name, const std::string&& method_desc, long& latency) {
-    std::string method = method_name + method_desc;
-    for (const auto& target : *target_methods) {
+    const std::string method = method_name + method_desc;
+    auto it = target_methods->lower_bound(method);
+    if (it == target_methods->end()) --it;
+    do {
         if (
             // Try to match the whole method descriptor
-            matchesPattern(method.c_str(), method.length(), target.first) ||
+            matchesPattern(method.c_str(), method.length(), it->first) ||
             // Or, try to match only the name if the pattern does not contain the signature
-            (method_name.length() == target.first.length() &&
-                memcmp(method_name.c_str(), target.first.c_str(), target.first.length()) == 0)
+            (method_name.length() == it->first.length() &&
+                memcmp(method_name.c_str(), it->first.c_str(), it->first.length()) == 0)
         ) {
-            latency = target.second;
+            latency = it->second;
             return true;
         }
-    }
+    } while (it-- != target_methods->begin());
     return false;
 }
 
