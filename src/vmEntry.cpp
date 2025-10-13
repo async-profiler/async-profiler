@@ -419,6 +419,7 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 void JNICALL VM::VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
+    Profiler::instance()->set_jvm_dying();
     Profiler::instance()->shutdown(_global_args);
 }
 
