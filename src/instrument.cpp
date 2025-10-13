@@ -943,7 +943,7 @@ Result BytecodeRewriter::rewriteClass() {
 
     _cpool_len = get16();
     u32 cpool_len_idx = _dst_len;
-    put16(_cpool_len); // to be patched later
+    put16(0); // to be patched later
 
     const u8* cpool_start = _src;
 
