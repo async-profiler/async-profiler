@@ -676,7 +676,7 @@ class Recording {
         }
 
         writeBoolSetting(buf, T_METHOD_TRACE, "enabled", !args._trace.empty());
-        writeListSetting(buf, T_METHOD_TRACE, "targets", args._trace);
+        writeListSetting(buf, T_METHOD_TRACE, "trace", args._trace);
 
         writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
         if (args._proc > 0) {
