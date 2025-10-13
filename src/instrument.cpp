@@ -1027,6 +1027,7 @@ Error Instrument::start(Arguments& args) {
 
 void Instrument::stop() {
     _running = false;
+    if (Profiler::instance()->is_jvm_dying()) return;
 
     jvmtiEnv* jvmti = VM::jvmti();
     retransformMatchedClasses(jvmti);  // undo transformation
