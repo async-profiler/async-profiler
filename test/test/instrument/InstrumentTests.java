@@ -451,7 +451,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurnerStopProfiler.class,
-        jvmArgs   = "-ea -Djava.library.path=build/lib -Xverify:all --enable-native-access=ALL-UNNAMED",
+        jvmArgs   = "-ea -Djava.library.path=build/lib -Xverify:all -XX:+IgnoreUnrecognizedVMOptions --enable-native-access=ALL-UNNAMED",
         output    = true,
         error     = true
     )
