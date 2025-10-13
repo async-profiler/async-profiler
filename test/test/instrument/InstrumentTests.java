@@ -449,6 +449,17 @@ public class InstrumentTests {
         assert out.samples(MAIN_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + " ") >= duration.toNanos();
     }
 
+    @Test(
+        mainClass = CpuBurnerStopProfiler.class,
+        jvmArgs   = "-ea -Djava.library.path=build/lib -Xverify:all",
+        output    = true,
+        error     = true
+    )
+    public void stop(TestProcess p) throws Exception {
+        p.waitForExit();
+        assertNoVerificationErrors(p);
+    }
+
     private static void assertNoVerificationErrors(TestProcess p) throws IOException {
         Output stdout = p.readFile(TestProcess.STDOUT);
         assert !stdout.contains("\\[ERROR\\]") && !stdout.contains("SIGSEGV") : stdout;
