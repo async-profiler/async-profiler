@@ -45,6 +45,7 @@ int VMStructs::_comp_method_offset = -1;
 int VMStructs::_anchor_sp_offset = -1;
 int VMStructs::_anchor_pc_offset = -1;
 int VMStructs::_anchor_fp_offset = -1;
+int VMStructs::_blob_size_offset = -1;
 int VMStructs::_frame_size_offset = -1;
 int VMStructs::_frame_complete_offset = -1;
 int VMStructs::_code_offset = -1;
@@ -296,7 +297,9 @@ void VMStructs::initOffsets() {
                     _anchor_fp_offset = *(int*)(entry + offset_offset);
                 }
             } else if (strcmp(type, "CodeBlob") == 0) {
-                if (strcmp(field, "_frame_size") == 0) {
+                if (strcmp(field, "_size") == 0) {
+                    _blob_size_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_frame_size") == 0) {
                     _frame_size_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_frame_complete_offset") == 0) {
                     _frame_complete_offset = *(int*)(entry + offset_offset);

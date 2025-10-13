@@ -123,10 +123,11 @@ jobs:
           - runner: macos-15
             test-platform: macos-arm64
             java-version: "21"
-          - runner: macos-13
+          - runner: macos-15-intel
             test-platform: macos-x64
             java-version: "17"
             architecture: x64
+            retry-count: 1
     uses: ./.github/workflows/integ.yml
     with:
       platform: macos
@@ -134,6 +135,7 @@ jobs:
       runner: ${{ matrix.runner }}
       java-version: ${{ matrix.java-version }}
       architecture: ${{ matrix.architecture || '' }}
+      retry-count: ${{ matrix.retry-count || 0 }}
 
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
