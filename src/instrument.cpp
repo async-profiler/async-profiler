@@ -893,7 +893,8 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
     return Result::OK;
 }
 
-bool findLatency(const MethodTargets* target_methods, const std::string&& method_name, const std::string&& method_desc, long& latency) {
+static bool findLatency(const MethodTargets* target_methods, const std::string&& method_name,
+                        const std::string&& method_desc, long& latency) {
     const std::string method = method_name + method_desc;
     auto it = target_methods->lower_bound(method);
     if (it == target_methods->end()) --it;

@@ -223,4 +223,40 @@ TEST_CASE(Instrument_test_matchesPattern_empty) {
     CHECK_EQ(matchesPattern("someValue", 9, ""), false);
 }
 
+TEST_CASE(Instrument_test_findLatency) {
+    MethodTargets t;
+    t["meth*"] = 0;
+    t["method1"] = 10;
+    t["method2(Ljava/time/Duration;)V"] = 11;
+    t["method3*"] = 12;
+    t["method4(L*"] = 13;
+
+    long latency;
+    CHECK_EQ(findLatency(&t, "method1", "()V", latency), true);
+    CHECK_EQ(latency, 10);
+
+    CHECK_EQ(findLatency(&t, "method2", "(Ljava/time/Duration;)V", latency), true);
+    CHECK_EQ(latency, 11);
+
+    CHECK_EQ(findLatency(&t, "method2", "()V", latency), true);
+    CHECK_EQ(latency, 0);
+
+    CHECK_EQ(findLatency(&t, "method3", "(Ljava/time/Duration;)V", latency), true);
+    CHECK_EQ(latency, 12);
+
+    CHECK_EQ(findLatency(&t, "method3", "()V", latency), true);
+    CHECK_EQ(latency, 12);
+
+    CHECK_EQ(findLatency(&t, "method4", "(Ljava/time/Duration;)V", latency), true);
+    CHECK_EQ(latency, 13);
+
+    CHECK_EQ(findLatency(&t, "method4", "()V", latency), true);
+    CHECK_EQ(latency, 0);
+
+    CHECK_EQ(findLatency(&t, "methodd1", "(Ljava/time/Duration;)V", latency), true);
+    CHECK_EQ(latency, 0);
+
+    CHECK_EQ(findLatency(&t, "nethod1", "(Ljava/time/Duration;)V", latency), false);
+}
+
 #endif // __linux__
