@@ -9,33 +9,14 @@
 #include <jvmti.h>
 #include <map>
 #include <string>
-#include <vector>
 #include "arch.h"
 #include "engine.h"
 
 typedef std::string ClassName;
-typedef std::string MethodName;
+typedef std::string Method; // name and signature
+typedef long Latency;
 
-class MethodTarget {
-  public:
-    // Fictitious latency which disables method tracing and falls back to
-    // JVM method instrumentaton.
-    static const long NO_LATENCY = -1;
-
-    std::string signature;
-    long latency;
-
-    MethodTarget(std::string&& signature, long latency) :
-        signature(std::move(signature)),
-        latency(latency) {}
-
-    MethodTarget(const MethodTarget&) = delete;
-    MethodTarget& operator=(const MethodTarget&) = delete;
-    MethodTarget(MethodTarget&& other)
-        : signature(std::move(other.signature)), latency(other.latency) {}
-};
-
-typedef std::map<MethodName, std::vector<MethodTarget>> MethodTargets;
+typedef std::map<Method, Latency> MethodTargets;
 typedef std::map<ClassName, MethodTargets> Targets;
 
 const MethodTargets EMPTY_METHOD_TARGETS;

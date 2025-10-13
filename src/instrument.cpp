@@ -24,6 +24,7 @@ static constexpr u32 PROFILER_PACKAGE_LEN = 13;
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
 constexpr u16 MAX_CODE_LENGTH = 65534;
+constexpr long NO_LATENCY = -1;
 
 enum class Result {
     OK,
@@ -311,7 +312,6 @@ class BytecodeRewriter {
     Result rewriteMethod(u16 access_flags, u16 descriptor_index, long latency);
     Result rewriteAttributes(u16 access_flags = 0, u16 descriptor_index = 0);
     Result rewriteCodeAttributes(const u16* relocation_table, int new_local_index);
-    bool findLatency(long& latency, u16 method_name_index, u16 method_desc_index);
     Result rewriteMembers(Scope scope);
     Result rewriteClass();
 
@@ -441,7 +441,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, lon
 
     // This contains the byte index, considering that long and double take two slots
     int new_local_index = -1;
-    if (latency == MethodTarget::NO_LATENCY) {
+    if (latency == NO_LATENCY) {
         put8(JVM_OPC_invokestatic);
         put16(_recordEntry_cpool_idx);
         // nop ensures that tableswitch/lookupswitch needs no realignment
@@ -888,15 +888,18 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
     return Result::OK;
 }
 
-bool BytecodeRewriter::findLatency(long& latency, u16 method_name_index, u16 method_desc_index) {
-    for (const auto& name_it : _target_methods) {
-        if (_cpool[method_name_index]->matches(name_it.first)) {
-            for (const auto& target : name_it.second) {
-                if (_cpool[method_desc_index]->matches(target.signature)) {
-                    latency = target.latency;
-                    return true;
-                }
-            }
+bool findLatency(const MethodTargets& target_methods, const Constant* method_name, const Constant* method_desc, long& latency) {
+    std::string method = method_name->as_string() + method_desc->as_string();
+    for (const auto& target : target_methods) {
+        if (
+            // Try to match the whole method descriptor
+            matchesPattern(method.c_str(), method.length(), target.first) ||
+            // Or, try to match only the name if the pattern does not contain the signature
+            (method_name->info() == target.first.length() &&
+                memcmp(method_name->utf8(), target.first.c_str(), target.first.length()) == 0)
+        ) {
+            latency = target.second;
+            return true;
         }
     }
     return false;
@@ -920,7 +923,7 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
             _method_name = _cpool[name_index];
             long latency;
             if ((access_flags & JVM_ACC_NATIVE) == 0 &&
-                findLatency(latency, name_index, descriptor_index)
+                findLatency(_target_methods, _cpool[name_index], _cpool[descriptor_index], latency)
             ) {
                 Result res = rewriteMethod(access_flags, descriptor_index, latency);
                 if (res != Result::OK) return res;
@@ -983,14 +986,13 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant("()J");
 
     u16 new_cpool_len = _cpool_len + 19;
-    for (const auto& name_it : _target_methods) {
-        for (const MethodTarget& target : name_it.second) {
-            // latency == 0 does not need a spot in the map
-            if (target.latency > 0 && _latency_cpool_idx[target.latency] == 0) {
-                _latency_cpool_idx[target.latency] = new_cpool_len;
-                putLongConstant(target.latency);
-                new_cpool_len += 2;
-            }
+    for (const auto& target : _target_methods) {
+        long latency = target.second;
+        // latency == 0 does not need a spot in the map
+        if (latency > 0 && _latency_cpool_idx[latency] == 0) {
+            _latency_cpool_idx[latency] = new_cpool_len;
+            putLongConstant(latency);
+            new_cpool_len += 2;
         }
     }
     put16(_dst + cpool_len_idx, new_cpool_len);
@@ -1112,34 +1114,9 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
         class_name[dot_idx] = '/';
     }
 
-    // We need to know what's the next special symbol (either '(' or ':')
-    // to figure the method name.
-    std::string method_name;
-
-    const char* colon;
-
-    // Signature
-    const char* paren = strchr(last_dot, '(');
-    std::string signature;
-    if (paren != NULL) {
-        colon = strchr(paren, ':');
-        if (colon == NULL) {
-            signature = std::string(paren);
-        } else {
-            size_t sig_size = colon - paren;
-            signature = std::string(paren, sig_size);
-        }
-
-        // We also know the boundaries for method_name know
-        size_t method_name_size = paren - last_dot - 1;
-        method_name = std::string(last_dot + 1, method_name_size);
-    } else {
-        signature = "*";
-        colon = strchr(last_dot, ':');
-    }
-
     // Latency
     long latency = default_latency;
+    const char* colon = strchr(last_dot, ':');
     if (colon != NULL) {
         latency = Arguments::parseUnits(colon + 1, NANOS);
         if (latency < 0) {
@@ -1147,16 +1124,14 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
         }
     }
 
-    // Fill in method_name in case signature is not provided
-    if (paren == NULL) {
-        if (colon == NULL) {
-            method_name = std::string(last_dot + 1);
-        } else {
-            method_name = std::string(last_dot + 1, colon - last_dot - 1);
-        }
+    std::string method;
+    if (colon == NULL) {
+        method = std::string(last_dot + 1);
+    } else {
+        method = std::string(last_dot + 1, colon - last_dot - 1);
     }
 
-    targets[std::move(class_name)][std::move(method_name)].emplace_back(std::move(signature), latency);
+    targets[std::move(class_name)][std::move(method)] = latency;
 
     return Error::OK;
 }
@@ -1165,7 +1140,7 @@ Error Instrument::setupTargetClassAndMethod(const Arguments& args) {
     _targets.clear();
     
     if (args._trace.empty()) {
-        Error error = handleTarget(_targets, args._event, MethodTarget::NO_LATENCY);
+        Error error = handleTarget(_targets, args._event, NO_LATENCY);
         if (error) return error;
     } else {
         for (const char* s : args._trace) {
