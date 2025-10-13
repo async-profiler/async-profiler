@@ -985,13 +985,12 @@ Result BytecodeRewriter::rewriteClass() {
     u16 new_cpool_len = _cpool_len + 19;
     for (const auto& name_it : _target_methods) {
         for (const MethodTarget& target : name_it.second) {
-            if (_latency_cpool_idx.find(target.latency) != _latency_cpool_idx.end()) continue;
-            if (target.latency == MethodTarget::NO_LATENCY) continue;
-            assert(target.latency >= 0);
-
-            putLongConstant(target.latency);
-            _latency_cpool_idx[target.latency] = new_cpool_len;
-            new_cpool_len += 2;
+            // latency == 0 does not need a spot in the map
+            if (target.latency > 0 && _latency_cpool_idx[target.latency] == 0) {
+                _latency_cpool_idx[target.latency] = new_cpool_len;
+                putLongConstant(target.latency);
+                new_cpool_len += 2;
+            }
         }
     }
     put16(_dst + cpool_len_idx, new_cpool_len);
