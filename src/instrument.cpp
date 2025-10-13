@@ -895,10 +895,13 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
 
 static bool findLatency(const MethodTargets* target_methods, const std::string&& method_name,
                         const std::string&& method_desc, long& latency) {
+    if (target_methods->empty()) return false;
+
     const std::string method = method_name + method_desc;
     auto it = target_methods->lower_bound(method);
     if (it == target_methods->end()) --it;
-    do {
+
+    while (true) {
         if (
             // Try to match the whole method descriptor
             matchesPattern(method.c_str(), method.length(), it->first) ||
@@ -909,8 +912,10 @@ static bool findLatency(const MethodTargets* target_methods, const std::string&&
             latency = it->second;
             return true;
         }
-    } while (it-- != target_methods->begin());
-    return false;
+
+        if (it == target_methods->begin()) return false;
+        --it;
+    }
 }
 
 Result BytecodeRewriter::rewriteMembers(Scope scope) {
