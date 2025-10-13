@@ -27,10 +27,8 @@ public class CpuBurnerStopProfiler {
         String output = profiler.dumpCollapsed(Counter.SAMPLES);
         profiler.stop();
 
+        // If output is not empty, the instrumentation from the previous
+        // call wasn't properly cleared. That's wrong.
         assert output.isEmpty() : output;
     }
-}
-
-class AnotherClass {
-    private static void func2() {}
 }
