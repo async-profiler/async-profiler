@@ -183,7 +183,7 @@ class BytecodeRewriter {
     u16 _nanoTime_cpool_idx;
 
     // Maps latency to the index in the constant pool
-    std::unordered_map<long, long> _latency_constant_idx;
+    std::unordered_map<u64, u16> _latency_cpool_idx;
 
     const MethodTargets& _target_methods;
 
@@ -525,8 +525,8 @@ Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, 
             if (latency > 0) {
                 put8(JVM_OPC_ldc2_w);
 
-                auto latency_it = _latency_constant_idx.find(latency);
-                assert(latency_it != _latency_constant_idx.end());
+                auto latency_it = _latency_cpool_idx.find(latency);
+                assert(latency_it != _latency_cpool_idx.end());
                 put16(latency_it->second);
             } else {
                 put8(JVM_OPC_nop);
@@ -985,12 +985,12 @@ Result BytecodeRewriter::rewriteClass() {
     u16 new_cpool_len = _cpool_len + 19;
     for (const auto& name_it : _target_methods) {
         for (const MethodTarget& target : name_it.second) {
-            if (_latency_constant_idx.find(target.latency) != _latency_constant_idx.end()) continue;
+            if (_latency_cpool_idx.find(target.latency) != _latency_cpool_idx.end()) continue;
             if (target.latency == MethodTarget::NO_LATENCY) continue;
             assert(target.latency >= 0);
 
             putLongConstant(target.latency);
-            _latency_constant_idx[target.latency] = new_cpool_len;
+            _latency_cpool_idx[target.latency] = new_cpool_len;
             new_cpool_len += 2;
         }
     }
