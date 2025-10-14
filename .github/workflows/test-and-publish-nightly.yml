@@ -30,7 +30,7 @@ jobs:
     with:
       platform: linux-arm64
       runner: ubuntu-24.04-arm
-      container-image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+      container-image: "arm:latest"
 
   build-linux-x64:
     name: build / linux-x64
@@ -38,7 +38,7 @@ jobs:
     with:
       platform: linux-x64
       runner: ubuntu-latest
-      container-image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
+      container-image: x86:latest
 
   build-macos:
     name: build / macos
@@ -48,29 +48,37 @@ jobs:
       runner: macos-15
 
   integ-linux-x64:
-    name: integration test / linux-x64
+    name: integ / linux-x64
     needs: build-linux-x64
     strategy:
       fail-fast: false
       matrix:
         test-platform: [linux-x64]
-        container-image: [public.ecr.aws/async-profiler/asprof-builder-x86:latest]
-        java-version: [8, 11, 17, 21, 24]
+        java-version: [8, 11, 17, 21, 25]
         java-distribution: [corretto]
+        container-image: [x86:latest]
         include:
           - test-platform: linux-x64-alpine
-            container-image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
+            container-image: alpine:corretto-11
+            use-builtin-jdk: true
+            java-distribution: corretto
+            java-version: 11
           - test-platform: linux-x64-AL2
-            container-image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
+            container-image: amazonlinux:2
             # GHA provides Node.js by attaching a volume to the container. The container path is
             # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
             container-volumes: '["/tmp/node20:/__e/node20"]'
             java-version: 11
             java-distribution: corretto
           - test-platform: linux-x64-AL2023
-            container-image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2023
+            container-image: amazonlinux:2023
             java-version: 11
             java-distribution: corretto
+          - test-platform: linux-x64-alpaquita
+            container-image: alpaquita:x86_64-liberica-21
+            use-builtin-jdk: true
+            java-distribution: liberica
+            java-version: 21
     uses: ./.github/workflows/integ.yml
     with:
       platform: linux-x64
@@ -80,20 +88,30 @@ jobs:
       container-volumes: ${{ matrix.container-volumes || '' }}
       java-version: ${{ matrix.java-version }}
       java-distribution: ${{ matrix.java-distribution }}
+      use-builtin-jdk: ${{ matrix.use-builtin-jdk || false }}
 
   integ-linux-arm64:
-    name: integration test / linux-arm64
+    name: integ / linux-arm64
     needs: build-linux-arm64
+    strategy:
+      fail-fast: false
+      matrix:
+        test-platform: [linux-arm64]
+        java-version: [8, 11, 17, 21, 25]
+        java-distribution: [corretto]
+        container-image: [arm:latest]
     uses: ./.github/workflows/integ.yml
     with:
       platform: linux-arm64
-      test-platform: linux-arm64
+      test-platform: ${{ matrix.test-platform }}
       runner: ubuntu-24.04-arm
-      container-image: public.ecr.aws/async-profiler/asprof-builder-arm:latest
-      java-version: "11"
+      container-image: ${{ matrix.container-image }}
+      container-volumes: ${{ matrix.container-volumes || '' }}
+      java-version: ${{ matrix.java-version }}
+      java-distribution: ${{ matrix.java-distribution }}
 
   integ-macos:
-    name: integration test / macos
+    name: integ / macos
     needs: build-macos
     strategy:
       fail-fast: false
@@ -105,10 +123,11 @@ jobs:
           - runner: macos-15
             test-platform: macos-arm64
             java-version: "21"
-          - runner: macos-13
+          - runner: macos-15-intel
             test-platform: macos-x64
             java-version: "17"
             architecture: x64
+            retry-count: 1
     uses: ./.github/workflows/integ.yml
     with:
       platform: macos
@@ -116,6 +135,7 @@ jobs:
       runner: ${{ matrix.runner }}
       java-version: ${{ matrix.java-version }}
       architecture: ${{ matrix.architecture || '' }}
+      retry-count: ${{ matrix.retry-count || 0 }}
 
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'

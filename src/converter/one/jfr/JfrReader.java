@@ -53,6 +53,7 @@ public class JfrReader implements Closeable {
     public final Dictionary<JfrClass> types = new Dictionary<>();
     public final Map<String, JfrClass> typesByName = new HashMap<>();
     public final Dictionary<String> threads = new Dictionary<>();
+    public final Dictionary<Long> javaThreads = new Dictionary<>();
     public final Dictionary<ClassRef> classes = new Dictionary<>();
     public final Dictionary<String> strings = new Dictionary<>();
     public final Dictionary<byte[]> symbols = new Dictionary<>();
@@ -76,6 +77,7 @@ public class JfrReader implements Closeable {
     private int activeSetting;
     private int malloc;
     private int free;
+    private int cpuTimeSample;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -183,6 +185,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
+            } else if (type == cpuTimeSample) {
+                if (cls == null || cls == ExecutionSample.class) return (E) readCPUTimeSample();
             } else if (type == malloc) {
                 if (cls == null || cls == MallocEvent.class) return (E) readMallocEvent(true);
             } else if (type == free) {
@@ -241,6 +245,16 @@ public class JfrReader implements Closeable {
         long allocationSize = getVarlong();
         long tlabSize = tlab ? getVarlong() : 0;
         return new AllocationSample(time, tid, stackTraceId, classId, allocationSize, tlabSize);
+    }
+
+    private ExecutionSample readCPUTimeSample() {
+        long time = getVarlong();
+        int stackTraceId = getVarint();
+        int tid = getVarint();
+        boolean failed = getBoolean();
+        long samplingPeriod = getVarlong();
+        boolean biased = getBoolean();
+        return new ExecutionSample(time, tid, stackTraceId, ExecutionSample.CPU_TIME_SAMPLE, 1);
     }
 
     private MallocEvent readMallocEvent(boolean hasSize) {
@@ -438,7 +452,9 @@ public class JfrReader implements Closeable {
     }
 
     private void readThreads(int fieldCount) {
-        int count = threads.preallocate(getVarint());
+        int count = getVarint();
+        threads.preallocate(count);
+        javaThreads.preallocate(count);
         for (int i = 0; i < count; i++) {
             long id = getVarlong();
             String osName = getString();
@@ -447,6 +463,7 @@ public class JfrReader implements Closeable {
             long javaThreadId = getVarlong();
             readFields(fieldCount - 4);
             threads.put(id, javaName != null ? javaName : osName);
+            javaThreads.put(id, javaThreadId);
         }
     }
 
@@ -574,6 +591,7 @@ public class JfrReader implements Closeable {
         activeSetting = getTypeId("jdk.ActiveSetting");
         malloc = getTypeId("profiler.Malloc");
         free = getTypeId("profiler.Free");
+        cpuTimeSample = getTypeId("jdk.CPUTimeSample");
 
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);
@@ -636,6 +654,10 @@ public class JfrReader implements Closeable {
 
     public byte getByte() {
         return buf.get();
+    }
+
+    public boolean getBoolean() {
+        return buf.get() != 0;
     }
 
     public String getString() {

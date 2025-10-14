@@ -21,7 +21,7 @@ jobs:
   build:
     runs-on: ${{ inputs.runner }}
     container:
-      image: ${{ inputs.container-image }}
+      image: ${{ inputs.container-image && format('public.ecr.aws/async-profiler/asprof-builder-{0}', inputs.container-image) || '' }}
     name: "build and unit test (${{ inputs.platform }})"
     steps:
       - name: Run container setup

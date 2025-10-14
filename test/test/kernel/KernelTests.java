@@ -19,12 +19,12 @@ public class KernelTests {
         Output out = p.profile("-e cpu-clock -d 3 -i 1ms -o collapsed");
         Output err = p.readFile(TestProcess.PROFERR);
         assert out.contains("test/kernel/ListFiles.listFiles;java/io/File");
-        assert err.contains("Kernel symbols are unavailable") || out.contains("sys_getdents");
+        assert err.contains("Kernel symbols are unavailable") || out.contains("(sys|SyS)_getdents");
 
         out = p.profile("stop -o flamegraph");
         out = out.convertFlameToCollapsed();
         assert out.contains("java/io/File.list");
-        assert err.contains("Kernel symbols are unavailable") || out.contains("sys_getdents");
+        assert err.contains("Kernel symbols are unavailable") || out.contains("(sys|SyS)_getdents");
     }
 
     @Test(mainClass = ListFiles.class, os = Os.LINUX)
@@ -32,7 +32,7 @@ public class KernelTests {
         p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer", true);
         Output out = p.readFile("%f");
         assert out.contains("test/kernel/ListFiles.listFiles;java/io/File");
-        assert out.contains("sys_getdents");
+        assert out.contains("(sys|SyS)_getdents");
     }
 
     @Test(mainClass = ListFiles.class, os = Os.LINUX)

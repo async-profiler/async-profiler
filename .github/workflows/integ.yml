@@ -28,12 +28,20 @@ on:
       container-volumes:
         type: string
         required: false
+      use-builtin-jdk:
+        type: boolean
+        required: false
+        default: false
+      retry-count:
+        type: number
+        required: false
+        default: 0
 
 jobs:
   integration-test:
     runs-on: ${{ inputs.runner }}
     container:
-      image: ${{ inputs.container-image }}
+      image: ${{ inputs.container-image && format('public.ecr.aws/async-profiler/asprof-builder-{0}', inputs.container-image) || '' }}
       options: --privileged
       volumes: ${{ fromJSON(inputs.container-volumes || '[]') }}
     name: "${{ inputs.test-platform }}, ${{ inputs.java-distribution }} ${{ inputs.java-version }}"
@@ -44,7 +52,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
-        if: ${{ !contains(inputs.test-platform, 'alpine') }}
+        if: ${{ !inputs.use-builtin-jdk }}
         with:
           distribution: ${{ inputs.java-distribution }}
           java-version: ${{ inputs.java-version }}
@@ -97,7 +105,7 @@ jobs:
           make build/test.jar
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
-          make test-java -j
+          make test-java RETRY_COUNT=${{ inputs.retry-count }} -j
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
         if: always()
