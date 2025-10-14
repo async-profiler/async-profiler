@@ -201,14 +201,6 @@
 			<svg height="20px" width="20px" viewBox="0 0 20 20"><rect x="0" y="0" style="fill:#ff8d40;" width="20" height="4"></rect><rect x="0" y="5" style="fill:#40b2ff;" width="16" height="4"></rect><rect x="0" y="10" style="fill:#ff8d40;" width="8" height="4"></rect><rect x="0" y="15" style="fill:#40b2ff;" width="4" height="4"></rect></svg>
 		</div>
 
-		<div id="timezone-toggle" class="toolbarIcon" style="margin-top: 16px; flex-direction: column; font-size: 7px; line-height: 1" title="Toggle Local/UTC Time [Click to switch]">
-			<svg height="12px" width="12px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-				<circle cx="12" cy="12" r="10"></circle>
-				<polyline points="12 6 12 12 16 14"></polyline>
-			</svg>
-			<span id="timezone-label" style="margin-top: 1px">Local</span>
-		</div>
-
 		<div id="info-tooltip">
 			<div style="float:left">
 				<div style="padding: 4px;">Frame types:</div>
@@ -1070,7 +1062,8 @@
 		hour: '2-digit',
 		minute: '2-digit',
 		second: '2-digit',
-		hourCycle: 'h23'
+		hourCycle: 'h23',
+		timeZoneName: 'short'
 	};
 
 	let currentTimezone = localStorage.getItem('heatmap-timezone') || 'Local';
@@ -1082,18 +1075,6 @@
 		} else {
 			return date.toLocaleTimeString(undefined, options);
 		}
-	}
-
-	const timezoneToggle = document.getElementById('timezone-toggle');
-	const timezoneLabel = document.getElementById('timezone-label');
-	if (timezoneToggle && timezoneLabel) {
-		timezoneLabel.textContent = currentTimezone;
-		timezoneToggle.addEventListener('click', function() {
-			currentTimezone = currentTimezone === 'Local' ? 'UTC' : 'Local';
-			timezoneLabel.textContent = currentTimezone;
-			localStorage.setItem('heatmap-timezone', currentTimezone);
-			redrawHeatMap();
-		});
 	}
 
 	function getCount(counts, i) {
@@ -4272,6 +4253,14 @@
 			let sample = x * currentHeatmap.timeSquareRowsCount + y;
 
 			callActiveRedraw(sample, true, event.ctrlKey);
+		}
+	};
+
+	heatCanvas.onclick = function (event) {
+		if (event.offsetY < canvasTimeHeightPx && !moved) {
+			currentTimezone = currentTimezone === 'Local' ? 'UTC' : 'Local';
+			localStorage.setItem('heatmap-timezone', currentTimezone);
+			redrawHeatMap();
 		}
 	};
 
