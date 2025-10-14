@@ -22,9 +22,6 @@ public final class DiffFolded {
         }
     }
 
-    /**
-     * Process two collapsed files and output differential data
-     */
     private static void processFiles(String file1, String file2, PrintStream output) throws IOException {
         Map<String, Long> folded1 = readCollapsedFile(file1);
         Map<String, Long> folded2 = readCollapsedFile(file2);
@@ -63,9 +60,7 @@ public final class DiffFolded {
                 if (line.isEmpty()) continue;
 
                 int lastSpace = line.lastIndexOf(' ');
-                if (lastSpace <= 0) {
-                    continue;
-                }
+                if (lastSpace <= 0) continue;
 
                 String stack = line.substring(0, lastSpace);
                 long count = Long.parseLong(line.substring(lastSpace + 1));

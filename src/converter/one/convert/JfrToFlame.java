@@ -49,7 +49,7 @@ public class JfrToFlame extends JfrConverter {
                         Classifier.Category category = getCategory(stackTrace);
                         stack.push(category.title, category.type);
                     }
-                    for (int i = methods.length; --i >= 0;) {
+                    for (int i = methods.length; --i >= 0; ) {
                         String methodName = getMethodName(methods[i], types[i]);
                         int location;
                         if (args.lines && (location = locations[i] >>> 16) != 0) {
