@@ -51,8 +51,6 @@ class Profiler {
   private:
     Mutex _state_lock;
     State _state;
-    bool _jvm_dying;
-
     Trap _begin_trap;
     Trap _end_trap;
     bool _nostop;
@@ -159,7 +157,6 @@ class Profiler {
   public:
     Profiler() :
         _state(NEW),
-        _jvm_dying(false),
         _begin_trap(2),
         _end_trap(3),
         _thread_filter(),
@@ -186,10 +183,6 @@ class Profiler {
     static Profiler* instance() {
         return _instance;
     }
-
-    // No synchronization, should only be used within the same thread
-    void set_jvm_dying() { _jvm_dying = true; }
-    bool is_jvm_dying() const { return _jvm_dying; }
 
     u64 total_samples() { return _total_samples; }
     long uptime()       { return (OS::micros() - _start_time) / 1000000ULL; }
