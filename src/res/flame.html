@@ -72,11 +72,8 @@
 	}
 
 	function getDifferentialColor(delta) {
-		// Brendan Gregg's differential coloring algorithm
-		// Start with white (255, 255, 255)
 		let r = 255, g = 255, b = 255;
 		
-		// Find the maximum absolute delta for scaling
 		let maxDelta = 1;
 		if (typeof deltaMap !== 'undefined') {
 			for (const key in deltaMap) {
@@ -85,10 +82,10 @@
 		}
 		
 		if (delta > 0) {
-			// Positive delta: red (reduce green and blue)
+			// Positive delta: red
 			g = b = Math.floor(210 * (maxDelta - delta) / maxDelta);
 		} else if (delta < 0) {
-			// Negative delta: blue (reduce red and green)
+			// Negative delta: blue
 			r = g = Math.floor(210 * (maxDelta + delta) / maxDelta);
 		}
 		// Zero delta stays white
@@ -249,7 +246,7 @@
 				hl.style.top = ((inverted ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
 				hl.firstChild.textContent = f.title;
 				hl.style.display = 'block';
-				// Tooltip generation - include differential percentage if available (following Brendan's approach)
+				// Tooltip generation - include differential percentage if available
 				var deltaInfo = '';
 				if (typeof deltaMap !== 'undefined' && deltaMap[f.title] !== undefined) {
 					var delta = deltaMap[f.title];
