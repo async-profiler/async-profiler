@@ -10,7 +10,7 @@ import one.profiler.*;
 import java.time.Duration;
 import java.util.Random;
 
-public class CpuBurnerStopProfiler {
+public class MethodTracingStop {
 
     private static void func1() {}
     
@@ -18,7 +18,7 @@ public class CpuBurnerStopProfiler {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
 
         // Phase 1: latency profiling
-        profiler.execute("start,trace=test.instrument.CpuBurnerStopProfiler.func1");
+        profiler.execute("start,trace=test.instrument.MethodTracingStop.func1");
         profiler.stop();
 
         // Phase 2: profile another method
