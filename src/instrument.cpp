@@ -167,9 +167,6 @@ enum PatchConstants {
 
 class BytecodeRewriter {
   private:
-    const u8* _class_data;
-    const jint _class_data_len;
-
     const u8* _src;
     const u8* _src_limit;
 
@@ -327,8 +324,6 @@ class BytecodeRewriter {
 
   public:
     BytecodeRewriter(const u8* class_data, int class_data_len, const Targets* targets, const MethodTargets* method_targets) :
-        _class_data(class_data),
-        _class_data_len(class_data_len),
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
@@ -374,9 +369,7 @@ class BytecodeRewriter {
                 Log::trace("Skipping instrumentation of %s: internal profiler class", class_name.c_str());
                 break;
             case Result::ABORTED: {
-                VM::jvmti()->Allocate(_class_data_len, new_class_data);
-                memcpy(*new_class_data, _class_data, _class_data_len);
-                *new_class_data_len = _class_data_len;
+                // Nothing to do
                 break;
             }
             default:
