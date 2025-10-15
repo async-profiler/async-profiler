@@ -24,7 +24,7 @@ static constexpr u32 PROFILER_PACKAGE_LEN = 13;
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
 constexpr u16 MAX_CODE_LENGTH = 65534;
-constexpr long NO_LATENCY = -1;
+constexpr Latency NO_LATENCY = -1;
 
 enum class Result {
     OK,
@@ -184,7 +184,7 @@ class BytecodeRewriter {
     u16 _nanoTime_cpool_idx;
 
     // Maps latency to the index in the constant pool
-    std::unordered_map<u64, u16> _latency_cpool_idx;
+    std::unordered_map<Latency, u16> _latency_cpool_idx;
 
     const Targets* const _targets;
     const MethodTargets* _target_methods;
@@ -304,13 +304,13 @@ class BytecodeRewriter {
 
     // BytecodeRewriter
 
-    Result rewriteCode(u16 access_flags, u16 descriptor_index, long latency);
-    Result rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, u64 latency);
+    Result rewriteCode(u16 access_flags, u16 descriptor_index, Latency latency);
+    Result rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, Latency latency);
     void rewriteLineNumberTable(const u16* relocation_table);
     void rewriteLocalVariableTable(const u16* relocation_table, int new_local_index);
     Result rewriteStackMapTable(const u16* relocation_table, int new_local_index);
     u8 rewriteVerificationTypeInfo(const u16* relocation_table);
-    Result rewriteMethod(u16 access_flags, u16 descriptor_index, long latency);
+    Result rewriteMethod(u16 access_flags, u16 descriptor_index, Latency latency);
     Result rewriteAttributes(u16 access_flags = 0, u16 descriptor_index = 0);
     Result rewriteCodeAttributes(const u16* relocation_table, int new_local_index);
     Result rewriteMembers(Scope scope);
@@ -422,7 +422,7 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
-Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, long latency) {
+Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, Latency latency) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -471,7 +471,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, lon
         bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_non_static;
 
-        Result res = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table, (u64) latency);
+        Result res = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table, latency);
         if (res != Result::OK) {
             delete[] relocation_table;
             return res;
@@ -504,7 +504,7 @@ Result BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index, lon
     return Result::OK;
 }
 
-Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, u64 latency) {
+Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 start_time_loc_index, u16* relocation_table, Latency latency) {
     // Method start is relocated
     u16 current_relocation = EXTRA_BYTECODES_ENTRY;
 
@@ -829,7 +829,7 @@ u8 BytecodeRewriter::rewriteVerificationTypeInfo(const u16* relocation_table) {
     return tag;
 }
 
-Result BytecodeRewriter::rewriteMethod(u16 access_flags, u16 descriptor_index, long latency) {
+Result BytecodeRewriter::rewriteMethod(u16 access_flags, u16 descriptor_index, Latency latency) {
     u16 attributes_count = get16();
     put16(attributes_count);
 
@@ -896,7 +896,7 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
 }
 
 static bool findLatency(const MethodTargets* target_methods, const std::string&& method_name,
-                        const std::string&& method_desc, long& latency) {
+                        const std::string&& method_desc, Latency& latency) {
     const std::string method = method_name + method_desc;
     auto it = target_methods->lower_bound(method);
     if (it == target_methods->end()) --it;
@@ -934,7 +934,7 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
 
         if (scope == SCOPE_METHOD) {
             _method_name = _cpool[name_index];
-            long latency;
+            Latency latency;
             if ((access_flags & JVM_ACC_NATIVE) == 0 &&
                 findLatency(_target_methods, _cpool[name_index]->toString(),
                             _cpool[descriptor_index]->toString(), latency)
@@ -1024,7 +1024,7 @@ Result BytecodeRewriter::rewriteClass() {
 
     u16 new_cpool_len = _cpool_len + 19;
     for (const auto& target : *_target_methods) {
-        long latency = target.second;
+        Latency latency = target.second;
         // latency == 0 does not need a spot in the map
         if (latency > 0 && _latency_cpool_idx[latency] == 0) {
             _latency_cpool_idx[latency] = new_cpool_len;
@@ -1056,7 +1056,7 @@ Result BytecodeRewriter::rewriteClass() {
 
 Targets Instrument::_targets;
 bool Instrument::_instrument_class_loaded = false;
-u64 Instrument::_interval;
+Latency Instrument::_interval;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
@@ -1113,7 +1113,7 @@ void Instrument::stop() {
     _targets.clear();
 }
 
-Error addTarget(Targets& targets, const char* s, long default_latency) {
+Error addTarget(Targets& targets, const char* s, Latency default_latency) {
     // Expected formats:
     // - the.package.name.ClassName.MethodName
     // - the.package.name.ClassName.MethodName:50ms
@@ -1141,7 +1141,7 @@ Error addTarget(Targets& targets, const char* s, long default_latency) {
     }
 
     // Latency
-    long latency = default_latency;
+    Latency latency = default_latency;
     const char* colon = strchr(last_dot, ':');
     if (colon != NULL) {
         latency = Arguments::parseUnits(colon + 1, NANOS);

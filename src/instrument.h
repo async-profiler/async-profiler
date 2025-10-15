@@ -23,7 +23,7 @@ class Instrument : public Engine {
   private:
     static Targets _targets;
     static bool _instrument_class_loaded;
-    static u64 _interval;
+    static Latency _interval;
     static volatile u64 _calls;
     static volatile bool _running;
 
