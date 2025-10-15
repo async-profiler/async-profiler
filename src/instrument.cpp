@@ -1244,8 +1244,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     if (!_running) return;
 
     if (name == NULL) {
-        // Make sure the class is rewritten, constant pool reconstitution
-        // doesn't always work (JDK-8216547)
+        // Maybe we'll find a matching class name in the cpool?
         BytecodeRewriter rewriter(class_data, class_data_len, &_targets, nullptr);
         rewriter.rewrite(new_class_data, new_class_data_len);
         return;
