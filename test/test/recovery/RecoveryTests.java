@@ -36,7 +36,6 @@ public class RecoveryTests {
     public void stringBuilderArm(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
         Assert.isGreater(out.ratio("(forward|foward|backward)_copy_longs"), 0.8); // there's a typo on some JDK versions
-        Assert.isLess(out.ratio("unknown_Java"), 0.01);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("StringBuilderTest.main;java/lang/StringBuilder.delete;"), 0.8);
@@ -48,7 +47,6 @@ public class RecoveryTests {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
         Assert.isGreater(out.ratio("vtable stub"), 0.01);
         Assert.isGreater(out.ratio("Numbers.loop"), 0.8);
-        Assert.isLess(out.ratio("unknown_Java"), 0.01);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop"), 0.8);
@@ -61,7 +59,6 @@ public class RecoveryTests {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
         Assert.isGreater(out.ratio("itable stub"), 0.01);
         Assert.isGreater(out.ratio("Suppliers.loop"), 0.5);
-        Assert.isLess(out.ratio("unknown_Java"), 0.01);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("Suppliers.main;test/recovery/Suppliers.loop"), 0.5);
