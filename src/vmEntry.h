@@ -105,6 +105,8 @@ class VM {
     static bool _openj9;
     static bool _zing;
 
+    static bool _jvm_dying;
+
     static GetCreatedJavaVMs _getCreatedJavaVMs;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -158,6 +160,15 @@ class VM {
 
     static bool isZing() {
         return _zing;
+    }
+
+    // No synchronization, should only be used within the same thread
+    static void set_jvm_dying() {
+        _jvm_dying = true;
+    }
+
+    static bool is_jvm_dying() {
+        return _jvm_dying;
     }
 
     static bool addSampleObjectsCapability() {
