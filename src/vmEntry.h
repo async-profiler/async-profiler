@@ -105,7 +105,7 @@ class VM {
     static bool _openj9;
     static bool _zing;
 
-    static bool _jvm_dying;
+    static bool _terminating;
 
     static GetCreatedJavaVMs _getCreatedJavaVMs;
 
@@ -163,12 +163,8 @@ class VM {
     }
 
     // No synchronization, should only be used within the same thread
-    static void set_jvm_dying() {
-        _jvm_dying = true;
-    }
-
-    static bool is_jvm_dying() {
-        return _jvm_dying;
+    static bool isTerminating() {
+        return _terminating;
     }
 
     static bool addSampleObjectsCapability() {
