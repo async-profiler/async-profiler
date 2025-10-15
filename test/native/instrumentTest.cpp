@@ -141,26 +141,30 @@ TEST_CASE(Instrument_test_addTarget_default) {
     Targets t;
     Error e = addTarget(t, "my.pkg.ClassName.MethodName", -28);
     CHECK_EQ(e.message(), NULL);
-    CHECK_EQ(t.size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"], -28);
+
+    long latency;
+    CHECK_EQ(findLatency(&t["my/pkg/ClassName"], "MethodName", "", latency), true);
+    CHECK_EQ(latency, -28);
 }
 
 TEST_CASE(Instrument_test_addTarget_latency) {
     Targets t;
     Error e = addTarget(t, "my.pkg.ClassName.MethodName:20ns", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
-    CHECK_EQ(t.size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName"], 20);
+
+    long latency;
+    CHECK_EQ(findLatency(&t["my/pkg/ClassName"], "MethodName", "", latency), true);
+    CHECK_EQ(latency, 20);
 }
 
 TEST_CASE(Instrument_test_addTarget_signatureAndLatency) {
     Targets t;
     Error e = addTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
-    CHECK_EQ(t.size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName(Ljava/time/Duration;)V"], 20);
+
+    long latency;
+    CHECK_EQ(findLatency(&t["my/pkg/ClassName"], "MethodName", "(Ljava/time/Duration;)V", latency), true);
+    CHECK_EQ(latency, 20);
 }
 
 TEST_CASE(Instrument_test_addTarget_manyClasses) {
@@ -170,9 +174,11 @@ TEST_CASE(Instrument_test_addTarget_manyClasses) {
     e = addTarget(t, "my.pkg.AnotherClass.MethodName()V:100ms", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
-    CHECK_EQ(t.size(), 2);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName(Ljava/time/Duration;)V"], 20);
-    CHECK_EQ(t["my/pkg/AnotherClass"]["MethodName()V"], 100000000);
+    long latency;
+    CHECK_EQ(findLatency(&t["my/pkg/ClassName"], "MethodName", "(Ljava/time/Duration;)V", latency), true);
+    CHECK_EQ(latency, 20);
+    CHECK_EQ(findLatency(&t["my/pkg/AnotherClass"], "MethodName", "()V", latency), true);
+    CHECK_EQ(latency, 100000000);
 }
 
 TEST_CASE(Instrument_test_addTarget_manyMethods) {
@@ -182,10 +188,11 @@ TEST_CASE(Instrument_test_addTarget_manyMethods) {
     e = addTarget(t, "my.pkg.ClassName.AnotherMethod()V:100ms", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
-    CHECK_EQ(t.size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"].size(), 2);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName(Ljava/time/Duration;)V"], 20);
-    CHECK_EQ(t["my/pkg/ClassName"]["AnotherMethod()V"], 100000000);
+    long latency;
+    CHECK_EQ(findLatency(&t["my/pkg/ClassName"], "MethodName", "(Ljava/time/Duration;)V", latency), true);
+    CHECK_EQ(latency, 20);
+    CHECK_EQ(findLatency(&t["my/pkg/ClassName"], "AnotherMethod", "()V", latency), true);
+    CHECK_EQ(latency, 100000000);
 }
 
 TEST_CASE(Instrument_test_addTarget_manySignatures) {
@@ -195,10 +202,11 @@ TEST_CASE(Instrument_test_addTarget_manySignatures) {
     e = addTarget(t, "my.pkg.ClassName.MethodName()V:100ms", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
-    CHECK_EQ(t.size(), 1);
-    CHECK_EQ(t["my/pkg/ClassName"].size(), 2);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName(Ljava/time/Duration;)V"], 20);
-    CHECK_EQ(t["my/pkg/ClassName"]["MethodName()V"], 100000000);
+    long latency;
+    CHECK_EQ(findLatency(&t["my/pkg/ClassName"], "MethodName", "(Ljava/time/Duration;)V", latency), true);
+    CHECK_EQ(latency, 20);
+    CHECK_EQ(findLatency(&t["my/pkg/ClassName"], "MethodName", "()V", latency), true);
+    CHECK_EQ(latency, 100000000);
 }
 
 TEST_CASE(Instrument_test_addTarget_wrongSignature) {
