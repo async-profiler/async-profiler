@@ -32,6 +32,8 @@ int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
 bool VM::_zing = false;
 
+bool VM::_terminating = false;
+
 GetCreatedJavaVMs VM::_getCreatedJavaVMs = NULL;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -419,6 +421,7 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 void JNICALL VM::VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
+    _terminating = true;
     Profiler::instance()->shutdown(_global_args);
 }
 

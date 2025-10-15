@@ -1112,6 +1112,7 @@ Error Instrument::start(Arguments& args) {
 void Instrument::stop() {
     if (!_running) return;
     _running = false;
+    if (VM::isTerminating()) return;
 
     jvmtiEnv* jvmti = VM::jvmti();
     retransformMatchedClasses(jvmti);  // undo transformation
