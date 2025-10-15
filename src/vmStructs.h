@@ -489,7 +489,7 @@ class NMethod : VMStructs {
             return *(void**) at(-_nmethod_entry_offset);
         }
     }
-    
+
     bool contains(const void* pc) {
         return pc >= this && pc < at(size());
     }
@@ -519,6 +519,11 @@ class NMethod : VMStructs {
     bool isStub() {
         const char* n = name();
         return n != NULL && strncmp(n, "StubRoutines", 12) == 0;
+    }
+
+    bool isVTableStub() {
+        const char* n = name();
+        return n != NULL && strcmp(n, "vtable chunks") == 0;
     }
 
     VMMethod* method() {

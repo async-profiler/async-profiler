@@ -317,7 +317,7 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
         native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
-    } else if (_cstack >= CSTACK_VM) {
+    } else if (_cstack == CSTACK_VM) {
         return 0;
     } else if (_cstack == CSTACK_DWARF) {
         native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
@@ -645,11 +645,11 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         }
     }
 
-    if (_cstack == CSTACK_VMX) {
-        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_EXPERT);
+    if (_features.mixed) {
+        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, _features, event_type);
     } else if (event_type <= MALLOC_SAMPLE) {
         if (_cstack == CSTACK_VM) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL);
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, _features, event_type);
         } else {
             int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
             if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
@@ -663,7 +663,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
         VMThread* vm_thread;
         if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor());
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor(), event_type);
         } else {
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }
@@ -1173,7 +1173,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("DWARF unwinding is not supported on this platform");
     } else if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
-    } else if (_cstack >= CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
+    } else if (_cstack == CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
         return Error("VMStructs stack walking is not supported on this JVM/platform");
     }
 
@@ -1339,7 +1339,7 @@ Error Profiler::check(Arguments& args) {
             return Error("DWARF unwinding is not supported on this platform");
         } else if (args._cstack == CSTACK_LBR && _engine != &perf_events) {
             return Error("Branch stack is supported only with PMU events");
-        } else if (args._cstack >= CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
+        } else if (args._cstack == CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
             return Error("VMStructs stack walking is not supported on this JVM/platform");
         }
     }
