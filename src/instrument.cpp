@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unordered_map>
 #include <vector>
 #include "assert.h"
 #include "classfile_constants.h"
@@ -30,7 +31,8 @@ enum class Result {
     METHOD_TOO_LARGE,
     JUMP_OVERFLOW,
     BAD_FULL_FRAME,
-    PROFILER_CLASS
+    PROFILER_CLASS,
+    ABORTED
 };
 
 static inline u16 alignUp4(u16 i) {
@@ -156,6 +158,9 @@ enum PatchConstants {
 
 class BytecodeRewriter {
   private:
+    const u8* _class_data;
+    const jint _class_data_len;
+
     const u8* _src;
     const u8* _src_limit;
 
@@ -181,9 +186,7 @@ class BytecodeRewriter {
     // Maps latency to the index in the constant pool
     std::unordered_map<u64, u16> _latency_cpool_idx;
 
-    // '_targets' will be used when the name of the class is not
-    // known beforehand. Only one shall be non-empty.
-    const Targets* _targets;
+    const Targets* const _targets;
     const MethodTargets* _target_methods;
 
     // Reader
@@ -314,7 +317,9 @@ class BytecodeRewriter {
     Result rewriteClass();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const MethodTargets* target_methods, const Targets* targets = nullptr) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const Targets* targets) :
+        _class_data(class_data),
+        _class_data_len(class_data_len),
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
@@ -323,10 +328,8 @@ class BytecodeRewriter {
         _cpool(NULL),
         _class_name(nullptr),
         _method_name(nullptr),
-        _target_methods(target_methods),
-        _targets(targets) {
-        assert((_target_methods == nullptr) != (_targets == nullptr)); // Exactly one non-empty
-    }
+        _targets(targets),
+        _target_methods(nullptr) {}
 
     ~BytecodeRewriter() {
         delete[] _cpool;
@@ -361,6 +364,12 @@ class BytecodeRewriter {
             case Result::PROFILER_CLASS:
                 Log::trace("Skipping instrumentation of %s: internal profiler class", class_name.c_str());
                 break;
+            case Result::ABORTED: {
+                VM::jvmti()->Allocate(_class_data_len, new_class_data);
+                memcpy(*new_class_data, _class_data, _class_data_len);
+                *new_class_data_len = _class_data_len;
+                break;
+            }
             default:
                 break;
         }
@@ -888,8 +897,6 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
 
 static bool findLatency(const MethodTargets* target_methods, const std::string&& method_name,
                         const std::string&& method_desc, long& latency) {
-    if (target_methods->empty()) return false;
-
     const std::string method = method_name + method_desc;
     auto it = target_methods->lower_bound(method);
     if (it == target_methods->end()) --it;
@@ -965,23 +972,6 @@ Result BytecodeRewriter::rewriteClass() {
     const u8* cpool_end = _src;
     put(cpool_start, cpool_end - cpool_start);
 
-    if (_target_methods == nullptr) {
-        for (int i = 1; i < _cpool_len; i += _cpool[i]->slots()) {
-            if (_cpool[i]->tag() != JVM_CONSTANT_Class) continue;
-
-            u16 name_idx = _cpool[i]->info();
-            const auto& it = _targets->find(_cpool[name_idx]->toString());
-            if (it == _targets->end()) {
-                _target_methods = &EMPTY_METHOD_TARGETS;
-            } else {
-                _target_methods = &it->second;
-            }
-            break;
-        }
-        // JVM_CONSTANT_Class should always be present
-        assert(_target_methods != nullptr);
-    }
-
     putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
     _recordEntry_cpool_idx = _cpool_len;
     putConstant(JVM_CONSTANT_Class, _cpool_len + 3);
@@ -1009,6 +999,29 @@ Result BytecodeRewriter::rewriteClass() {
     putConstant("nanoTime");
     putConstant("()J");
 
+    // Flushed later to the buffer, after latency-related constants are written to the cpool
+    u16 access_flags = get16();
+    u16 this_class = get16();
+
+    u16 class_name_index = _cpool[this_class]->info();
+    _class_name = _cpool[class_name_index];
+    // We should not instrument classes from one.profiler.* to avoid infinite recursion
+    if (_class_name->info() >= PROFILER_PACKAGE_LEN &&
+    strncmp(_class_name->utf8(), PROFILER_PACKAGE, PROFILER_PACKAGE_LEN) == 0) {
+        return Result::PROFILER_CLASS;
+    }
+
+    for (const auto& target : *_targets) {
+        if (matchesPattern(_class_name->utf8(), _class_name->info(), target.first)) {
+            _target_methods = &target.second;
+            break;
+        }
+    }
+    if (_target_methods == nullptr) {
+        return Result::ABORTED;
+    }
+    assert(!_target_methods->empty());
+
     u16 new_cpool_len = _cpool_len + 19;
     for (const auto& target : *_target_methods) {
         long latency = target.second;
@@ -1021,19 +1034,8 @@ Result BytecodeRewriter::rewriteClass() {
     }
     put16(_dst + cpool_len_idx, new_cpool_len);
 
-    u16 access_flags = get16();
     put16(access_flags);
-
-    u16 this_class = get16();
     put16(this_class);
-
-    u16 class_name_index = _cpool[this_class]->info();
-    _class_name = _cpool[class_name_index];
-    // We should not instrument classes from one.profiler.* to avoid infinite recursion
-    if (_class_name->info() >= PROFILER_PACKAGE_LEN &&
-        strncmp(_class_name->utf8(), PROFILER_PACKAGE, PROFILER_PACKAGE_LEN) == 0) {
-        return Result::PROFILER_CLASS;
-    }
 
     u16 super_class = get16();
     put16(super_class);
@@ -1242,7 +1244,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     if (name == NULL) {
         // Make sure the class is rewritten, constant pool reconstitution
         // doesn't always work (JDK-8216547)
-        BytecodeRewriter rewriter(class_data, class_data_len, nullptr, &_targets);
+        BytecodeRewriter rewriter(class_data, class_data_len, &_targets);
         rewriter.rewrite(new_class_data, new_class_data_len);
         return;
     }
@@ -1250,7 +1252,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     size_t len = strlen(name);
     for (const auto& target : _targets) {
         if (matchesPattern(name, len, target.first)) {
-            BytecodeRewriter rewriter(class_data, class_data_len, &target.second);
+            BytecodeRewriter rewriter(class_data, class_data_len, &_targets);
             rewriter.rewrite(new_class_data, new_class_data_len);
             return;
         }
