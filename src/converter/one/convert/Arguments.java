@@ -40,7 +40,7 @@ public class Arguments {
     public boolean bci;
     public boolean simple;
     public boolean norm;
-    public boolean differential;
+    public boolean diff;
     public boolean dot;
     public long from;
     public long to;
@@ -83,9 +83,9 @@ public class Arguments {
                 throw new IllegalArgumentException(arg);
             }
         }
-        
+
         // Automatically enable normalization for differential flame graphs
-        if (differential) {
+        if (diff) {
             norm = true;
         }
     }

@@ -38,10 +38,10 @@ public class Main {
             }
         }
 
-        if (args.differential) {
+        if (args.diff) {
             if (fileCount < 1 || fileCount > 2 || isDirectory) {
-                System.err.println("Error: --differential requires 2 input files and optionally 1 output file");
-                System.err.println("Usage: jfrconv --differential <file1> <file2> [output]");
+                System.err.println("Error: --diff requires 2 input files and optionally 1 output file");
+                System.err.println("Usage: jfrconv --diff <file1> <file2> [output]");
                 System.exit(1);
             }
 
@@ -132,12 +132,18 @@ public class Main {
     }
 
     private static String getFileFormat(String inputFile) throws IOException {
-        if (isJfr(inputFile))
+        if (isJfr(inputFile)) {
             return "JFR";
-        else if (inputFile.endsWith(".html"))
+        } else if (inputFile.endsWith(".html")) {
             return "HTML";
-        else
+        } else if (inputFile.endsWith(".collapsed")) {
             return "collapsed";
+        } else {
+            System.err.println("Error: Unsupported file format for differential mode: " + getFileName(inputFile));
+            System.err.println("Differential mode only supports: JFR, HTML and collapsed formats.");
+            System.exit(1);
+            return null;
+        }
     }
 
     private static ProfileData getProfileData(String inputFile, Arguments args) throws IOException {
@@ -217,7 +223,7 @@ public class Main {
                 "     --bci              Show bytecode indices\n" +
                 "     --simple           Simple class names instead of FQN\n" +
                 "     --norm             Normalize names of hidden classes / lambdas\n" +
-                "     --differential     Enable differential mode (auto-enables --norm)\n" +
+                "     --diff             Enable differential mode (auto-enables --norm)\n" +
                 "     --dot              Dotted class names\n" +
                 "     --from TIME        Start time in ms (absolute or relative)\n" +
                 "     --to TIME          End time in ms (absolute or relative)\n" +

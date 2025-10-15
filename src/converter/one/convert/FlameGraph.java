@@ -50,7 +50,7 @@ public class FlameGraph implements Comparator<Frame> {
 
         try (BufferedReader br = new BufferedReader(in)) {
             for (String line; (line = br.readLine()) != null;) {
-                if (args.differential) {
+                if (args.diff) {
                     parseDifferentialLine(line, stack);
                 } else {
                     parseRegularLine(line, stack);

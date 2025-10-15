@@ -65,6 +65,8 @@ JFR options:
     --norm             Normalize names of hidden classes/lambdas, e.g. Original JFR transforms
                        lambda names to something like pkg.ClassName$$Lambda+0x00007f8177090218/543846639
                        which gets normalized to pkg.ClassName$$Lambda
+    --diff             Enable differential mode (auto-enables --norm). Outputs a differential flamegraph 
+                       by acception two JFR/HTML/Collapsed files
     --dot              Dotted class names, e.g. java.lang.String instead of java/lang/String
     --from TIME        Start time in ms (absolute or relative)
     --to TIME          End time in ms (absolute or relative)
