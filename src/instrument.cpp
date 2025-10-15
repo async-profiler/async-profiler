@@ -1090,7 +1090,8 @@ Error Instrument::start(Arguments& args) {
     error = setupTargetClassAndMethod(args);
     if (error) return error;
 
-    _interval = args._interval ? args._interval : 1;
+    bool no_cpu_profiling = (args._event == NULL) ^ args._trace.empty();
+    _interval = no_cpu_profiling && args._interval ? args._interval : 1;
     _calls = 0;
     _running = true;
 
