@@ -105,6 +105,8 @@ class VM {
     static bool _openj9;
     static bool _zing;
 
+    static bool _terminating;
+
     static GetCreatedJavaVMs _getCreatedJavaVMs;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -158,6 +160,11 @@ class VM {
 
     static bool isZing() {
         return _zing;
+    }
+
+    // No synchronization, should only be used within the same thread
+    static bool isTerminating() {
+        return _terminating;
     }
 
     static bool addSampleObjectsCapability() {
