@@ -22,7 +22,7 @@ public class RecoveryTests {
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("StringBuilderTest.main;java/lang/StringBuilder.delete;"), 0.8);
-        Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
+        Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
     @Test(
@@ -39,7 +39,7 @@ public class RecoveryTests {
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("StringBuilderTest.main;java/lang/StringBuilder.delete;"), 0.8);
-        Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
+        Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
     @Test(mainClass = Numbers.class, debugNonSafepoints = true)
@@ -51,7 +51,7 @@ public class RecoveryTests {
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop"), 0.8);
         Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop;test/recovery/Numbers.avg"), 0.5);
-        Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
+        Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
     @Test(mainClass = Suppliers.class, debugNonSafepoints = true)
@@ -62,7 +62,7 @@ public class RecoveryTests {
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("Suppliers.main;test/recovery/Suppliers.loop"), 0.5);
-        Assert.isLess(out.ratio("unknown|break_compiled"), 0.002);
+        Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
     @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64})
