@@ -32,6 +32,8 @@ int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
 bool VM::_zing = false;
 
+bool VM::_jvm_dying = false;
+
 GetCreatedJavaVMs VM::_getCreatedJavaVMs = NULL;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
