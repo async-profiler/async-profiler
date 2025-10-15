@@ -368,10 +368,9 @@ class BytecodeRewriter {
             case Result::PROFILER_CLASS:
                 Log::trace("Skipping instrumentation of %s: internal profiler class", class_name.c_str());
                 break;
-            case Result::ABORTED: {
+            case Result::ABORTED:
                 // Nothing to do
                 break;
-            }
             default:
                 break;
         }
@@ -974,27 +973,27 @@ Result BytecodeRewriter::rewriteClass() {
     const u8* cpool_end = _src;
     put(cpool_start, cpool_end - cpool_start);
 
-    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
     _recordEntry_cpool_idx = _cpool_len;
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
     putConstant(JVM_CONSTANT_Class, _cpool_len + 3);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 4, _cpool_len + 5);
     putConstant("one/profiler/Instrument");
     putConstant("recordEntry");
     putConstant("()V");
 
-    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
     _recordExit_cpool_idx = _cpool_len + 6;
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
     putConstant("recordExit");
     putConstant("(JJ)V");
 
-    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 11);
     _recordExit_latency0_cpool_idx = _cpool_len + 10;
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 11);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 12);
     putConstant("(J)V");
 
-    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 14, _cpool_len + 15);
     _nanoTime_cpool_idx = _cpool_len + 13;
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 14, _cpool_len + 15);
     putConstant(JVM_CONSTANT_Class, _cpool_len + 16);
     putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 17, _cpool_len + 18);
     putConstant("java/lang/System");
@@ -1009,7 +1008,7 @@ Result BytecodeRewriter::rewriteClass() {
     _class_name = _cpool[class_name_index];
     // We should not instrument classes from one.profiler.* to avoid infinite recursion
     if (_class_name->info() >= PROFILER_PACKAGE_LEN &&
-    strncmp(_class_name->utf8(), PROFILER_PACKAGE, PROFILER_PACKAGE_LEN) == 0) {
+        strncmp(_class_name->utf8(), PROFILER_PACKAGE, PROFILER_PACKAGE_LEN) == 0) {
         return Result::PROFILER_CLASS;
     }
 
