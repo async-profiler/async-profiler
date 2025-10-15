@@ -59,7 +59,7 @@ static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
 
-static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm", "vmx"};
+static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
 
 
 struct CpuTime {
@@ -539,7 +539,7 @@ class Recording {
     }
 
     static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures& f) {
-        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s %s",
+        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
                  f.unwind_comp   ? "unwind_comp"   : "-",
@@ -549,6 +549,7 @@ class Recording {
                  f.stats         ? "stats"         : "-",
                  f.jnienv        ? "jnienv"        : "-",
                  f.probe_sp      ? "probesp"       : "-",
+                 f.mixed         ? "mixed"         : "-",
                  f.vtable_target ? "vtable"        : "-",
                  f.comp_task     ? "comptask"      : "-",
                  f.pc_addr       ? "pcaddr"        : "-");
