@@ -61,8 +61,7 @@ enum SHORT_ENUM CStack {
     CSTACK_FP,       // walk stack using Frame Pointer links
     CSTACK_DWARF,    // use DWARF unwinding info from .eh_frame section
     CSTACK_LBR,      // Last Branch Record hardware capability
-    CSTACK_VM,       // unwind using HotSpot VMStructs
-    CSTACK_VMX       // same as CSTACK_VM but with intermediate native frames
+    CSTACK_VM        // unwind using HotSpot VMStructs
 };
 
 enum SHORT_ENUM Clock {
@@ -106,7 +105,7 @@ enum EventMask {
 constexpr int EVENT_MASK_SIZE = 6;
 
 struct StackWalkFeatures {
-    // Stack recovery techniques used to workaround AsyncGetCallTrace flaws
+    // Deprecated stack recovery techniques used to workaround AsyncGetCallTrace flaws
     unsigned short unknown_java  : 1;
     unsigned short unwind_stub   : 1;
     unsigned short unwind_comp   : 1;
@@ -115,19 +114,16 @@ struct StackWalkFeatures {
     unsigned short gc_traces     : 1;
 
     // Common features
-    unsigned short stats         : 1;
+    unsigned short stats         : 1;  // collect stack walking duration statistics
 
     // Additional HotSpot-specific features
-    unsigned short jnienv        : 1;
-    unsigned short probe_sp      : 1;
-    unsigned short vtable_target : 1;
-    unsigned short comp_task     : 1;
-    unsigned short pc_addr       : 1;
-    unsigned short _reserved     : 4;
-
-    StackWalkFeatures() : unknown_java(1), unwind_stub(1), unwind_comp(1), unwind_native(1), java_anchor(1), gc_traces(1),
-                          stats(0), jnienv(0), probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
-    }
+    unsigned short jnienv        : 1;  // verify JNIEnv* obtained using VMStructs
+    unsigned short probe_sp      : 1;  // when AsyncGetCallTrace fails, adjust SP and retry
+    unsigned short mixed         : 1;  // mixed stack traces with Java and native frames interleaved
+    unsigned short vtable_target : 1;  // show receiver classes of vtable/itable stubs
+    unsigned short comp_task     : 1;  // display current compilation task for JIT threads
+    unsigned short pc_addr       : 1;  // record exact PC address for each sample
+    unsigned short _padding      : 3;  // pad structure to 16 bits
 };
 
 
@@ -271,7 +267,7 @@ class Arguments {
         _fdtransfer_path(NULL),
         _target_cpu(-1),
         _style(0),
-        _features(),
+        _features{1, 1, 1, 1, 1, 1},
         _cstack(CSTACK_DEFAULT),
         _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),

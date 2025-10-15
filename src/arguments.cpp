@@ -77,7 +77,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     interval=N              - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N           - maximum Java stack depth (default: 2048)
 //     signal=N                - use alternative signal for cpu or wall clock profiling
-//     features=LIST           - advanced stack trace features (vtable, comptask, pcaddr)"
+//     features=LIST           - advanced stack trace features (mixed, vtable, comptask, pcaddr)"
 //     safemode=BITS           - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME           - output file name for dumping
 //     log=FILENAME            - log warnings and errors to the given dedicated stream
@@ -320,6 +320,7 @@ Error Arguments::parse(const char* args) {
                     if (strstr(value, "stats"))    _features.stats = 1;
                     if (strstr(value, "jnienv"))   _features.jnienv = 1;
                     if (strstr(value, "probesp"))  _features.probe_sp = 1;
+                    if (strstr(value, "mixed"))    _features.mixed = 1;
                     if (strstr(value, "vtable"))   _features.vtable_target = 1;
                     if (strstr(value, "comptask")) _features.comp_task = 1;
                     if (strstr(value, "pcaddr"))   _features.pc_addr = 1;
@@ -406,7 +407,9 @@ Error Arguments::parse(const char* args) {
                     } else if (strcmp(value, "vm") == 0) {
                         _cstack = CSTACK_VM;
                     } else if (strcmp(value, "vmx") == 0) {
-                        _cstack = CSTACK_VMX;
+                        // cstack=vmx is a shorthand for cstack=vm,features=mixed
+                        _cstack = CSTACK_VM;
+                        _features.mixed = 1;
                     } else {
                         _cstack = CSTACK_NO;
                     }
