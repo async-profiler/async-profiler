@@ -7,6 +7,7 @@
 #define _ARGUMENTS_H
 
 #include <stddef.h>
+#include <vector>
 
 
 const long DEFAULT_INTERVAL = 10000000;      // 10 ms
@@ -131,6 +132,10 @@ struct Multiplier {
     long multiplier;
 };
 
+constexpr Multiplier NANOS[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {0, 0}};
+constexpr Multiplier BYTES[] = {{'b', 1}, {'k', 1024}, {'m', 1048576}, {'g', 1073741824}, {0, 0}};
+constexpr Multiplier SECONDS[] = {{'s', 1}, {'m', 60}, {'h', 3600}, {'d', 86400}, {0, 0}};
+constexpr Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {'b', 1}, {'k', 1024}, {'g', 1073741824}, {0, 0}};
 
 class Error {
   private:
@@ -157,21 +162,19 @@ class Arguments {
     char* _buf;
     bool _shared;
 
-    void appendToEmbeddedList(int& list, char* value);
     const char* expandFilePattern(const char* pattern);
 
     static long long hash(const char* arg);
     static Output detectOutputFormat(const char* file);
-    static long parseUnits(const char* str, const Multiplier* multipliers);
     static int parseTimeout(const char* str);
 
   public:
     Action _action;
     Counter _counter;
     const char* _event;
+    std::vector<const char*> _trace;
     int _timeout;
     long _interval;
-    long _latency;
     long _alloc;
     long _nativemem;
     long _lock;
@@ -186,8 +189,8 @@ class Arguments {
     const char* _unknown_arg;
     const char* _server;
     const char* _filter;
-    int _include;
-    int _exclude;
+    std::vector<const char*> _include;
+    std::vector<const char*> _exclude;
     unsigned char _mcache;
     bool _loop;
     bool _preloaded;
@@ -229,9 +232,9 @@ class Arguments {
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _event(NULL),
+        _trace(),
         _timeout(0),
         _interval(0),
-        _latency(-1),
         _alloc(-1),
         _nativemem(-1),
         _lock(-1),
@@ -246,8 +249,8 @@ class Arguments {
         _unknown_arg(NULL),
         _server(NULL),
         _filter(NULL),
-        _include(0),
-        _exclude(0),
+        _include(),
+        _exclude(),
         _mcache(0),
         _loop(false),
         _preloaded(false),
@@ -303,15 +306,15 @@ class Arguments {
     }
 
     int eventMask() const {
-        return (_event     != NULL ? (_latency >= 0 ? EM_METHOD_TRACE : EM_CPU) : 0) |
-               (_alloc     >= 0    ? EM_ALLOC                                   : 0) |
-               (_lock      >= 0    ? EM_LOCK                                    : 0) |
-               (_wall      >= 0    ? EM_WALL                                    : 0) |
-               (_nativemem >= 0    ? EM_NATIVEMEM                               : 0);
+        return (_event     != NULL ? EM_CPU          : 0) |
+               (_alloc     >= 0    ? EM_ALLOC        : 0) |
+               (_lock      >= 0    ? EM_LOCK         : 0) |
+               (_wall      >= 0    ? EM_WALL         : 0) |
+               (_nativemem >= 0    ? EM_NATIVEMEM    : 0) |
+               (!_trace.empty()    ? EM_METHOD_TRACE : 0);
     }
 
-    friend class FrameName;
-    friend class Recording;
+    static long parseUnits(const char* str, const Multiplier* multipliers);
 };
 
 extern Arguments _global_args;
