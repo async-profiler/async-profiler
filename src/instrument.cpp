@@ -82,7 +82,7 @@ class Constant {
         return (const char*) (_info + 2);
     }
 
-    std::string as_string() const {
+    std::string toString() const {
         return std::string(utf8(), info());
     }
 
@@ -117,10 +117,6 @@ class Constant {
 
     bool equals(const char* value, u16 len) const {
         return info() == len && memcmp(utf8(), value, len) == 0;
-    }
-
-    bool matches(const std::string& pattern) const {
-        return matchesPattern(utf8(), info(), pattern);
     }
 
     static u8 parameterSlots(const char* method_sig) {
@@ -350,8 +346,8 @@ class BytecodeRewriter {
 
         VM::jvmti()->Deallocate(_dst);
 
-        std::string class_name = _class_name->as_string();
-        std::string method_name = _method_name ? _method_name->as_string() : "n/a";
+        std::string class_name = _class_name->toString();
+        std::string method_name = _method_name ? _method_name->toString() : "n/a";
         switch (res) {
             case Result::METHOD_TOO_LARGE:
                 Log::warn("Method too large: %s.%s", class_name.c_str(), method_name.c_str());
@@ -529,10 +525,7 @@ Result BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, 
 
             if (latency > 0) {
                 put8(JVM_OPC_ldc2_w);
-
-                auto latency_it = _latency_cpool_idx.find(latency);
-                assert(latency_it != _latency_cpool_idx.end());
-                put16(latency_it->second);
+                put16(_latency_cpool_idx[latency]);
             } else {
                 put8(JVM_OPC_nop);
                 put8(JVM_OPC_nop);
@@ -936,8 +929,8 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
             _method_name = _cpool[name_index];
             long latency;
             if ((access_flags & JVM_ACC_NATIVE) == 0 &&
-                findLatency(_target_methods, _cpool[name_index]->as_string(),
-                            _cpool[descriptor_index]->as_string(), latency)
+                findLatency(_target_methods, _cpool[name_index]->toString(),
+                            _cpool[descriptor_index]->toString(), latency)
             ) {
                 Result res = rewriteMethod(access_flags, descriptor_index, latency);
                 if (res != Result::OK) return res;
@@ -977,7 +970,7 @@ Result BytecodeRewriter::rewriteClass() {
             if (_cpool[i]->tag() != JVM_CONSTANT_Class) continue;
 
             u16 name_idx = _cpool[i]->info();
-            const auto& it = _targets->find(_cpool[name_idx]->as_string());
+            const auto& it = _targets->find(_cpool[name_idx]->toString());
             if (it == _targets->end()) {
                 _target_methods = &EMPTY_METHOD_TARGETS;
             } else {
@@ -1117,7 +1110,7 @@ void Instrument::stop() {
     _targets.clear();
 }
 
-Error handleTarget(Targets& targets, const char* s, long default_latency) {
+Error addTarget(Targets& targets, const char* s, long default_latency) {
     // Expected formats:
     // - the.package.name.ClassName.MethodName
     // - the.package.name.ClassName.MethodName:50ms
@@ -1128,8 +1121,7 @@ Error handleTarget(Targets& targets, const char* s, long default_latency) {
     if (last_dot == NULL) {
         return Error("Unexpected format for tracing target");
     }
-    size_t class_name_size = last_dot - s;
-    std::string class_name(s, class_name_size);
+    std::string class_name(s, last_dot - s);
 
     if (class_name.find_first_of(":()") != std::string::npos) {
         // E.g. wrong signature
@@ -1171,11 +1163,11 @@ Error Instrument::setupTargetClassAndMethod(const Arguments& args) {
     _targets.clear();
     
     if (args._trace.empty()) {
-        Error error = handleTarget(_targets, args._event, NO_LATENCY);
+        Error error = addTarget(_targets, args._event, NO_LATENCY);
         if (error) return error;
     } else {
         for (const char* s : args._trace) {
-            Error error = handleTarget(_targets, s, 0 /* default_latency */);
+            Error error = addTarget(_targets, s, 0 /* default_latency */);
             if (error) return error;
         }
     }

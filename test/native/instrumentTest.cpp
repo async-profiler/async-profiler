@@ -139,7 +139,7 @@ TEST_CASE(Instrument_test_instructionBytes_largeTableswitch) {
 
 TEST_CASE(Instrument_test_handleTarget_default) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName", -28);
+    Error e = addTarget(t, "my.pkg.ClassName.MethodName", -28);
     CHECK_EQ(e.message(), NULL);
     CHECK_EQ(t.size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
@@ -148,7 +148,7 @@ TEST_CASE(Instrument_test_handleTarget_default) {
 
 TEST_CASE(Instrument_test_handleTarget_latency) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName:20ns", NO_LATENCY);
+    Error e = addTarget(t, "my.pkg.ClassName.MethodName:20ns", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
     CHECK_EQ(t.size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"].size(), 1);
@@ -157,7 +157,7 @@ TEST_CASE(Instrument_test_handleTarget_latency) {
 
 TEST_CASE(Instrument_test_handleTarget_signatureAndLatency) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
+    Error e = addTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
     CHECK_EQ(t.size(), 1);
     CHECK_EQ(t["my/pkg/ClassName"]["MethodName(Ljava/time/Duration;)V"], 20);
@@ -165,9 +165,9 @@ TEST_CASE(Instrument_test_handleTarget_signatureAndLatency) {
 
 TEST_CASE(Instrument_test_handleTarget_manyClasses) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
+    Error e = addTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
-    e = handleTarget(t, "my.pkg.AnotherClass.MethodName()V:100ms", NO_LATENCY);
+    e = addTarget(t, "my.pkg.AnotherClass.MethodName()V:100ms", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
     CHECK_EQ(t.size(), 2);
@@ -177,9 +177,9 @@ TEST_CASE(Instrument_test_handleTarget_manyClasses) {
 
 TEST_CASE(Instrument_test_handleTarget_manyMethods) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
+    Error e = addTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
-    e = handleTarget(t, "my.pkg.ClassName.AnotherMethod()V:100ms", NO_LATENCY);
+    e = addTarget(t, "my.pkg.ClassName.AnotherMethod()V:100ms", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
     CHECK_EQ(t.size(), 1);
@@ -190,9 +190,9 @@ TEST_CASE(Instrument_test_handleTarget_manyMethods) {
 
 TEST_CASE(Instrument_test_handleTarget_manySignatures) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
+    Error e = addTarget(t, "my.pkg.ClassName.MethodName(Ljava/time/Duration;)V:20ns", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
-    e = handleTarget(t, "my.pkg.ClassName.MethodName()V:100ms", NO_LATENCY);
+    e = addTarget(t, "my.pkg.ClassName.MethodName()V:100ms", NO_LATENCY);
     CHECK_EQ(e.message(), NULL);
 
     CHECK_EQ(t.size(), 1);
@@ -203,7 +203,7 @@ TEST_CASE(Instrument_test_handleTarget_manySignatures) {
 
 TEST_CASE(Instrument_test_handleTarget_wrongSignature) {
     Targets t;
-    Error e = handleTarget(t, "my.pkg.ClassName.MethodName(Ljava.time.Duration;)V:20ns", NO_LATENCY);
+    Error e = addTarget(t, "my.pkg.ClassName.MethodName(Ljava.time.Duration;)V:20ns", NO_LATENCY);
     CHECK_EQ((bool) e.message(), true);
 }
 
