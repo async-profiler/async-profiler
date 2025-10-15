@@ -53,6 +53,15 @@ static bool matchesPattern(const char* value, size_t len, const std::string& pat
     );
 }
 
+static const MethodTargets* findMethodTargets(const Targets* targets, const char* class_name, size_t len) {
+    for (const auto& target : *targets) {
+        if (matchesPattern(class_name, len, target.first)) {
+            return &target.second;
+        }
+    }
+    return nullptr;
+}
+
 enum ConstantTag {
     // Available since JDK 11
     CONSTANT_Dynamic = 17,
@@ -187,7 +196,7 @@ class BytecodeRewriter {
     std::unordered_map<Latency, u16> _latency_cpool_idx;
 
     const Targets* const _targets;
-    const MethodTargets* _target_methods;
+    const MethodTargets* _method_targets;
 
     // Reader
 
@@ -317,7 +326,7 @@ class BytecodeRewriter {
     Result rewriteClass();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const Targets* targets) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const Targets* targets, const MethodTargets* method_targets) :
         _class_data(class_data),
         _class_data_len(class_data_len),
         _src(class_data),
@@ -329,7 +338,7 @@ class BytecodeRewriter {
         _class_name(nullptr),
         _method_name(nullptr),
         _targets(targets),
-        _target_methods(nullptr) {}
+        _method_targets(method_targets) {}
 
     ~BytecodeRewriter() {
         delete[] _cpool;
@@ -895,11 +904,11 @@ Result BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int 
     return Result::OK;
 }
 
-static bool findLatency(const MethodTargets* target_methods, const std::string&& method_name,
+static bool findLatency(const MethodTargets* method_targets, const std::string&& method_name,
                         const std::string&& method_desc, Latency& latency) {
     const std::string method = method_name + method_desc;
-    auto it = target_methods->lower_bound(method);
-    if (it == target_methods->end()) --it;
+    auto it = method_targets->lower_bound(method);
+    if (it == method_targets->end()) --it;
 
     while (true) {
         if (
@@ -913,7 +922,7 @@ static bool findLatency(const MethodTargets* target_methods, const std::string&&
             return true;
         }
 
-        if (it == target_methods->begin()) return false;
+        if (it == method_targets->begin()) return false;
         --it;
     }
 }
@@ -936,7 +945,7 @@ Result BytecodeRewriter::rewriteMembers(Scope scope) {
             _method_name = _cpool[name_index];
             Latency latency;
             if ((access_flags & JVM_ACC_NATIVE) == 0 &&
-                findLatency(_target_methods, _cpool[name_index]->toString(),
+                findLatency(_method_targets, _cpool[name_index]->toString(),
                             _cpool[descriptor_index]->toString(), latency)
             ) {
                 Result res = rewriteMethod(access_flags, descriptor_index, latency);
@@ -1011,19 +1020,17 @@ Result BytecodeRewriter::rewriteClass() {
         return Result::PROFILER_CLASS;
     }
 
-    for (const auto& target : *_targets) {
-        if (matchesPattern(_class_name->utf8(), _class_name->info(), target.first)) {
-            _target_methods = &target.second;
-            break;
-        }
+    if (_method_targets == nullptr) {
+        _method_targets = findMethodTargets(_targets, _class_name->utf8(), _class_name->info());
     }
-    if (_target_methods == nullptr) {
+    if (_method_targets == nullptr) {
+        // The class name in the cpool didn't match any of the targets,
+        // no need to do anything
         return Result::ABORTED;
     }
-    assert(!_target_methods->empty());
 
     u16 new_cpool_len = _cpool_len + 19;
-    for (const auto& target : *_target_methods) {
+    for (const auto& target : *_method_targets) {
         Latency latency = target.second;
         // latency == 0 does not need a spot in the map
         if (latency > 0 && _latency_cpool_idx[latency] == 0) {
@@ -1245,18 +1252,16 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     if (name == NULL) {
         // Make sure the class is rewritten, constant pool reconstitution
         // doesn't always work (JDK-8216547)
-        BytecodeRewriter rewriter(class_data, class_data_len, &_targets);
+        BytecodeRewriter rewriter(class_data, class_data_len, &_targets, nullptr);
         rewriter.rewrite(new_class_data, new_class_data_len);
         return;
     }
 
     size_t len = strlen(name);
-    for (const auto& target : _targets) {
-        if (matchesPattern(name, len, target.first)) {
-            BytecodeRewriter rewriter(class_data, class_data_len, &_targets);
-            rewriter.rewrite(new_class_data, new_class_data_len);
-            return;
-        }
+    const MethodTargets* method_targets = findMethodTargets(&_targets, name, len);
+    if (method_targets != nullptr) {
+        BytecodeRewriter rewriter(class_data, class_data_len, nullptr, method_targets);
+        rewriter.rewrite(new_class_data, new_class_data_len);
     }
 }
 
