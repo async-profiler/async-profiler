@@ -59,6 +59,23 @@ public class FlameGraph implements Comparator<Frame> {
         }
     }
 
+    public void parseDifferentialData(DifferentialResult differentialResult) {
+        CallStack stack = new CallStack();
+        deltaMap.putAll(differentialResult.functionDeltas);
+        maxdelta = differentialResult.maxDelta;
+        
+        for (Map.Entry<String, String> entry : differentialResult.stackData.entrySet()) {
+            String stackPart = entry.getKey();
+            String counts = entry.getValue();
+            
+            String[] parts = counts.split(" ");
+            if (parts.length != 2) continue;
+            
+            long count2 = Long.parseLong(parts[1]);
+            buildStackAndAddSample(stackPart, count2, stack);
+        }
+    }
+
     private void parseDifferentialLine(String line, CallStack stack) {
         // Parse differential format: "stack count1 count2"
         int lastSpace = line.lastIndexOf(' ');
@@ -265,6 +282,7 @@ public class FlameGraph implements Comparator<Frame> {
                 first = false;
             }
             out.print("\n};\n");
+            out.print("const maxDelta = " + maxdelta + ";\n");
             out.print("const timemax = " + root.total + ";\n");
             out.print("const factor = " + factor + ";\n");
         }
@@ -359,6 +377,45 @@ public class FlameGraph implements Comparator<Frame> {
             for (Frame child : frame.values()) {
                 if (child.total >= mintotal) {
                     printFrameCollapsed(out, child, strings);
+                }
+            }
+        }
+
+        sb.setLength(prevLength);
+    }
+
+    public static Map<String, Long> extractCollapsedDataFromHtml(String input, Arguments args) throws IOException {
+        FlameGraph fg = new FlameGraph(args);
+        try (InputStreamReader in = new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8)) {
+            fg.parseHtml(in);
+        }
+        return fg.extractCollapsedData();
+    }
+
+    public Map<String, Long> extractCollapsedData() {
+        mintotal = (long) (root.total * args.minwidth / 100);
+        Map<String, Long> collapsedData = new HashMap<>();
+        StringBuilder sb = new StringBuilder();
+        extractFrameCollapsed(collapsedData, sb, root, cpool.keys());
+        return collapsedData;
+    }
+
+    private void extractFrameCollapsed(Map<String, Long> collapsedData, StringBuilder sb, Frame frame, String[] strings) {
+        int prevLength = sb.length();
+
+        if (frame != root) {
+            sb.append(strings[frame.getTitleIndex()]).append(FRAME_SUFFIX[frame.getType()]);
+            if (frame.self > 0) {
+                String stackTrace = sb.toString();
+                collapsedData.merge(stackTrace, frame.self, Long::sum);
+            }
+            sb.append(';');
+        }
+
+        if (!frame.isEmpty()) {
+            for (Frame child : frame.values()) {
+                if (child.total >= mintotal) {
+                    extractFrameCollapsed(collapsedData, sb, child, strings);
                 }
             }
         }

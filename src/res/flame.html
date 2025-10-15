@@ -74,13 +74,6 @@
 	function getDifferentialColor(delta) {
 		let r = 255, g = 255, b = 255;
 		
-		let maxDelta = 1;
-		if (typeof deltaMap !== 'undefined') {
-			for (const key in deltaMap) {
-				maxDelta = Math.max(maxDelta, Math.abs(deltaMap[key]));
-			}
-		}
-		
 		if (delta > 0) {
 			// Positive delta: red
 			g = b = Math.floor(210 * (maxDelta - delta) / maxDelta);

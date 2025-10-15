@@ -7,7 +7,10 @@ import one.convert.*;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.util.Map;
 
 public class Main {
 
@@ -35,10 +38,22 @@ public class Main {
             }
         }
 
-        if (args.differential && fileCount == 2 && !isDirectory) {
+        if (args.differential) {
+            if (fileCount < 1 || fileCount > 2 || isDirectory) {
+                System.err.println("Error: --differential requires 2 input files and optionally 1 output file");
+                System.err.println("Usage: jfrconv --differential <file1> <file2> [output]");
+                System.exit(1);
+            }
+
             String file1 = args.files.get(0);
             String file2 = args.files.get(1);
-            String output = lastFile;
+            String output = fileCount == 1 ? "differential-output.html" : lastFile;
+
+            if (file1.equals(file2)) {
+                System.err.println("Error: Cannot create differential flame graph with the same file twice");
+                System.err.println("Provided: " + file1 + " vs " + file2);
+                System.exit(1);
+            }
 
             processDifferential(file1, file2, output, args);
             return;
@@ -48,6 +63,7 @@ public class Main {
             String input = args.files.get(i);
             String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
 
+            System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
             System.out.flush();
 
             long startTime = System.nanoTime();
@@ -85,17 +101,13 @@ public class Main {
         long startTime = System.nanoTime();
 
         try {
-            String collapsed1 = getCollapsedFile(file1, args);
-            String collapsed2 = getCollapsedFile(file2, args);
+            validateFileFormats(file1, file2);
 
-            String tempDiff = output + ".tmp.diff.collapsed";
-            DiffFolded.process(collapsed1, collapsed2, tempDiff);
+            ProfileData profile1 = getProfileData(file1, args);
+            ProfileData profile2 = getProfileData(file2, args);
+            DifferentialResult differentialResult = DiffFolded.process(profile1, profile2);
 
-            convert(tempDiff, output, args);
-
-            if (!collapsed1.equals(file1)) new File(collapsed1).delete();
-            if (!collapsed2.equals(file2)) new File(collapsed2).delete();
-            new File(tempDiff).delete();
+            createDifferentialFlameGraph(differentialResult, output, args);
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
@@ -106,26 +118,60 @@ public class Main {
         System.out.print("# " + (endTime - startTime) / 1000000 / 1000.0 + " s\n");
     }
 
-    private static String getCollapsedFile(String inputFile, Arguments args) throws IOException {
-        if (inputFile.endsWith(".collapsed")) {
-            return inputFile;
-        } else if (isJfr(inputFile)) {
-            String tempCollapsed = inputFile + ".tmp.collapsed";
-            Arguments tempArgs = new Arguments("--differential", "--output", "collapsed");
-            convert(inputFile, tempCollapsed, tempArgs);
-            return tempCollapsed;
+    private static void validateFileFormats(String file1, String file2) throws IOException {
+        String format1 = getFileFormat(file1);
+        String format2 = getFileFormat(file2);
+
+        if (!format1.equals(format2)) {
+            System.err.println("Error: Cannot create differential flame graph with different file formats");
+            System.err.println("File 1: " + getFileName(file1) + " (" + format1 + ")");
+            System.err.println("File 2: " + getFileName(file2) + " (" + format2 + ")");
+            System.err.println("Both files must be the same format (JFR, HTML, or collapsed)");
+            System.exit(1);
+        }
+    }
+
+    private static String getFileFormat(String inputFile) throws IOException {
+        if (isJfr(inputFile))
+            return "JFR";
+        else if (inputFile.endsWith(".html"))
+            return "HTML";
+        else
+            return "collapsed";
+    }
+
+    private static ProfileData getProfileData(String inputFile, Arguments args) throws IOException {
+        if (isJfr(inputFile)) {
+            return JfrToFlame.extractCollapsedDataWithDuration(inputFile, args);
         } else if (inputFile.endsWith(".html")) {
-            String tempCollapsed = inputFile + ".tmp.collapsed";
-            Arguments tempArgs = new Arguments("--differential", "--output", "collapsed");
-            convert(inputFile, tempCollapsed, tempArgs);
-            return tempCollapsed;
+            Map<String, Long> collapsedData = FlameGraph.extractCollapsedDataFromHtml(inputFile, args);
+            return new ProfileData(collapsedData, null);
         } else {
-            return inputFile;
+            Map<String, Long> collapsedData = DiffFolded.readCollapsedFile(inputFile);
+            return new ProfileData(collapsedData, null);
+        }
+    }
+
+    private static void createDifferentialFlameGraph(DifferentialResult differentialResult, String output,
+            Arguments args) throws IOException {
+        FlameGraph fg = new FlameGraph(args);
+        fg.parseDifferentialData(differentialResult);
+
+        try (FileOutputStream out = new FileOutputStream(output)) {
+            try (PrintStream ps = new PrintStream(out, false, "UTF-8")) {
+                fg.dump(ps);
+            }
         }
     }
 
     private static String getFileName(String fileName) {
         return fileName.substring(fileName.lastIndexOf(File.separatorChar) + 1);
+    }
+
+    private static String getFileBaseName(String fileName) {
+        String name = getFileName(fileName);
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(0, dot) : name;
     }
 
     private static String replaceExt(String fileName, String output) {
