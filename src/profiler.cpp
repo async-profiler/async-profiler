@@ -1181,9 +1181,14 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("VMStructs stack walking is not supported on this JVM/platform");
     }
 
-    if (VM::isOpenJ9() && _cstack == CSTACK_DEFAULT && DWARF_SUPPORTED) {
-        // OpenJ9 libs are compiled with frame pointers omitted
-        _cstack = CSTACK_DWARF;
+    if (_cstack == CSTACK_DEFAULT) {
+        if (VMStructs::hasStackStructs()) {
+            // Use VMStructs by default when possible
+            _cstack = CSTACK_VM;
+        } else if (VM::isOpenJ9() && DWARF_SUPPORTED) {
+            // OpenJ9 libs are compiled with frame pointers omitted
+            _cstack = CSTACK_DWARF;
+        }
     }
 
     // Kernel symbols are useful only for perf_events without --all-user

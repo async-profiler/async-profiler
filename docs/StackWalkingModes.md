@@ -2,11 +2,14 @@
 
 ## Frame Pointer
 
-The default stacking walking in async-profiler, `Frame Pointer (FP)` stack walking, is a technique for collecting call
-stacks by tracking frame pointers in memory. Each function call maintains a pointer to its caller's stack frame, creating
-a linked chain that can be traversed to reconstruct the program's execution path. It's particularly efficient as it is
-very fast compared to other stack walking methods introducing less overhead but requires code to be compiled with frame
+`Frame Pointer (FP)` stack walking is a technique for collecting call stacks by tracking frame pointers in memory.
+Each function call maintains a pointer to its caller's stack frame, creating a linked chain that can be traversed
+to reconstruct the program's execution path. It's particularly efficient as it is very fast compared to other
+stack walking methods introducing less overhead but requires code to be compiled with frame
 pointers enabled (`-fno-omit-frame-pointer`).
+
+Before async-profiler 4.2, Frame Pointer was the default stack walking mode.
+Since version 4.2, the default was changed to [VM Structs](#vm-structs).
 
 ## DWARF
 
@@ -57,6 +60,7 @@ Due to issues with AGCT from time to time, including random crashes and missing 
 - Provides additional information on each frame, like JIT compilation type.
 
 The feature can be enabled with the option `--cstack vm` (or its agent equivalent `cstack=vm`).
+Since async-profiler 4.2, this is the default mode when running on the HotSpot JVM.
 
 Another variant of this option: `--cstack vmx` activates an "expert" unwinding based on VM Structs.
 With this option, async-profiler collects mixed stack traces that have Java and native frames interleaved.
