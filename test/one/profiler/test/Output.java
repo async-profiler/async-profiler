@@ -97,7 +97,7 @@ public class Output {
         return new Output(stream(regex).toArray(String[]::new));
     }
 
-    private static long extractSamples(String s) {
+    public static long extractSamples(String s) {
         return Long.parseLong(s.substring(s.lastIndexOf(' ') + 1));
     }
 }
