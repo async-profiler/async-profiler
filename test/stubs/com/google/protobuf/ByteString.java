@@ -5,4 +5,12 @@
 
 package com.google.protobuf;
 
-public abstract class ByteString {}
+public abstract class ByteString {
+    public byte byteAt(int index) {
+        return (byte) 0;
+    }
+
+    public int size() {
+        return 0;
+    }
+}
