@@ -662,6 +662,9 @@ class Recording {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "wall", args._wall);
             writeBoolSetting(buf, T_EXECUTION_SAMPLE, "nobatch", args._nobatch);
         }
+        if (args._nativemem >= 0) {
+            writeIntSetting(buf, T_MALLOC, "nativemem", args._nativemem);
+        }
 
         writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
         writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
