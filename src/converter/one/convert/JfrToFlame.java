@@ -14,6 +14,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Map;
 
 import static one.convert.Frame.*;
 
@@ -87,5 +88,25 @@ public class JfrToFlame extends JfrConverter {
         try (FileOutputStream out = new FileOutputStream(output)) {
             converter.dump(out);
         }
+    }
+
+    public static Map<String, Long> extractCollapsedData(String input, Arguments args) throws IOException {
+        JfrToFlame converter;
+        try (JfrReader jfr = new JfrReader(input)) {
+            converter = new JfrToFlame(jfr, args);
+            converter.convert();
+        }
+        return converter.fg.extractCollapsedData();
+    }
+
+    public static ProfileData extractCollapsedDataWithDuration(String input, Arguments args) throws IOException {
+        JfrToFlame converter;
+        double durationSeconds;
+        try (JfrReader jfr = new JfrReader(input)) {
+            converter = new JfrToFlame(jfr, args);
+            converter.convert();
+            durationSeconds = jfr.durationNanos() / 1_000_000_000.0;
+        }
+        return new ProfileData(converter.fg.extractCollapsedData(), durationSeconds);
     }
 }
