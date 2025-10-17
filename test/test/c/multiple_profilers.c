@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <time.h>
+#include <sys/syslimits.h>
 
 #ifdef __APPLE__
 #define LIB_EXT ".dylib"
@@ -28,7 +29,8 @@ typedef void (*pthread_exit_t)(void*);
 typedef void* (*pthread_entry_t)(void*);
 typedef int (*pthread_create_t)(pthread_t*, pthread_attr_t*, pthread_entry_t, void*);
 
-// This is to make sure invocations on references in .rela.dyn don't cause infinite loops
+// .rela.dyn references are also patched.
+// These references are also used to make sure calls, to make sure it won't cause any unintentional infinite loops
 pthread_exit_t pthread_exit_ref = (pthread_exit_t)pthread_exit;
 pthread_create_t pthread_create_ref = (pthread_create_t)pthread_create;
 
@@ -50,7 +52,7 @@ void* getSymbol(void* lib, const char* name) {
     return ptr;
 }
 
-void executeAsyncProfilerCommand(int profiler_id, const char* cmd) {
+void executeProfilerCommand(int profiler_id, const char* cmd) {
     asprof_error_t asprof_err = _asprof_execute[profiler_id](cmd, NULL);
     if (asprof_err != NULL) {
         fprintf(stderr, "%s\n", _asprof_error_str[profiler_id](asprof_err));
@@ -58,7 +60,7 @@ void executeAsyncProfilerCommand(int profiler_id, const char* cmd) {
     }
 }
 
-void initAsyncProfiler(int profiler_id) {
+void initProfiler(int profiler_id) {
     void* libprof;
 
     if (profiler_id == 0) {
@@ -67,18 +69,26 @@ void initAsyncProfiler(int profiler_id) {
         libprof = openLib("build/lib/libasyncProfiler" LIB_EXT);
     }
 
-    _asprof_init[profiler_id]= (asprof_init_t)getSymbol(libprof, "asprof_init");
+    _asprof_init[profiler_id] = (asprof_init_t)getSymbol(libprof, "asprof_init");
     _asprof_init[profiler_id]();
 
     _asprof_execute[profiler_id] = (asprof_execute_t)getSymbol(libprof, "asprof_execute");
     _asprof_error_str[profiler_id] = (asprof_error_str_t)getSymbol(libprof, "asprof_error_str");
 }
 
-void doMalloc() {
+void startProfiler(int profiler_id, const char* command, const char* file) {
+    initProfiler(profiler_id);
+
+    char start_cmd[PATH_MAX] = {0};
+    snprintf(start_cmd, sizeof(start_cmd), "%s,file=%s", command, file);
+    executeProfilerCommand(profiler_id, start_cmd);
+}
+
+void doMalloc(int size) {
     void* lib = openLib("build/test/lib/libcallsmalloc" LIB_EXT);
 
     malloc_t call_malloc = (malloc_t)getSymbol(lib, "call_malloc");
-    free(call_malloc(1999993));
+    free(call_malloc(size));
 }
 
 void doSleep(long ms) {
@@ -88,21 +98,25 @@ void doSleep(long ms) {
 }
 
 void* threadEntry1(void* args) {
-    doMalloc();
+    doMalloc(50000);
     doSleep(100);
     pthread_exit(NULL);
 }
 
 void* threadEntry2(void* args) {
-    doMalloc();
+    doMalloc(500000);
     doSleep(1000);
+    // call .rela.dyn references to make sure no infinite loops will happen
     pthread_exit_ref(NULL);
     return NULL;
 }
 
 int main(int argc, char** args) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s api|preload <output_file_1> [output_file_2]\n", args[0]);
+    if (argc < 2 || (strcmp(args[1], "api") != 0 && strcmp(args[1], "preload") != 0)
+            || (strcmp(args[1], "api") == 0 && argc < 4) || (strcmp(args[1], "preload") == 0 && argc < 3)) {
+        fprintf(stderr, "Usage: %s api|preload ...\n", args[0]);
+        fprintf(stderr, "\t%s api output_file_1.jfr output_file_2.jfr\n", args[0]);
+        fprintf(stderr, "\t%s preload output_file.jfr\n", args[0]);
         exit(1);
     }
 
@@ -112,33 +126,24 @@ int main(int argc, char** args) {
         exit(1);
     }
 
-    initAsyncProfiler(0);
+    startProfiler(0, "start,nativemem=10000,wall=10ms", api_mode ? args[3] : args[2]);
 
     if (api_mode) {
-        initAsyncProfiler(1);
-    }
-
-    char start_cmd[2048] = {0};
-    snprintf(start_cmd, sizeof(start_cmd), "start,wall=10ms,file=%s", api_mode ? args[3] : args[2]);
-    executeAsyncProfilerCommand(0, start_cmd);
-
-    if (api_mode) {
-        char start_cmd2[2048] = {0};
-        snprintf(start_cmd2, sizeof(start_cmd2), "start,nativemem,file=%s", args[2]);
-        executeAsyncProfilerCommand(1, start_cmd2);
+        startProfiler(1, "start,nativemem=100000,wall=100ms",args[2]);
     }
 
     pthread_t thread1, thread2;
 
     pthread_create(&thread1, NULL, threadEntry1, NULL);
+    // call .rela.dyn references to make sure no infinite loops will happen
     pthread_create_ref(&thread2, NULL, threadEntry2, NULL);
 
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
 
-    executeAsyncProfilerCommand(0, "stop");
+    executeProfilerCommand(0, "stop");
 
     if (api_mode) {
-        executeAsyncProfilerCommand(1, "stop");
+        executeProfilerCommand(1, "stop");
     }
 }

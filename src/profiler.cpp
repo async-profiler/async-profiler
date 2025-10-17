@@ -1018,7 +1018,6 @@ Engine* Profiler::selectAllocEngine(long alloc_interval, bool live) {
     } else if (VM::isOpenJ9()) {
         return &j9_object_sampler;
     } else {
-        fprintf(stderr, "I'm ALIVE\n");
         return &alloc_tracer;
     }
 }

@@ -86,7 +86,7 @@ public class TestProcess implements Closeable {
         for (String env : test.env()) {
             String[] keyValue = env.split("=", 2);
             if (keyValue.length == 2) {
-                pb.environment().put(substituteFiles(substitutePlatform(keyValue[0])), substituteFiles(keyValue[1]));
+                pb.environment().put(substitutePlatform(keyValue[0]), substituteFiles(keyValue[1]));
             }
         }
         pb.environment().put("TEST_JAVA_HOME", JAVA_HOME);
