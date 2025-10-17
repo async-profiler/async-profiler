@@ -1184,10 +1184,10 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (_cstack == CSTACK_DEFAULT) {
         if (VMStructs::hasStackStructs()) {
             // Use VMStructs by default when possible
-            _cstack = CSTACK_VM;
+            _cstack = args._cstack = CSTACK_VM;
         } else if (VM::isOpenJ9() && DWARF_SUPPORTED) {
             // OpenJ9 libs are compiled with frame pointers omitted
-            _cstack = CSTACK_DWARF;
+            _cstack = args._cstack = CSTACK_DWARF;
         }
     }
 
