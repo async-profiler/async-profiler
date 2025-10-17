@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <time.h>
-#include <sys/syslimits.h>
+#include <limits.h>
 
 #ifdef __APPLE__
 #define LIB_EXT ".dylib"

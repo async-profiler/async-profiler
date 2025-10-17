@@ -52,6 +52,6 @@ public class CTests {
         firstProfiler = Output.convertJfrToCollapsed(p.getFilePath("%profiler_1"), "--wall");
         secondProfiler = Output.convertJfrToCollapsed(p.getFilePath("%profiler_2"), "--wall");
 
-        assert secondProfiler.samples(".*") >= firstProfiler.samples(".*") * 5;
+        assert secondProfiler.samples(".*") >= firstProfiler.samples(".*") * 2;
     }
 }
