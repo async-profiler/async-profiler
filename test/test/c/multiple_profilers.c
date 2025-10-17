@@ -98,13 +98,13 @@ void doSleep(long ms) {
 }
 
 void* threadEntry1(void* args) {
-    doMalloc(50000);
+    doMalloc(2000000);
     doSleep(100);
     pthread_exit(NULL);
 }
 
 void* threadEntry2(void* args) {
-    doMalloc(500000);
+    doMalloc(20000000);
     doSleep(1000);
     // call .rela.dyn references to make sure no infinite loops will happen
     pthread_exit_ref(NULL);
@@ -121,10 +121,10 @@ int main(int argc, char** args) {
     }
 
     int api_mode = strcmp(args[1], "api") == 0;
-    startProfiler(0, "start,nativemem=10000,wall=10ms", api_mode ? args[3] : args[2]);
+    startProfiler(0, "start,nativemem=1000000,wall=10ms", api_mode ? args[3] : args[2]);
 
     if (api_mode) {
-        startProfiler(1, "start,nativemem=100000,wall=100ms",args[2]);
+        startProfiler(1, "start,nativemem=10000000,wall=100ms",args[2]);
     }
 
     pthread_t thread1, thread2;

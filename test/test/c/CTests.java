@@ -33,7 +33,7 @@ public class CTests {
      * * In the first case one profiler is started via preload while the other is started via C-APIs
      * * In The second case both profilers are started via C-APIs
      */
-    @Test(sh = "LD_PRELOAD=%lib %testbin/multiple_profilers preload %profiler_2.jfr", env = {"ASPROF_COMMAND=start,nativemem=100000,wall=100ms,file=%profiler_1.jfr"}, nameSuffix = "preload")
+    @Test(sh = "LD_PRELOAD=%lib %testbin/multiple_profilers preload %profiler_2.jfr", env = {"ASPROF_COMMAND=start,nativemem=10000000,wall=100ms,file=%profiler_1.jfr"}, nameSuffix = "preload")
     // On macOS dlopen on a copied file can result in the same shared object from a dlopen on the original file
     // otool -D build/test/lib/libasyncProfiler-copy.dylib; otool -D build/lib/libasyncProfiler.dylib
     // Preloading one of the shared objects bypasses this issue, AllocTests.objectSamplerWtihDifferentAsprofs isn't effected by this
