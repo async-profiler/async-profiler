@@ -121,11 +121,6 @@ int main(int argc, char** args) {
     }
 
     int api_mode = strcmp(args[1], "api") == 0;
-    if (api_mode && argc < 4) {
-        fprintf(stderr, "Usage: %s api <output_file_1> <output_file_2>\n", args[0]);
-        exit(1);
-    }
-
     startProfiler(0, "start,nativemem=10000,wall=10ms", api_mode ? args[3] : args[2]);
 
     if (api_mode) {
