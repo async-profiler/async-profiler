@@ -41,6 +41,7 @@ public class Arguments {
     public boolean simple;
     public boolean norm;
     public boolean dot;
+    public boolean nativelock;
     public long from;
     public long to;
     public final List<String> files = new ArrayList<>();

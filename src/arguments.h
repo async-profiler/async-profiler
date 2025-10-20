@@ -20,6 +20,7 @@ const char* const EVENT_CPU        = "cpu";
 const char* const EVENT_ALLOC      = "alloc";
 const char* const EVENT_NATIVEMEM  = "nativemem";
 const char* const EVENT_LOCK       = "lock";
+const char* const EVENT_NATIVELOCK  = "nativelock";
 const char* const EVENT_WALL       = "wall";
 const char* const EVENT_CTIMER     = "ctimer";
 const char* const EVENT_ITIMER     = "itimer";
@@ -100,7 +101,8 @@ enum EventMask {
     EM_LOCK         = 4,
     EM_WALL         = 8,
     EM_NATIVEMEM    = 16,
-    EM_METHOD_TRACE = 32
+    EM_METHOD_TRACE = 32,
+    EM_NATIVELOCK   = 64
 };
 constexpr int EVENT_MASK_SIZE = 6;
 
@@ -178,6 +180,7 @@ class Arguments {
     long _alloc;
     long _nativemem;
     long _lock;
+    long _nativelock;
     long _wall;
     long _proc;
     bool _all;
@@ -238,6 +241,7 @@ class Arguments {
         _alloc(-1),
         _nativemem(-1),
         _lock(-1),
+        _nativelock(-1),
         _wall(-1),
         _proc(-1),
         _all(false),
@@ -311,6 +315,7 @@ class Arguments {
                (_lock      >= 0    ? EM_LOCK         : 0) |
                (_wall      >= 0    ? EM_WALL         : 0) |
                (_nativemem >= 0    ? EM_NATIVEMEM    : 0) |
+               (_nativelock >= 0   ? EM_NATIVELOCK   : 0) |
                (!_trace.empty()    ? EM_METHOD_TRACE : 0);
     }
 

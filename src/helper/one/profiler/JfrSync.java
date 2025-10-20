@@ -103,6 +103,7 @@ class JfrSync implements FlightRecorderListener {
         }
         // No built-in event related to EM_WALL
         // No built-in event related to EM_NATIVEMEM
+        // No built-in event related to EM_NATIVELOCK
         // No need to disable built-in event related to EM_METHOD_TRACE
 
         eventMask >>>= EVENT_MASK_SIZE;

@@ -120,6 +120,8 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("previousOwner", T_THREAD, "Previous Monitor Owner", F_CPOOL)
                 << field("address", T_LONG, "Monitor Address", F_ADDRESS))
 
+            
+
             << (type("jdk.ThreadPark", T_THREAD_PARK, "Java Thread Park")
                 << category("Java Application")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
@@ -253,6 +255,14 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("address", T_LONG, "Address", F_ADDRESS))
+            
+            << (type("profiler.NativeLock", T_NATIVE_LOCK, "nativelock")
+                << category("Java Virtual Machine", "Native Lock")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("address", T_LONG, "Monitor Address", F_ADDRESS))
 
             << (type("profiler.UserEvent", T_USER_EVENT, "User-Defined Event")
                 << category("Profiler")

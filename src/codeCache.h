@@ -19,6 +19,9 @@ const int MAX_NATIVE_LIBS = 2048;
 enum ImportId {
     im_dlopen,
     im_pthread_create,
+    im_pthread_mutex_lock,
+    im_pthread_rwlock_rdlock,
+    im_pthread_rwlock_wrlock,
     im_pthread_exit,
     im_pthread_setspecific,
     im_poll,
