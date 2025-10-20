@@ -281,7 +281,6 @@ Error Arguments::parse(const char* args) {
             CASE("all")
                 _all = true;
                 _live = true;
-                _nativelock = 0;
                 if (_wall < 0) {
                     _wall = 0;
                 }
