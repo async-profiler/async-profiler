@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.2] - Early Access
+## [4.2] - 2025-10-20
 
 ### Features
 
