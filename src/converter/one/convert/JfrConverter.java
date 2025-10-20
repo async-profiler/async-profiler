@@ -58,6 +58,7 @@ public abstract class JfrConverter extends Classifier {
     protected void collectEvents() throws IOException {
         Class<? extends Event> eventClass = args.nativelock ? NativeLockEvent.class
                 : args.nativemem ? MallocEvent.class
+                : args.live ? LiveObject.class
                 : args.alloc ? AllocationSample.class
                 : args.lock ? ContendedLock.class
                 : args.trace ? MethodTrace.class

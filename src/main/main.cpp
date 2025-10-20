@@ -75,7 +75,7 @@ static const char USAGE_STRING[] =
     "  --nofree                do not collect free calls in native allocation profiling\n"
     "  --trace method          Method to be instrumented with optional latency threshold\n"
     "  --lock duration         lock profiling threshold in nanoseconds\n"
-    "  --nativelock duration   lock profiling threshold in nanoseconds\n"
+    "  --nativelock duration   nativelock profiling threshold in nanoseconds\n"
     "  --wall interval         wall clock profiling interval\n"
     "  --proc interval         process sampling interval (default: 30s)\n"
     "  --all                   shorthand for enabling cpu, wall, alloc, live,\n"

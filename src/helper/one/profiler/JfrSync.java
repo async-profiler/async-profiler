@@ -27,7 +27,7 @@ class JfrSync implements FlightRecorderListener {
     private static final int EM_LOCK           = 4;
 
     // Keep in sync with EVENT_MASK_SIZE in C++
-    private static final int EVENT_MASK_SIZE = 6;
+    private static final int EVENT_MASK_SIZE = 7;
 
     // Keep in sync with JfrOption
     private static final int NO_SYSTEM_INFO  = 1;

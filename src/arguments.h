@@ -104,7 +104,7 @@ enum EventMask {
     EM_METHOD_TRACE = 32,
     EM_NATIVELOCK   = 64
 };
-constexpr int EVENT_MASK_SIZE = 6;
+constexpr int EVENT_MASK_SIZE = 7;
 
 struct StackWalkFeatures {
     // Deprecated stack recovery techniques used to workaround AsyncGetCallTrace flaws
