@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-jars:
@@ -142,6 +142,8 @@ jobs:
 
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: write
     name: publish (nightly)
     runs-on: ubuntu-latest
     needs: [build-jars, integ-linux-x64, integ-linux-arm64, integ-macos]
