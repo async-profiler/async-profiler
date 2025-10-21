@@ -68,6 +68,14 @@ public class Main {
         }
     }
 
+    public static FlameGraph parseFlameGraph(String input, Arguments args) throws IOException {
+        if (isJfr(input)) {
+            return JfrToFlame.parse(input, args);
+        } else {
+            return FlameGraph.parse(input, args);
+        }
+    }
+
     private static String getFileName(String fileName) {
         return fileName.substring(fileName.lastIndexOf(File.separatorChar) + 1);
     }

@@ -171,6 +171,12 @@ public class FlameGraph implements Comparator<Frame> {
         depth = Math.max(depth, stack.size);
     }
 
+    public void dump(OutputStream out) throws IOException {
+        try (PrintStream ps = new PrintStream(out, false, "UTF-8")) {
+            dump(ps);
+        }
+    }
+
     public void dump(PrintStream out) {
         mintotal = (long) (root.total * args.minwidth / 100);
 
@@ -390,7 +396,7 @@ public class FlameGraph implements Comparator<Frame> {
         return order[f1.getTitleIndex()] - order[f2.getTitleIndex()];
     }
 
-    public static void convert(String input, String output, Arguments args) throws IOException {
+    public static FlameGraph parse(String input, Arguments args) throws IOException {
         FlameGraph fg = new FlameGraph(args);
         try (InputStreamReader in = new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8)) {
             if (input.endsWith(".html")) {
@@ -399,6 +405,11 @@ public class FlameGraph implements Comparator<Frame> {
                 fg.parseCollapsed(in);
             }
         }
+        return fg;
+    }
+
+    public static void convert(String input, String output, Arguments args) throws IOException {
+        FlameGraph fg = parse(input, args);
         try (PrintStream out = new PrintStream(output, "UTF-8")) {
             fg.dump(out);
         }
