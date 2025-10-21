@@ -10,6 +10,7 @@ import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
+import test.smoke.Cpu;
 
 public class CstackTests {
     private static final String PROFILE_COMMAND = "-e cpu -i 10ms -d 1 -o collapsed -a ";
@@ -40,5 +41,21 @@ public class CstackTests {
         assert out.contains("InstanceKlass::initialize");
         assert out.contains("call_stub");
         assert out.contains("JavaMain");
+    }
+
+    @Test(mainClass = Cpu.class, jvm = Jvm.HOTSPOT, agentArgs = "start,event=cpu,interval=1ms")
+    public void saneNativeStack(TestProcess p) throws Exception {
+        Thread.sleep(2000);
+        Output out = p.profile("stop -o flamegraph").convertFlameToCollapsed();
+
+        assert out.contains("^test/smoke/Cpu.main");
+        assert out.contains("CompileBroker::");
+        assert out.contains("Java_java_io_");
+
+        // No JVM frames before start_thread
+        assert !out.contains("CompileBroker::.*;start_thread");
+
+        // No duplicated native frames
+        assert !out.contains("Java_java_io_.*;Java_java_io_");
     }
 }

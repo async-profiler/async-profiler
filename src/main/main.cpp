@@ -59,7 +59,7 @@ static const char USAGE_STRING[] =
     "  -I include          output only stack traces containing the specified pattern\n"
     "  -X exclude          exclude stack traces with the specified pattern\n"
     "  -L level            log level: debug|info|warn|error|none\n"
-    "  -F features         advanced stack trace features: vtable, comptask, pcaddr\n"
+    "  -F features         advanced stack trace features: mixed, vtable, comptask, pcaddr\n"
     "  -v, --version       display version string\n"
     "\n"
     "  --title string      FlameGraph title\n"
@@ -73,7 +73,7 @@ static const char USAGE_STRING[] =
     "  --live              build allocation profile from live objects only\n"
     "  --nativemem bytes   native allocation profiling interval in bytes\n"
     "  --nofree            do not collect free calls in native allocation profiling\n"
-    "  --latency duration  Java method latency profiling threshold\n"
+    "  --trace method      Method to be instrumented with optional latency threshold\n"
     "  --lock duration     lock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
     "  --proc interval     process sampling interval (default: 30s)\n"
@@ -505,7 +505,7 @@ int main(int argc, const char** argv) {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
-                   arg == "--latency" || arg == "--chunksize" || arg == "--chunktime" ||
+                   arg == "--trace" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
                    arg == "--target-cpu" || arg == "--proc") {
             params << "," << (arg.str() + 2) << "=" << args.next();

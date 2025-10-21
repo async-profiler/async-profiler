@@ -66,7 +66,6 @@ class FrameName {
     ThreadMap& _thread_names;
     locale_t _saved_locale;
 
-    void buildFilter(std::vector<Matcher>& vector, const char* base, int offset);
     const char* decodeNativeSymbol(const char* name);
     const char* typeSuffix(FrameTypeId type);
     void javaMethodName(jmethodID method);
