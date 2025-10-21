@@ -16,14 +16,14 @@ const long DEFAULT_LOCK_INTERVAL = 10000;    // 10 us
 const long DEFAULT_PROC_INTERVAL = 30;       // 30 seconds
 const int DEFAULT_JSTACKDEPTH = 2048;
 
-const char* const EVENT_CPU         = "cpu";
-const char* const EVENT_ALLOC       = "alloc";
-const char* const EVENT_NATIVEMEM   = "nativemem";
-const char* const EVENT_LOCK        = "lock";
-const char* const EVENT_NATIVELOCK  = "nativelock";
-const char* const EVENT_WALL        = "wall";
-const char* const EVENT_CTIMER      = "ctimer";
-const char* const EVENT_ITIMER      = "itimer";
+const char* const EVENT_CPU        = "cpu";
+const char* const EVENT_ALLOC      = "alloc";
+const char* const EVENT_NATIVEMEM  = "nativemem";
+const char* const EVENT_LOCK       = "lock";
+const char* const EVENT_NATIVELOCK = "nativelock";
+const char* const EVENT_WALL       = "wall";
+const char* const EVENT_CTIMER     = "ctimer";
+const char* const EVENT_ITIMER     = "itimer";
 
 #define SHORT_ENUM __attribute__((__packed__))
 

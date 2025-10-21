@@ -29,6 +29,7 @@ public class Arguments {
     public boolean wall;
     public boolean alloc;
     public boolean nativemem;
+    public boolean nativelock;
     public boolean leak;
     public boolean live;
     public boolean lock;
@@ -41,7 +42,6 @@ public class Arguments {
     public boolean simple;
     public boolean norm;
     public boolean dot;
-    public boolean nativelock;
     public long from;
     public long to;
     public final List<String> files = new ArrayList<>();

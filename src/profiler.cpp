@@ -343,10 +343,7 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
                 // Skip all internal frames above VM runtime entry for allocation samples
                 depth = 0;
                 continue;
-            } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
-                // Skip all internal frames above the *_hook functions. Include the hook function itself.
-                depth = 0;
-            } else if (mark == MARK_ASYNC_PROFILER && event_type == NATIVE_LOCK_SAMPLE) {
+            } else if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
                 // Skip all internal frames above the *_hook functions. Include the hook function itself.
                 depth = 0;
             } else if (mark == MARK_INTERPRETER) {

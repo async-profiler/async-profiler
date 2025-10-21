@@ -8,15 +8,9 @@ package test.nativelock;
 public class CallsWrLock {
 
     public static void main(String[] args) throws InterruptedException {
-        final boolean once = args.length > 0 && args[0].equals("once");
+       NativeLock.class.getName();
+        Thread.sleep(500);
         
-        if (once) {
-            NativeLock.createWrLockContention();
-        } else {
-            while (true) {
-                NativeLock.createWrLockContention();
-                Thread.sleep(100);
-            }
-        }
+        NativeLock.createWrLockContention();
     }
 }

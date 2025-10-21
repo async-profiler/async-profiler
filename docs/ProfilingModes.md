@@ -172,6 +172,30 @@ enter this lock/monitor.
 
 Example: `asprof -e lock -t -i 5ms -f result.html 8983`
 
+## Native Lock profiling
+
+`-e nativelock` option tells async-profiler to measure native pthread lock contention in the profiled application.
+Native lock profiling can help developers understand pthread lock acquisition patterns, lock contention (when threads
+have to wait to acquire native locks), time spent waiting for pthread mutexes and read-write locks, and which code paths
+are blocked due to native synchronization primitives.
+
+Native lock profiling works by intercepting calls to:
+
+- pthread_mutex_lock() - Mutex lock contention
+- pthread_rwlock_rdlock() - Read-write lock read contention
+- pthread_rwlock_wrlock() - Read-write lock write contention
+
+In native lock profiling mode, the top frame shows the native function that experienced contention (e.g., pthread_mutex_lock_hook),
+and the counter represents the number of nanoseconds threads spent waiting to acquire the lock.
+
+Key differences from Java lock profiling:
+
+- Profiles native pthread locks instead of Java monitors
+- Works with C/C++ applications and native libraries used by Java applications
+- Captures contention in native code paths that Java lock profiling cannot see
+
+Example: `asprof -e nativelock -t -i 5ms -f result.html 8983`
+
 ## Java method profiling
 
 `-e ClassName.methodName` option instruments the given Java method

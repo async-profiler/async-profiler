@@ -75,7 +75,7 @@ class LockEvent : public EventWithClassId {
     long long _timeout;
 };
 
-class NativeLockEvent : public EventWithClassId {
+class NativeLockEvent : public Event {
   public:
     u64 _start_time;
     u64 _end_time;

@@ -217,14 +217,14 @@ void CodeCache::addImport(void** entry, const char* name) {
         case 'p':
             if (strcmp(name, "pthread_create") == 0) {
                 saveImport(im_pthread_create, entry);
+            } else if (strcmp(name, "pthread_exit") == 0) {
+                saveImport(im_pthread_exit, entry);
             } else if (strcmp(name, "pthread_mutex_lock") == 0) {
                 saveImport(im_pthread_mutex_lock, entry);
             } else if (strcmp(name, "pthread_rwlock_rdlock") == 0) {
                 saveImport(im_pthread_rwlock_rdlock, entry);
             } else if (strcmp(name, "pthread_rwlock_wrlock") == 0) {
                 saveImport(im_pthread_rwlock_wrlock, entry);
-            } else if (strcmp(name, "pthread_exit") == 0) {
-                saveImport(im_pthread_exit, entry);
             } else if (strcmp(name, "pthread_setspecific") == 0) {
                 saveImport(im_pthread_setspecific, entry);
             } else if (strcmp(name, "poll") == 0) {

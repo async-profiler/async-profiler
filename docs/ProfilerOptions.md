@@ -39,6 +39,7 @@ The below options are `action`s for async-profiler and common for both `asprof` 
 | `--trace METHOD[:DURATION]` | `trace=METHOD[:DURATION]` | Method to be traced with optional latency threshold. Example: `--trace my.pkg.Class.Method:50ms`. Latency threshold defaults to 0 (all calls are profiled). Can be used multiple times.                                                                                                                                                                                                                                                    |
 
 | `--lock DURATION` | `lock=DURATION` | In lock profiling mode, sample contended locks when total lock duration overflows the threshold. |
+| `--nativelock DURATION` | `nativelock=DURATION` | In native lock profiling mode, sample contended pthread locks (mutex/rwlock) when total lock duration overflows the threshold. |
 | `--wall INTERVAL` | `wall=INTERVAL` | Wall clock profiling interval. Use this option instead of `-e wall` to enable wall clock profiling with another event, typically `cpu`.<br>Example: `asprof -e cpu --wall 100ms -f combined.jfr 8983`. |
 | `--proc INTERVAL` | `proc=INTERVAL` | Collect statistics about other processes in the system. Default sampling interval is 30s. |
 | `-j N` | `jstackdepth=N` | Sets the maximum stack depth. The default is 2048.<br>Example: `asprof -j 30 8983` |

@@ -11,7 +11,7 @@
 #include "tsc.h"
 
 
-extern "C" int pthread_mutex_lock_hook(pthread_mutex_t *mutex) {
+extern "C" int pthread_mutex_lock_hook(pthread_mutex_t* mutex) {
     if (!NativeLockTracer::running()) {
         return pthread_mutex_lock(mutex);
     }
@@ -24,12 +24,15 @@ extern "C" int pthread_mutex_lock_hook(pthread_mutex_t *mutex) {
     int ret = pthread_mutex_lock(mutex);
     u64 end_time = TSC::ticks();
 
-    NativeLockTracer::recordNativeLock(mutex, start_time, end_time);
+    if  (ret == 0) {
+        NativeLockTracer::recordNativeLock(mutex, start_time, end_time);
+    }
+    
 
     return ret;
 }
 
-extern "C" int pthread_rwlock_rdlock_hook(pthread_rwlock_t *rwlock) {
+extern "C" int pthread_rwlock_rdlock_hook(pthread_rwlock_t* rwlock) {
     if (!NativeLockTracer::running()) {
         return pthread_rwlock_rdlock(rwlock);
     }
@@ -42,12 +45,14 @@ extern "C" int pthread_rwlock_rdlock_hook(pthread_rwlock_t *rwlock) {
     int ret = pthread_rwlock_rdlock(rwlock);
     u64 end_time = TSC::ticks();
 
-    NativeLockTracer::recordNativeLock(rwlock, start_time, end_time);
+    if  (ret == 0) {
+        NativeLockTracer::recordNativeLock(rwlock, start_time, end_time);
+    }
 
     return ret;
 }
 
-extern "C" int pthread_rwlock_wrlock_hook(pthread_rwlock_t *rwlock) {
+extern "C" int pthread_rwlock_wrlock_hook(pthread_rwlock_t* rwlock) {
     if (!NativeLockTracer::running()) {
         return pthread_rwlock_wrlock(rwlock);
     }
@@ -60,13 +65,16 @@ extern "C" int pthread_rwlock_wrlock_hook(pthread_rwlock_t *rwlock) {
     int ret = pthread_rwlock_wrlock(rwlock);
     u64 end_time = TSC::ticks();
 
-    NativeLockTracer::recordNativeLock(rwlock, start_time, end_time);
+    if  (ret == 0) {
+        NativeLockTracer::recordNativeLock(rwlock, start_time, end_time);
+    }
 
     return ret;
 }
 
 
 u64 NativeLockTracer::_interval;
+double NativeLockTracer::_ticks_to_nanos;
 Mutex NativeLockTracer::_patch_lock;
 int NativeLockTracer::_patched_libs = 0;
 bool NativeLockTracer::_initialized = false;
@@ -111,19 +119,21 @@ void NativeLockTracer::patchLibraries() {
 }
 
 void NativeLockTracer::recordNativeLock(void* address, u64 start_time, u64 end_time) {
-    const u64 duration = end_time - start_time;
-    if (updateCounter(_total_duration, duration, _interval)) {
+    const u64 duration_ticks = end_time - start_time;
+    if (updateCounter(_total_duration, duration_ticks, _interval)) {
+        u64 duration_nanos = (u64)(duration_ticks * _ticks_to_nanos);
         NativeLockEvent event;
         event._start_time = start_time;
-        event._address = (uintptr_t)address;
         event._end_time = end_time;
+        event._address = (uintptr_t)address;
 
-        Profiler::instance()->recordSample(NULL, duration, NATIVE_LOCK_SAMPLE, &event);
+        Profiler::instance()->recordSample(NULL, duration_nanos, NATIVE_LOCK_SAMPLE, &event);
     }
 }
 
 Error NativeLockTracer::start(Arguments& args) {
-    _interval = args._nativelock > 0 ? args._nativelock : 0;
+    _ticks_to_nanos = 1e9 / TSC::frequency();
+    _interval = args._nativelock > 0 ? (u64)(args._nativelock * (TSC::frequency() / 1e9)) : 0;
     _total_duration = 0;
 
     if (!_initialized) {
