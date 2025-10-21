@@ -31,7 +31,6 @@ Usually this happens in one of the following cases:
 1. Attach socket `/tmp/.java_pidNNN` has been deleted. It is a common
    practice to clean `/tmp` automatically with some scheduled script.
    Configure the cleanup software to exclude `.java_pid*` files from deletion.
-
    - How to check: run `lsof -p PID | grep java_pid`. If it lists a socket file, but the file does not exist, then this is exactly
      the described problem.
 
