@@ -91,7 +91,7 @@ public class Heatmap {
         stream.print('E');
 
         tail = ResourceProcessor.printTill(stream, tail, "/*title:*/");
-        stream.print(args.title == null ? "Heatmap" : args.title);
+        stream.print(args.title != null ? args.title : "Heatmap");
 
         tail = ResourceProcessor.printTill(stream, tail, "/*startMs:*/0");
         stream.print(startMs);
