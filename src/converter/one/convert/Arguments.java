@@ -24,6 +24,7 @@ public class Arguments {
     public boolean help;
     public boolean reverse;
     public boolean inverted;
+    public boolean diff;
     public boolean cpu;
     public boolean cpuTime;
     public boolean wall;

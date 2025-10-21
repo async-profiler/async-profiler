@@ -16,11 +16,13 @@ public class Frame extends HashMap<Integer, Frame> {
     public static final byte TYPE_KERNEL = 5;
     public static final byte TYPE_C1_COMPILED = 6;
 
-    private static final int TYPE_SHIFT = 28;
+    static final int TYPE_SHIFT = 28;
+    static final int TYPE_MASK = -1 << TYPE_SHIFT;
 
     final int key;
     long total;
     long self;
+    long diff;
     long inlined, c1, interpreted;
 
     private Frame(int key) {
