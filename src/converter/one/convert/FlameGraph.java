@@ -26,6 +26,8 @@ public class FlameGraph implements Comparator<Frame> {
     private final Index<String> cpool = new Index<>(String.class, "");
     private final Frame root = new Frame(0, TYPE_NATIVE);
     private final StringBuilder outbuf = new StringBuilder(FLUSH_THRESHOLD + 1000);
+
+    private String title = "Flame Graph";
     private int[] order;
     private int depth;
     private int lastLevel;
@@ -71,7 +73,11 @@ public class FlameGraph implements Comparator<Frame> {
         boolean needRebuild = args.reverse || args.include != null || args.exclude != null;
 
         try (BufferedReader br = new BufferedReader(in)) {
-            while (!br.readLine().startsWith("const cpool")) ;
+            for (String line; !(line = br.readLine()).startsWith("const cpool"); ) {
+                if (line.startsWith("<h1")) {
+                    title = line.substring(line.indexOf('>') + 1, line.lastIndexOf("</h1>"));
+                }
+            }
             br.readLine();
 
             String s = "";
@@ -192,7 +198,7 @@ public class FlameGraph implements Comparator<Frame> {
         out.print(Math.min(depth * 16, 32767));
 
         tail = printTill(out, tail, "/*title:*/");
-        out.print(args.title);
+        out.print(args.title != null ? args.title : title);
 
         // inverted toggles the layout for reversed stacktraces from icicle to flamegraph
         // and for default stacktraces from flamegraphs to icicle.

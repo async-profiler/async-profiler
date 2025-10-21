@@ -11,7 +11,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class Arguments {
-    public String title = "Flame Graph";
+    public String title;
     public String highlight;
     public String output;
     public String state;
