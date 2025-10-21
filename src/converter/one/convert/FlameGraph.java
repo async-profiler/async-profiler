@@ -74,8 +74,8 @@ public class FlameGraph implements Comparator<Frame> {
 
         try (BufferedReader br = new BufferedReader(in)) {
             for (String line; !(line = br.readLine()).startsWith("const cpool"); ) {
-                if (line.startsWith("<h1>")) {
-                    title = line.substring(4, line.lastIndexOf("</h1>"));
+                if (line.startsWith("<h1")) {
+                    title = line.substring(line.indexOf('>') + 1, line.lastIndexOf("</h1>"));
                 }
             }
             br.readLine();
