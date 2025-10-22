@@ -159,7 +159,7 @@ For instance, this can be helpful when profiling application start-up time.
 
 Wall-clock profiler is most useful in per-thread mode: `-t`.
 
-Example: `asprof --wall -t -i 50ms -f result.html 8983`
+Example: `asprof -e wall -t -i 50ms -f result.html 8983`
 
 ## Lock profiling
 
@@ -170,7 +170,7 @@ spent waiting for locks and which code paths are blocked due to locks.
 In lock profiling mode, the top frame is the class of lock/monitor, and the counter is number of nanoseconds it took to
 enter this lock/monitor.
 
-Example: `asprof --lock -t -i 5ms -f result.html 8983`
+Example: `asprof -e lock 5ms -t -f result.html 8983`
 
 ## Native Lock profiling
 
@@ -194,7 +194,7 @@ Key differences from Java lock profiling:
 - Works with C/C++ applications and native libraries used by Java applications
 - Captures contention in native code paths that Java lock profiling cannot see
 
-Example: `asprof --nativelock -t 5ms -f result.html 8983`
+Example: `asprof --nativelock 5ms -t -f result.html 8983`
 
 ## Java method profiling
 
