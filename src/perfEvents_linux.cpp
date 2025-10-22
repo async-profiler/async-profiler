@@ -534,9 +534,9 @@ PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
+bool PerfEvents::_use_perf_mmap;
 bool PerfEvents::_record_cpu;
 int PerfEvents::_target_cpu;
-bool PerfEvents::_use_perf_mmap;
 
 int PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
