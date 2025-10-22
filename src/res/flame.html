@@ -78,7 +78,7 @@
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
 			color: maxdiff >= 0 ? getDiffColor(width, diff || 0) : getColor(palette[key & 7]),
 			title: cpool[key >>> 3],
-			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
+			details: (diff ? (diff > 0 ? ', +' : ', ') + diff : '') + (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
 	}
 
