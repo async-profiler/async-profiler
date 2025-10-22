@@ -536,6 +536,7 @@ bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
 bool PerfEvents::_record_cpu;
 int PerfEvents::_target_cpu;
+bool PerfEvents::_use_perf_mmap;
 
 int PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
@@ -621,7 +622,7 @@ int PerfEvents::createForThread(int tid) {
     }
 
     void* page = NULL;
-    if (_kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _record_cpu) {
+    if (_use_perf_mmap) {
         page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (page == MAP_FAILED) {
             Log::warn("perf_event mmap failed: %s", strerror(errno));
@@ -829,6 +830,7 @@ Error PerfEvents::start(Arguments& args) {
         // Automatically switch on alluser for non-CPU events, if kernel profiling is unavailable
         _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
     }
+    _use_perf_mmap = _kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _record_cpu;
 
     adjustFDLimit();
 
