@@ -621,7 +621,7 @@ int PerfEvents::createForThread(int tid) {
     }
 
     void* page = NULL;
-    if (_kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR) {
+    if (_kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _cstack == CSTACK_VM) {
         page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (page == MAP_FAILED) {
             Log::warn("perf_event mmap failed: %s", strerror(errno));
