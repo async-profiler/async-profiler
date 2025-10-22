@@ -67,16 +67,16 @@
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
 	}
 
-	function getDiffColor(diff) {
+	function getDiffColor(width, diff) {
+		if (diff === 0) return '#e0e0e0';
+		if (diff === width) return '#ffdd33';
 		const v = Math.round(210 * (maxdiff - Math.abs(diff)) / maxdiff);
-		if (diff > 0) return 'rgb(255,' + v + ',' + v + ')';
-		if (diff < 0) return 'rgb(' + v + ',' + v + ',255)';
-		return '#e0e0e0';
+		return diff > 0 ? 'rgb(255,' + v + ',' + v + ')' : 'rgb(' + v + ',' + v + ',255)';
 	}
 
 	function f(key, level, left, width, diff, inln, c1, int) {
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
-			color: maxdiff >= 0 ? getDiffColor(diff || 0) : getColor(palette[key & 7]),
+			color: maxdiff >= 0 ? getDiffColor(width, diff || 0) : getColor(palette[key & 7]),
 			title: cpool[key >>> 3],
 			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
