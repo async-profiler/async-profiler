@@ -42,51 +42,37 @@ void* rwlock_writer_thread(void* arg) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <mutex|rwlock>\n", argv[0]);
-        return 1;
+
+    printf("Testing all lock types...\n");
+    printf("Testing mutex contention...\n");
+    const int mutex_threads = 4;
+    pthread_t mutex_thread_array[mutex_threads];
+    
+    for (int i = 0; i < mutex_threads; i++) {
+        pthread_create(&mutex_thread_array[i], NULL, mutex_contention_thread, NULL);
+    }
+    
+    for (int i = 0; i < mutex_threads; i++) {
+        pthread_join(mutex_thread_array[i], NULL);
+    }
+    
+    printf("Testing rwlock contention...\n");
+    const int num_readers = 4;
+    const int num_writers = 2;
+    pthread_t rwlock_threads[num_readers + num_writers];
+    
+    for (int i = 0; i < num_readers; i++) {
+        pthread_create(&rwlock_threads[i], NULL, rwlock_reader_thread, NULL);
+    }
+    
+    for (int i = 0; i < num_writers; i++) {
+        pthread_create(&rwlock_threads[num_readers + i], NULL, rwlock_writer_thread, NULL);
+    }
+    
+    for (int i = 0; i < num_readers + num_writers; i++) {
+        pthread_join(rwlock_threads[i], NULL);
     }
 
-    usleep(50000);
-
-    if (strcmp(argv[1], "mutex") == 0) {
-        printf("Testing mutex contention...\n");
-        
-        const int num_threads = 4;
-        pthread_t threads[num_threads];
-        
-        for (int i = 0; i < num_threads; i++) {
-            pthread_create(&threads[i], NULL, mutex_contention_thread, NULL);
-        }
-        
-        for (int i = 0; i < num_threads; i++) {
-            pthread_join(threads[i], NULL);
-        }
-        
-    } else if (strcmp(argv[1], "rwlock") == 0) {
-        printf("Testing rwlock contention...\n");
-        
-        const int num_readers = 4;
-        const int num_writers = 2;
-        pthread_t threads[num_readers + num_writers];
-        
-        for (int i = 0; i < num_readers; i++) {
-            pthread_create(&threads[i], NULL, rwlock_reader_thread, NULL);
-        }
-        
-        for (int i = 0; i < num_writers; i++) {
-            pthread_create(&threads[num_readers + i], NULL, rwlock_writer_thread, NULL);
-        }
-        
-        for (int i = 0; i < num_readers + num_writers; i++) {
-            pthread_join(threads[i], NULL);
-        }
-        
-    } else {
-        printf("Invalid test type: %s\n", argv[1]);
-        return 1;
-    }
-
-    printf("Test completed successfully.\n");
+    fprintf(stderr, "Test completed successfully.\n");
     return 0;
 }

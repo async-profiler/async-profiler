@@ -21,7 +21,6 @@ class NativeLockTracer : public Engine {
     static bool _initialized;
     static volatile bool _running;
     static volatile u64 _total_duration;
-    static u64 _start_time;
 
     static void initialize();
     static void patchLibraries();

@@ -28,7 +28,6 @@ extern "C" int pthread_mutex_lock_hook(pthread_mutex_t* mutex) {
         NativeLockTracer::recordNativeLock(mutex, start_time, end_time);
     }
     
-
     return ret;
 }
 
@@ -133,7 +132,7 @@ void NativeLockTracer::recordNativeLock(void* address, u64 start_time, u64 end_t
 
 Error NativeLockTracer::start(Arguments& args) {
     _ticks_to_nanos = 1e9 / TSC::frequency();
-    _interval = args._nativelock > 0 ? (u64)(args._nativelock * (TSC::frequency() / 1e9)) : 0;
+    _interval = (u64)(args._nativelock * (TSC::frequency() / 1e9));
     _total_duration = 0;
 
     if (!_initialized) {

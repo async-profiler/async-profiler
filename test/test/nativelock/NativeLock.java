@@ -9,8 +9,8 @@ public class NativeLock {
     static {
         System.loadLibrary("jninativelocks");
     }
-
-    public static native void createMutexContention();
-    public static native void createRdLockContention();
-    public static native void createWrLockContention();
+    
+    public static native void mutexContentionThread();
+    public static native void rdlockContentionThread();
+    public static native void wrlockContentionThread();
 }
