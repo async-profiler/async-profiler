@@ -17,7 +17,7 @@ public class MetricsTest {
 
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
-        profiler.execute("start,jfr,trace=test.api.MetricsTest.doStuff,file=/dev/null");
+        profiler.execute("start,trace=test.api.MetricsTest.doStuff,features=stats,jfr,file=/dev/null");
         
         doStuff();
         doStuff();
@@ -35,5 +35,8 @@ public class MetricsTest {
                 assert pair[1].equals("3");
             }
         }
+
+        // total_stackwalk_time should be present since we used features=stats
+        assert metrics.contains("total_stackwalk_time");
     }
 }
