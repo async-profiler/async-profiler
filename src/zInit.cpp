@@ -5,10 +5,35 @@
 
 #include <dlfcn.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "hooks.h"
 #include "profiler.h"
 #include "vmStructs.h"
 
+// Invoke functions we may intercept so the GOT entries are resolved
+// GOT entries are present in the generated shared library
+static void resolveGotEntries() {
+    static volatile intptr_t sink;
+
+    void* p0 = malloc(1);
+    void* p1 = realloc(p0, 2);
+    void* p2 = calloc(1, 1);
+    void* p3 = aligned_alloc(1, 1);
+    void* p4 = NULL;
+    if (posix_memalign(&p4, sizeof(void*), sizeof(void*)) == 0) free(p4);
+    free(p3);
+    free(p2);
+    free(p1);
+
+    sink = (intptr_t)p0 | (intptr_t)p1 | (intptr_t)p2 | (intptr_t)p3 | (intptr_t)p4;
+
+    // This condition will never be true, but the compiler won't optimize it out
+    // Here symbols can be called in a safe manner to make sure they're included in the GOT entries of the shared object
+    // Any newer symbols needed by the profiler can be called here
+    if (!sink) {
+        pthread_exit(NULL);
+    }
+}
 
 // This should be called only after all other statics are initialized.
 // Therefore, put it in the last file in the alphabetic order.
@@ -23,9 +48,11 @@ class LateInitializer {
             dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
         }
 
+        resolveGotEntries();
+
         if (!checkJvmLoaded()) {
             const char* command = getenv("ASPROF_COMMAND");
-            if (command != NULL && OS::checkPreloaded() && Hooks::init(false)) {
+            if (command != NULL && OS::checkPreloaded() && Hooks::init()) {
                 startProfiler(command);
             }
         }

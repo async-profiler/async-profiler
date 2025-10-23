@@ -11,9 +11,8 @@ import one.jfr.event.AllocationSample;
 import one.profiler.test.*;
 
 import java.io.File;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 public class AllocTests {
@@ -66,10 +65,8 @@ public class AllocTests {
         Output out = p.profile("-e alloc -d 3 -o collapsed");
         // _[k] suffix in collapsed output corresponds to jdk.ObjectAllocationOutsideTLAB, which means alloc tracer is being used
         assert !out.contains("_\\[k\\]"); // we are using alloc tracer instead of object sampler, should definitely not happen on first profiling call
-        File asprofCopy = File.createTempFile(new File(p.profilerLibPath()).getName(), null);
-        asprofCopy.deleteOnExit();
-        Files.copy(Paths.get(p.profilerLibPath()), asprofCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        Output outWithCopy = p.profile(String.format("--libpath %s -e alloc -d 3 -o collapsed", asprofCopy.getAbsolutePath()));
+        Path path = Paths.get(String.format("build/test/lib/libasyncProfiler-copy.%s", p.currentOs().getLibExt()));
+        Output outWithCopy = p.profile(String.format("--libpath %s -e alloc -d 3 -o collapsed", new File(path.toUri()).getAbsolutePath()));
         assert !outWithCopy.contains("_\\[k\\]"); // first instance of profiler has not properly relinquished the can_generate_sampled_object_alloc_events capability.
     }
 
