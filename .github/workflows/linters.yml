@@ -31,6 +31,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: EOF newline check
+        env:
+          offenders_path: /tmp/eof_newline_offenders.txt
         run: |
           find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.hpp" -o -name "*.java" \) | while read -r file; do
               # Read last byte and verify it's a newline
@@ -42,5 +44,3 @@ jobs:
             cat "$offenders_path"
             exit 1
           fi
-      - env:
-          offenders_path: /tmp/eof_newline_offenders.txt
