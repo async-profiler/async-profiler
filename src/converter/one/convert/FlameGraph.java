@@ -26,6 +26,8 @@ public class FlameGraph implements Comparator<Frame> {
     private final Index<String> cpool = new Index<>(String.class, "");
     private final Frame root = new Frame(0, TYPE_NATIVE);
     private final StringBuilder outbuf = new StringBuilder(FLUSH_THRESHOLD + 1000);
+
+    private String title = "Flame Graph";
     private int[] order;
     private int depth;
     private int lastLevel;
@@ -71,7 +73,11 @@ public class FlameGraph implements Comparator<Frame> {
         boolean needRebuild = args.reverse || args.include != null || args.exclude != null;
 
         try (BufferedReader br = new BufferedReader(in)) {
-            while (!br.readLine().startsWith("const cpool")) ;
+            for (String line; !(line = br.readLine()).startsWith("const cpool"); ) {
+                if (line.startsWith("<h1")) {
+                    title = line.substring(line.indexOf('>') + 1, line.lastIndexOf("</h1>"));
+                }
+            }
             br.readLine();
 
             String s = "";
@@ -171,6 +177,12 @@ public class FlameGraph implements Comparator<Frame> {
         depth = Math.max(depth, stack.size);
     }
 
+    public void dump(OutputStream out) throws IOException {
+        try (PrintStream ps = new PrintStream(out, false, "UTF-8")) {
+            dump(ps);
+        }
+    }
+
     public void dump(PrintStream out) {
         mintotal = (long) (root.total * args.minwidth / 100);
 
@@ -186,7 +198,7 @@ public class FlameGraph implements Comparator<Frame> {
         out.print(Math.min(depth * 16, 32767));
 
         tail = printTill(out, tail, "/*title:*/");
-        out.print(args.title);
+        out.print(args.title != null ? args.title : title);
 
         // inverted toggles the layout for reversed stacktraces from icicle to flamegraph
         // and for default stacktraces from flamegraphs to icicle.
@@ -390,7 +402,7 @@ public class FlameGraph implements Comparator<Frame> {
         return order[f1.getTitleIndex()] - order[f2.getTitleIndex()];
     }
 
-    public static void convert(String input, String output, Arguments args) throws IOException {
+    public static FlameGraph parse(String input, Arguments args) throws IOException {
         FlameGraph fg = new FlameGraph(args);
         try (InputStreamReader in = new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8)) {
             if (input.endsWith(".html")) {
@@ -399,6 +411,11 @@ public class FlameGraph implements Comparator<Frame> {
                 fg.parseCollapsed(in);
             }
         }
+        return fg;
+    }
+
+    public static void convert(String input, String output, Arguments args) throws IOException {
+        FlameGraph fg = parse(input, args);
         try (PrintStream out = new PrintStream(output, "UTF-8")) {
             fg.dump(out);
         }

@@ -68,16 +68,6 @@ static ProfilingWindow profiling_window;
 uint64_t Profiler::_metrics_buffer[5] = {0};
 
 
-// The same constants are used in JfrSync
-enum EventMask {
-    EM_CPU   = 1,
-    EM_ALLOC = 2,
-    EM_LOCK  = 4,
-    EM_WALL  = 8,
-    EM_NATIVEMEM = 16,
-};
-
-
 struct MethodSample {
     u64 samples;
     u64 counter;
@@ -328,7 +318,7 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
         native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
-    } else if (_cstack >= CSTACK_VM) {
+    } else if (_cstack == CSTACK_VM) {
         return 0;
     } else if (_cstack == CSTACK_DWARF) {
         native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
@@ -656,11 +646,11 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         }
     }
 
-    if (_cstack == CSTACK_VMX) {
-        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_EXPERT);
+    if (_features.mixed) {
+        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, _features, event_type);
     } else if (event_type <= MALLOC_SAMPLE) {
         if (_cstack == CSTACK_VM) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL);
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, _features, event_type);
         } else {
             int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
             if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
@@ -674,7 +664,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
         VMThread* vm_thread;
         if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor());
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor(), event_type);
         } else {
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }
@@ -1043,6 +1033,8 @@ Engine* Profiler::activeEngine() {
             return &wall_clock;
         case EM_NATIVEMEM:
             return &malloc_tracer;
+        case EM_METHOD_TRACE:
+            return &instrument;
         default:
             return _engine;
     }
@@ -1089,17 +1081,13 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    _event_mask = (args._event != NULL ? EM_CPU : 0) |
-                  (args._alloc >= 0 ? EM_ALLOC : 0) |
-                  (args._lock >= 0 ? EM_LOCK : 0) |
-                  (args._wall >= 0 ? EM_WALL : 0) |
-                  (args._nativemem >= 0 ? EM_NATIVEMEM : 0);
+    _event_mask = args.eventMask();
 
     if (_event_mask == 0) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
         return Error("Only JFR output supports multiple events");
-    } else if (!VM::loaded() && (_event_mask & (EM_ALLOC | EM_LOCK))) {
+    } else if (!VM::loaded() && (_event_mask & (EM_ALLOC | EM_LOCK | EM_METHOD_TRACE))) {
         return Error("Profiling event is not supported with non-Java processes");
     }
 
@@ -1181,6 +1169,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("target-cpu is only supported with perf_events");
     } else if (_engine != &perf_events && args._record_cpu) {
         return Error("record-cpu is only supported with perf_events");
+    } else if (_engine == &instrument && !args._trace.empty()) {
+        return Error("Running method tracing and Java method sampling in parallel is not supported");
     }
 
     _cstack = args._cstack;
@@ -1188,13 +1178,22 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("DWARF unwinding is not supported on this platform");
     } else if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
-    } else if (_cstack >= CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
+    } else if (_cstack == CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
         return Error("VMStructs stack walking is not supported on this JVM/platform");
     }
 
-    if (VM::isOpenJ9() && _cstack == CSTACK_DEFAULT && DWARF_SUPPORTED) {
-        // OpenJ9 libs are compiled with frame pointers omitted
-        _cstack = CSTACK_DWARF;
+    if (_cstack == CSTACK_DEFAULT) {
+        if (VMStructs::hasStackStructs()) {
+            // Use VMStructs by default when possible
+            _cstack = args._cstack = CSTACK_VM;
+        } else if (VM::isOpenJ9() && DWARF_SUPPORTED) {
+            // OpenJ9 libs are compiled with frame pointers omitted
+            _cstack = args._cstack = CSTACK_DWARF;
+        }
+    }
+
+    if (_cstack != CSTACK_VM && _features.mixed) {
+        return Error("mixed feature is only allowed with VMStructs stack walking");
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
@@ -1245,6 +1244,12 @@ Error Profiler::start(Arguments& args, bool reset) {
             goto error5;
         }
     }
+    if (_event_mask & EM_METHOD_TRACE) {
+        error = instrument.start(args);
+        if (error) {
+            goto error6;
+        }
+    }
 
     switchThreadEvents(JVMTI_ENABLE);
 
@@ -1258,6 +1263,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     return Error::OK;
+
+error6:
+    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
 error5:
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
@@ -1295,6 +1303,7 @@ Error Profiler::stop(bool restart) {
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
+    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
     _engine->stop();
 
@@ -1344,6 +1353,9 @@ Error Profiler::check(Arguments& args) {
     if (!error && args._lock >= 0) {
         error = lock_tracer.check(args);
     }
+    if (!error && !args._trace.empty()) {
+        error = instrument.check(args);
+    }
 
     if (!error) {
         if (args._wall >= 0 && _engine == &wall_clock) {
@@ -1354,7 +1366,7 @@ Error Profiler::check(Arguments& args) {
             return Error("DWARF unwinding is not supported on this platform");
         } else if (args._cstack == CSTACK_LBR && _engine != &perf_events) {
             return Error("Branch stack is supported only with PMU events");
-        } else if (args._cstack >= CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
+        } else if (args._cstack == CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
             return Error("VMStructs stack walking is not supported on this JVM/platform");
         }
     }

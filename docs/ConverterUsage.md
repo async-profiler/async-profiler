@@ -2,7 +2,7 @@
 
 async-profiler provides `jfrconv` utility to convert between different profile output formats.
 `jfrconv` can be found at the same location as the `asprof` binary. Converter is also available
-as a standalone Java application: [`jfr-converter.jar`](https://github.com/async-profiler/async-profiler/releases/download/v4.1/jfr-converter.jar).
+as a standalone Java application: [`jfr-converter.jar`](https://github.com/async-profiler/async-profiler/releases/download/v4.2/jfr-converter.jar).
 
 ## Supported conversions
 
@@ -46,6 +46,7 @@ Conversion options:
 
 JFR options:
     --cpu              Generate only CPU profile during conversion
+    --cpu-time         Generate only CPU profile, using CPUTimeSample events
     --wall             Generate only Wall clock profile during conversion
     --alloc            Generate only Allocation profile during conversion
     --live             Build allocation profile from live objects only during conversion

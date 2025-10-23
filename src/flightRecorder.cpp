@@ -59,7 +59,7 @@ static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
 
-static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm", "vmx"};
+static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
 
 
 struct CpuTime {
@@ -539,7 +539,7 @@ class Recording {
     }
 
     static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures& f) {
-        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s %s",
+        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
                  f.unwind_comp   ? "unwind_comp"   : "-",
@@ -549,6 +549,7 @@ class Recording {
                  f.stats         ? "stats"         : "-",
                  f.jnienv        ? "jnienv"        : "-",
                  f.probe_sp      ? "probesp"       : "-",
+                 f.mixed         ? "mixed"         : "-",
                  f.vtable_target ? "vtable"        : "-",
                  f.comp_task     ? "comptask"      : "-",
                  f.pc_addr       ? "pcaddr"        : "-");
@@ -642,8 +643,8 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "end", args._end);
-        writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._buf, args._include);
-        writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._buf, args._exclude);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._include);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._exclude);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jstackdepth", args._jstackdepth);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jfropts", args._jfr_options);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "chunksize", args._chunk_size);
@@ -661,6 +662,9 @@ class Recording {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "wall", args._wall);
             writeBoolSetting(buf, T_EXECUTION_SAMPLE, "nobatch", args._nobatch);
         }
+        if (args._nativemem >= 0) {
+            writeIntSetting(buf, T_MALLOC, "nativemem", args._nativemem);
+        }
 
         writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
         writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
@@ -675,10 +679,8 @@ class Recording {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
-        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", args._latency >= 0);
-        if (args._latency >= 0) {
-            writeIntSetting(buf, T_METHOD_TRACE, "latency", args._latency);
-        }
+        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", !args._trace.empty());
+        writeListSetting(buf, T_METHOD_TRACE, "trace", args._trace);
 
         writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
         if (args._proc > 0) {
@@ -710,10 +712,9 @@ class Recording {
         writeStringSetting(buf, category, key, str);
     }
 
-    void writeListSetting(Buffer* buf, int category, const char* key, const char* base, int offset) {
-        while (offset != 0) {
-            writeStringSetting(buf, category, key, base + offset);
-            offset = ((int*)(base + offset))[-1];
+    void writeListSetting(Buffer* buf, int category, const char* key, const std::vector<const char*>& list) {
+        for (const char* s : list) {
+            writeStringSetting(buf, category, key, s);
         }
     }
 
@@ -1382,11 +1383,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
 
     jobject jfilename = env->NewStringUTF(filename);
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
-    int event_mask = (args._event != NULL ? 1 : 0) |
-                     (args._alloc >= 0 ? 2 : 0) |
-                     (args._lock >= 0 ? 4 : 0) |
-                     (args._latency >= 0 ? 8 : 0) |
-                     ((args._jfr_options ^ JFR_SYNC_OPTS) << 4);
+
+    int event_mask = args.eventMask() |
+                     ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
 

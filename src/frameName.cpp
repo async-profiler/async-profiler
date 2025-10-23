@@ -88,8 +88,8 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
 
-    buildFilter(_include, args._buf, args._include);
-    buildFilter(_exclude, args._buf, args._exclude);
+    for (const char* s : args._include) _include.push_back(s);
+    for (const char* s : args._exclude) _exclude.push_back(s);
 
     Profiler::instance()->classMap()->collect(_class_names);
 }
@@ -109,13 +109,6 @@ FrameName::~FrameName() {
     }
 
     freelocale(uselocale(_saved_locale));
-}
-
-void FrameName::buildFilter(std::vector<Matcher>& vector, const char* base, int offset) {
-    while (offset != 0) {
-        vector.push_back(base + offset);
-        offset = ((int*)(base + offset))[-1];
-    }
 }
 
 const char* FrameName::decodeNativeSymbol(const char* name) {

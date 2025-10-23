@@ -68,6 +68,14 @@ public class Main {
         }
     }
 
+    public static FlameGraph parseFlameGraph(String input, Arguments args) throws IOException {
+        if (isJfr(input)) {
+            return JfrToFlame.parse(input, args);
+        } else {
+            return FlameGraph.parse(input, args);
+        }
+    }
+
     private static String getFileName(String fileName) {
         return fileName.substring(fileName.lastIndexOf(File.separatorChar) + 1);
     }
@@ -98,7 +106,8 @@ public class Main {
                 "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap, otlp\n" +
                 "\n" +
                 "JFR options:\n" +
-                "     --cpu              CPU profile\n" +
+                "     --cpu              CPU profile (ExecutionSample)\n" +
+                "     --cpu-time         CPU profile (CPUTimeSample)\n" +
                 "     --wall             Wall clock profile\n" +
                 "     --alloc            Allocation profile\n" +
                 "     --live             Live object profile\n" +

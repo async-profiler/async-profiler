@@ -43,7 +43,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
                 File file = extractEmbeddedLib();
                 if (file != null) {
                     try {
-                        System.load(file.getPath());
+                        System.load(file.getAbsolutePath());
                     } finally {
                         file.delete();
                     }
