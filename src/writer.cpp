@@ -34,12 +34,6 @@ Writer& Writer::operator<<(long n) {
     return *this;
 }
 
-Writer& Writer::operator<<(size_t n) {
-    char buf[24];
-    write(buf, snprintf(buf, sizeof(buf), "%zu", n));
-    return *this;
-}
-
 Writer& Writer::operator<<(u64 n) {
     char buf[24];
     write(buf, snprintf(buf, sizeof(buf), "%zu", n));

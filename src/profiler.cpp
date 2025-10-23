@@ -1458,12 +1458,12 @@ void Profiler::printUsedMemory(Writer& out) {
 
 void Profiler::writeMetrics(Writer& out) {
     // bytes
-    out << "call_trace_storage_memory " << _call_trace_storage.usedMemory() << '\n';
-    out << "flight_recorder_memory " << _jfr.usedMemory() << '\n';
-    out << "class_map_memory " << _class_map.usedMemory() << '\n';
-    out << "thread_filter_memory " << _thread_filter.usedMemory() << '\n';
-    out << "code_cache_memory " << _runtime_stubs.usedMemory() << '\n';
-    size_t native_libs_memory = 0;
+    out << "call_trace_storage_memory " << (u64) _call_trace_storage.usedMemory() << '\n';
+    out << "flight_recorder_memory " << (u64) _jfr.usedMemory() << '\n';
+    out << "class_map_memory " << (u64) _class_map.usedMemory() << '\n';
+    out << "thread_filter_memory " << (u64) _thread_filter.usedMemory() << '\n';
+    out << "code_cache_memory " << (u64) _runtime_stubs.usedMemory() << '\n';
+    u64 native_libs_memory = 0;
     for (size_t i = 0; i < _native_libs.count(); i++) {
         native_libs_memory += _native_libs[i]->usedMemory();
     }

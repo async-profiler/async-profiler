@@ -89,8 +89,6 @@ class Profiler {
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
 
-    static uint64_t _metrics_buffer[5];  // Call trace storage, Flight recording, Dictionaries, Code cache, Discarded Samples
-
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
     CodeCacheArray _native_libs;
