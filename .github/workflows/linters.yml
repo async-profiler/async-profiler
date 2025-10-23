@@ -37,7 +37,7 @@ jobs:
           find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.hpp" -o -name "*.java" -name "*Dockerfile" -name "*.md" \) | while read -r file; do
             # Read last byte and verify it's a newline
             if [ -s "$file" ] && [ "$(tail -c1 "$file" | wc -l)" -eq 0 ]; then
-                echo "$file" >> "$offenders_path"
+              echo "$file" >> "$offenders_path"
             fi
           done
           if [ -s "$offenders_path" ]; then
