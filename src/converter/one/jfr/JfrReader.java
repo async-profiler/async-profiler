@@ -78,6 +78,7 @@ public class JfrReader implements Closeable {
     private int malloc;
     private int free;
     private int cpuTimeSample;
+    private int nativeLock;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -197,6 +198,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
+            } else if (type == nativeLock) {
+                if (cls == null || cls == NativeLockEvent.class) return (E) readNativeLockEvent();
             } else if (type == activeSetting) {
                 readActiveSetting();
             } else {
@@ -255,6 +258,15 @@ public class JfrReader implements Closeable {
         long samplingPeriod = getVarlong();
         boolean biased = getBoolean();
         return new ExecutionSample(time, tid, stackTraceId, ExecutionSample.CPU_TIME_SAMPLE, 1);
+    }
+
+    private NativeLockEvent readNativeLockEvent() {
+        long time = getVarlong();
+        long duration = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        long address = getVarlong();
+        return new NativeLockEvent(time, tid, stackTraceId, address, duration);
     }
 
     private MallocEvent readMallocEvent(boolean hasSize) {
@@ -592,6 +604,7 @@ public class JfrReader implements Closeable {
         malloc = getTypeId("profiler.Malloc");
         free = getTypeId("profiler.Free");
         cpuTimeSample = getTypeId("jdk.CPUTimeSample");
+        nativeLock = getTypeId("profiler.NativeLock");
 
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);
