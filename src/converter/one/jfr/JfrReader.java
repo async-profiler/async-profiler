@@ -198,10 +198,10 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
-            } else if (type == activeSetting) {
-                readActiveSetting();
             } else if (type == nativeLock) {
                 if (cls == null || cls == NativeLockEvent.class) return (E) readNativeLockEvent();
+            } else if (type == activeSetting) {
+                readActiveSetting();
             } else {
                 Constructor<? extends Event> customEvent = customEvents.get(type);
                 if (customEvent != null && (cls == null || cls == customEvent.getDeclaringClass())) {

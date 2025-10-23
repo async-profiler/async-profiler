@@ -56,8 +56,8 @@ static Engine noop_engine;
 static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
 static MallocTracer malloc_tracer;
-static NativeLockTracer native_lock_tracer;
 static LockTracer lock_tracer;
+static NativeLockTracer native_lock_tracer;
 static ObjectSampler object_sampler;
 static J9ObjectSampler j9_object_sampler;
 static WallClock wall_clock;
@@ -88,13 +88,13 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 
 static inline int hasNativeStack(EventType event_type) {
     const int events_with_native_stack =
-        (1 << PERF_SAMPLE)       |
-        (1 << EXECUTION_SAMPLE)  |
-        (1 << WALL_CLOCK_SAMPLE) |
-        (1 << MALLOC_SAMPLE)     |
-        (1 << ALLOC_SAMPLE)      |
-        (1 << ALLOC_OUTSIDE_TLAB)|
-        (1 << NATIVE_LOCK_SAMPLE);
+        (1 << PERF_SAMPLE)        |
+        (1 << EXECUTION_SAMPLE)   |
+        (1 << WALL_CLOCK_SAMPLE)  |
+        (1 << NATIVE_LOCK_SAMPLE) |
+        (1 << MALLOC_SAMPLE)      |
+        (1 << ALLOC_SAMPLE)       |
+        (1 << ALLOC_OUTSIDE_TLAB);
     return (1 << event_type) & events_with_native_stack;
 }
 
@@ -1036,10 +1036,10 @@ Engine* Profiler::activeEngine() {
             return &wall_clock;
         case EM_NATIVEMEM:
             return &malloc_tracer;
-        case EM_METHOD_TRACE:
-            return &instrument;
         case EM_NATIVELOCK:
             return &native_lock_tracer;
+        case EM_METHOD_TRACE:
+            return &instrument;
         default:
             return _engine;
     }
@@ -1249,14 +1249,14 @@ Error Profiler::start(Arguments& args, bool reset) {
             goto error5;
         }
     }
-    if (_event_mask & EM_METHOD_TRACE) {
-        error = instrument.start(args);
+    if (_event_mask & EM_NATIVELOCK) {
+        error = native_lock_tracer.start(args);
         if (error) {
             goto error6;
         }
     }
-    if (_event_mask & EM_NATIVELOCK) {
-        error = native_lock_tracer.start(args);
+    if (_event_mask & EM_METHOD_TRACE) {
+        error = instrument.start(args);
         if (error) {
             goto error7;
         }
@@ -1276,10 +1276,10 @@ Error Profiler::start(Arguments& args, bool reset) {
     return Error::OK;
 
 error7:
-    if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
+    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
 error6:
-    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
+    if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
 
 error5:
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
@@ -1317,8 +1317,8 @@ Error Profiler::stop(bool restart) {
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
-    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
     if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
+    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
     _engine->stop();
 
@@ -1368,11 +1368,11 @@ Error Profiler::check(Arguments& args) {
     if (!error && args._lock >= 0) {
         error = lock_tracer.check(args);
     }
-    if (!error && !args._trace.empty()) {
-        error = instrument.check(args);
-    }
     if (!error && args._nativelock >= 0) {
         error = native_lock_tracer.check(args);
+    }
+    if (!error && !args._trace.empty()) {
+        error = instrument.check(args);
     }
 
     if (!error) {

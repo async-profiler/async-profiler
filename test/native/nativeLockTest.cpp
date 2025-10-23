@@ -33,16 +33,5 @@ TEST_CASE(NativeLockTracer_start_with_zero_interval) {
     ASSERT_EQ(NativeLockTracer::running(), true);
     
     tracer.stop();
-}
-
-TEST_CASE(NativeLockTracer_stop_sets_running_false) {
-    Arguments args;
-    args._nativelock = 1000;
-    
-    NativeLockTracer tracer;
-    tracer.start(args);
-    ASSERT_EQ(NativeLockTracer::running(), true);
-    
-    tracer.stop();
     ASSERT_EQ(NativeLockTracer::running(), false);
 }

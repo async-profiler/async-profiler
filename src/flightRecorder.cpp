@@ -1190,17 +1190,6 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordNativeLockSample(Buffer* buf, int tid, u32 call_trace_id, NativeLockEvent* event) {
-        int start = buf->skip(1);
-        buf->put8(T_NATIVE_LOCK);
-        buf->putVar64(event->_start_time);
-        buf->putVar64(event->_end_time - event->_start_time);
-        buf->putVar32(tid);
-        buf->putVar32(call_trace_id);
-        buf->putVar64(event->_address);
-        buf->put8(start, buf->offset() - start);
-    }
-
     void recordThreadPark(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_THREAD_PARK);
@@ -1211,6 +1200,17 @@ class Recording {
         buf->putVar32(event->_class_id);
         buf->putVar64(event->_timeout);
         buf->putVar64(MIN_JLONG);
+        buf->putVar64(event->_address);
+        buf->put8(start, buf->offset() - start);
+    }
+
+    void recordNativeLockSample(Buffer* buf, int tid, u32 call_trace_id, NativeLockEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_NATIVE_LOCK);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_end_time - event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
         buf->putVar64(event->_address);
         buf->put8(start, buf->offset() - start);
     }
@@ -1449,14 +1449,14 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
             case LIVE_OBJECT:
                 _rec->recordLiveObject(buf, tid, call_trace_id, (LiveObject*)event);
                 break;
-            case NATIVE_LOCK_SAMPLE:
-                _rec->recordNativeLockSample(buf, tid, call_trace_id, (NativeLockEvent*)event);
-                break;
             case LOCK_SAMPLE:
                 _rec->recordMonitorBlocked(buf, tid, call_trace_id, (LockEvent*)event);
                 break;
             case PARK_SAMPLE:
                 _rec->recordThreadPark(buf, tid, call_trace_id, (LockEvent*)event);
+                break;
+            case NATIVE_LOCK_SAMPLE:
+                _rec->recordNativeLockSample(buf, tid, call_trace_id, (NativeLockEvent*)event);
                 break;
             case PROFILING_WINDOW:
                 _rec->recordWindow(buf, tid, (ProfilingWindow*)event);

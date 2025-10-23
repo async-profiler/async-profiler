@@ -290,16 +290,15 @@ Error Arguments::parse(const char* args) {
                 if (_lock < 0) {
                     _lock = DEFAULT_LOCK_INTERVAL;
                 }
+                if (_nativelock < 0) {
+                    _nativelock = DEFAULT_LOCK_INTERVAL;
+                }
                 if (_nativemem < 0) {
                     _nativemem = DEFAULT_ALLOC_INTERVAL;
                 }
 
                 if (_proc < 0 && OS::isLinux()) {
                     _proc = DEFAULT_PROC_INTERVAL;
-                }
-
-                if (_nativelock < 0) {
-                    _nativelock = DEFAULT_LOCK_INTERVAL;
                 }
 
                 if (_event == NULL && OS::isLinux()) {

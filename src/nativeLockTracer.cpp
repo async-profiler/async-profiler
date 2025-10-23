@@ -27,7 +27,7 @@ extern "C" int pthread_mutex_lock_hook(pthread_mutex_t* mutex) {
     if  (ret == 0) {
         NativeLockTracer::recordNativeLock(mutex, start_time, end_time);
     }
-    
+
     return ret;
 }
 

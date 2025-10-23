@@ -101,8 +101,8 @@ enum EventMask {
     EM_LOCK         = 4,
     EM_WALL         = 8,
     EM_NATIVEMEM    = 16,
-    EM_METHOD_TRACE = 32,
-    EM_NATIVELOCK   = 64
+    EM_NATIVELOCK   = 32,
+    EM_METHOD_TRACE = 64
 };
 constexpr int EVENT_MASK_SIZE = 7;
 
@@ -310,13 +310,13 @@ class Arguments {
     }
 
     int eventMask() const {
-        return (_event     != NULL ? EM_CPU          : 0) |
-               (_alloc     >= 0    ? EM_ALLOC        : 0) |
-               (_lock      >= 0    ? EM_LOCK         : 0) |
-               (_wall      >= 0    ? EM_WALL         : 0) |
-               (_nativemem >= 0    ? EM_NATIVEMEM    : 0) |
-               (_nativelock >= 0   ? EM_NATIVELOCK   : 0) |
-               (!_trace.empty()    ? EM_METHOD_TRACE : 0);
+        return (_event      != NULL ? EM_CPU          : 0) |
+               (_alloc      >= 0    ? EM_ALLOC        : 0) |
+               (_lock       >= 0    ? EM_LOCK         : 0) |
+               (_wall       >= 0    ? EM_WALL         : 0) |
+               (_nativemem  >= 0    ? EM_NATIVEMEM    : 0) |
+               (_nativelock >= 0    ? EM_NATIVELOCK   : 0) |
+               (!_trace.empty()     ? EM_METHOD_TRACE : 0);
     }
 
     static long parseUnits(const char* str, const Multiplier* multipliers);
