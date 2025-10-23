@@ -75,14 +75,6 @@ public class OtlpTests {
         assert p.exitCode() == 0;
     }
 
-    @Test(mainClass = MetricsTest.class, jvmArgs = "-Djava.library.path=build/lib")
-    public void metrics(TestProcess p) throws Exception {
-        classpathCheck();
-        
-        p.waitForExit();
-        assert p.exitCode() == 0;
-    }
-
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;

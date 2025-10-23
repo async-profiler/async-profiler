@@ -204,6 +204,7 @@ class Profiler {
     Error dump(Writer& out, Arguments& args);
     void printUsedMemory(Writer& out);
     void logStats();
+    void writeMetrics(Writer& out);
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type);
     u64 recordSample(void* ucontext, u64 counter, EventType event_type, Event* event);
@@ -213,8 +214,6 @@ class Profiler {
     void tryResetCounters();
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
-    void updateMetricsBuffer();
-    static uint64_t* metricsBuffer() { return _metrics_buffer; }
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);

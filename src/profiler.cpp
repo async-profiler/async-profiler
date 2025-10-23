@@ -65,7 +65,6 @@ static ITimer itimer;
 static Instrument instrument;
 
 static ProfilingWindow profiling_window;
-uint64_t Profiler::_metrics_buffer[5] = {0};
 
 
 struct MethodSample {
@@ -1457,23 +1456,28 @@ void Profiler::printUsedMemory(Writer& out) {
     out << buf;
 }
 
-void Profiler::updateMetricsBuffer() {
-    size_t call_trace_storage = _call_trace_storage.usedMemory();
-    size_t flight_recording = _jfr.usedMemory();
-    size_t dictionaries = (_class_map.usedMemory() + _thread_filter.usedMemory());
-    
-    size_t code_cache = _runtime_stubs.usedMemory();
-    size_t native_lib_count = _native_libs.count();
-    for (size_t i = 0; i < native_lib_count; i++) {
-        code_cache += _native_libs[i]->usedMemory();
+void Profiler::writeMetrics(Writer& out) {
+    // bytes
+    out << "call_trace_storage_memory " << _call_trace_storage.usedMemory() << '\n';
+    out << "flight_recorder_memory " << _jfr.usedMemory() << '\n';
+    out << "class_map_memory " << _class_map.usedMemory() << '\n';
+    out << "thread_filter_memory " << _thread_filter.usedMemory() << '\n';
+    out << "code_cache_memory " << _runtime_stubs.usedMemory() << '\n';
+    size_t native_libs_memory = 0;
+    for (size_t i = 0; i < _native_libs.count(); i++) {
+        native_libs_memory += _native_libs[i]->usedMemory();
     }
-    code_cache = (code_cache + native_lib_count * sizeof(CodeCache));
-    
-    _metrics_buffer[0] = call_trace_storage;
-    _metrics_buffer[1] = flight_recording;
-    _metrics_buffer[2] = dictionaries;
-    _metrics_buffer[3] = code_cache;
-    _metrics_buffer[4] = _failures[-ticks_skipped];
+    out << "native_libs_memory " << native_libs_memory << '\n';
+
+    // count
+    out << "total_samples " << _total_samples << '\n';
+    out << "sample_failures " << _failures[-ticks_skipped] << '\n';
+    out << "call_trace_storage_overflows " << _call_trace_storage.getOverflow() << '\n';
+
+    // ns
+    if (_total_stack_walk_time != 0) {
+        out << "total_stackwalk_time " << _total_stack_walk_time << '\n';
+    }
 }
 
 void Profiler::logStats() {
@@ -2020,6 +2024,9 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
         }
         case ACTION_VERSION:
             out << PROFILER_VERSION;
+            break;
+        case ACTION_METRICS:
+            writeMetrics(out);
             break;
         default:
             break;

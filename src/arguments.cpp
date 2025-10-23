@@ -163,6 +163,9 @@ Error Arguments::parse(const char* args) {
             CASE("version")
                 _action = ACTION_VERSION;
 
+            CASE("metrics")
+                _action = ACTION_METRICS;
+
             // Output formats
             CASE("collapsed")
                 _output = OUTPUT_COLLAPSED;

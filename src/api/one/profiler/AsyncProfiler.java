@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -282,18 +281,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
     }
 
-    /**
-     * Get profiler metrics
-     * @return Array with: call_trace_storage, flight_recording, dictionaries, code_cache, discarded_samples
-     */
-    public void getMetrics(long[] metrics) {
-        if (metrics == null || metrics.length < 5) {
-            throw new IllegalArgumentException("Metrics array must have at least 5 elements");
-        }
-        
-        MetricsBuffer.getMetrics(metrics);
-    }
-
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
 
     private native void stop0() throws IllegalStateException;
@@ -303,9 +290,4 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native byte[] execute1(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
-
-    native void updateMetricsBuffer0();
-
-    static native ByteBuffer getMetricsBuffer();
-
 }

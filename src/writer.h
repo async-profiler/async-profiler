@@ -22,6 +22,8 @@ class Writer {
     Writer& operator<<(const char* s);
     Writer& operator<<(int n);
     Writer& operator<<(long n);
+    Writer& operator<<(size_t n);
+    Writer& operator<<(u64 n);
 
     bool good() const {
         return _err == 0;
