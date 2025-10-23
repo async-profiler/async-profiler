@@ -26,3 +26,21 @@ jobs:
         run: |
           npm install -g prettier@3.4.2
           make check-md
+  eof-newline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: EOF newline check
+        env:
+          offenders_path: /tmp/eof_newline_offenders.txt
+        run: |
+          find . -path './.git' -prune -o -exec file --mime-type {} + | grep 'text/' | awk -F: '{print $1}' | while read -r file; do
+            # Read last byte and verify it's a newline
+            if [ -s "$file" ] && [ "$(tail -c1 "$file" | wc -l)" -eq 0 ]; then
+              echo "$file" >> "$offenders_path"
+            fi
+          done
+          if [ -s "$offenders_path" ]; then
+            cat "$offenders_path"
+            exit 1
+          fi
