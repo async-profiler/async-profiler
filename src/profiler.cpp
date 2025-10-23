@@ -1197,6 +1197,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    if (_cstack != CSTACK_VM && _features.mixed) {
+        return Error("mixed feature is only allowed with VMStructs stack walking");
+    }
+
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_engine == &perf_events && !args._alluser);
 

@@ -65,6 +65,10 @@ public class CpuTests {
         Output output = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --record-cpu");
         assert output.contains("\\[CPU-1\\]");
         assert !output.contains("\\[CPU-0\\]");
+
+        output = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --record-cpu --all-user");
+        assert output.contains("\\[CPU-1\\]");
+        assert !output.contains("\\[CPU-0\\]");
     }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
