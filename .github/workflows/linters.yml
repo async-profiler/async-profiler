@@ -34,7 +34,7 @@ jobs:
         env:
           offenders_path: /tmp/eof_newline_offenders.txt
         run: |
-          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.hpp" -o -name "*.java" -name "*Dockerfile" -name "*.md" \) | while read -r file; do
+          find . -type f \( -name "*.c" -name "*.h" -o -name "*.cpp" -o -name "*.hpp" -o -name "*.java" -name "*Dockerfile" -name "*.md" -name "*.yml" -name "*.html" \) | while read -r file; do
             # Read last byte and verify it's a newline
             if [ -s "$file" ] && [ "$(tail -c1 "$file" | wc -l)" -eq 0 ]; then
               echo "$file" >> "$offenders_path"
