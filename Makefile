@@ -133,7 +133,7 @@ ifneq (,$(STATIC_BINARY))
 endif
 
 
-.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
+.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md check-format-diff-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
@@ -311,11 +311,17 @@ cpp-lint-diff:
 	git diff -U0 $(DIFF_BASE) -- 'src/*.cpp' 'src/**/*.cpp' 'src/*.h' 'src/**/*.h' ':!**/rustDemangle.cpp' | \
 		clang-tidy-diff.py -p1 $(CLANG_TIDY_ARGS_EXTRA) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
+MD_FILES = README.md "docs/**/*.md"
+
 check-md:
-	prettier -c README.md "docs/**/*.md"
+	prettier -c $(MD_FILES)
 
 format-md:
-	prettier -w README.md "docs/**/*.md"
+	prettier -w $(MD_FILES)
+
+# if check failed, write the required modifications, shows the difference and exit with non 0 to fail the build
+check-format-diff-md:
+	prettier -c $(MD_FILES) || (prettier -w $(MD_FILES); git --no-pager diff; exit 1;)
 
 clean-coverage:
 	$(RM) -rf build/test/cpptests build/test/coverage

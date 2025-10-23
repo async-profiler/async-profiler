@@ -25,4 +25,4 @@ jobs:
       - name: Install prettier
         run: |
           npm install -g prettier@3.4.2
-          make check-md
+          make check-format-diff-md
