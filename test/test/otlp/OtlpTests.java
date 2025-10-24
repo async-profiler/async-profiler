@@ -67,7 +67,7 @@ public class OtlpTests {
         assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
     }
 
-    @Test(mainClass = OtlpTemporalityTest.class, jvmArgs = "-Djava.library.path=build/lib")
+    @Test(mainClass = OtlpTemporalityTest.class)
     public void aggregationTemporality(TestProcess p) throws Exception {
         classpathCheck();
 
