@@ -35,7 +35,7 @@ public class ApiTests {
 
     @Test(mainClass = Version.class, output = true)
     public void version(TestProcess p) throws Exception {
-        Output out = p.waitForExit(TestProcess.STDOUT);
-        assert out.toString().trim().equals(System.getenv("PROFILER_VERSION"));
+        String out = p.waitForExit(TestProcess.STDOUT).toString().trim();
+        assert out.trim().equals(System.getenv("PROFILER_VERSION")) : out;
     }
 }
