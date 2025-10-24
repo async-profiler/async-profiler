@@ -57,9 +57,15 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     }
 
     private static File extractEmbeddedLib() {
-        String resourceName = "/" + getPlatformTag() + "/libasyncProfiler.so";
-        InputStream in = AsyncProfiler.class.getResourceAsStream(resourceName);
+        String embeddedLibraryPath = System.getProperty("one.profiler.embeddedLibraryPath");
+        InputStream in = AsyncProfiler.class.getResourceAsStream(embeddedLibraryPath == null
+            ? ("/" + getPlatformTag() + "/libasyncProfiler.so")
+            : embeddedLibraryPath
+        );
         if (in == null) {
+            if (embeddedLibraryPath != null) {
+                throw new IllegalArgumentException("Invalid embedded library path: " + embeddedLibraryPath);
+            }
             return null;
         }
 
