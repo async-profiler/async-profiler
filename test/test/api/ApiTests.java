@@ -33,6 +33,7 @@ public class ApiTests {
         assert !out.contains("BusyLoops.method3");
     }
 
+    // https://github.com/async-profiler/async-profiler/issues/1564
     @Test(mainClass = Version.class, output = true)
     public void version(TestProcess p) throws Exception {
         String out = p.waitForExit(TestProcess.STDOUT).toString().trim();
