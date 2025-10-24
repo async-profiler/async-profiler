@@ -11,7 +11,7 @@ import one.profiler.test.TestProcess;
 
 public class ApiTests {
 
-    @Test(mainClass = DumpCollapsed.class, output = true)
+    @Test(mainClass = DumpCollapsed.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void flat(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert out.contains("BusyLoops.method1;");
@@ -19,13 +19,13 @@ public class ApiTests {
         assert out.contains("BusyLoops.method3;");
     }
 
-    @Test(mainClass = DumpOtlp.class)
+    @Test(mainClass = DumpOtlp.class, jvmArgs = "-Djava.library.path=build/lib")
     public void otlp(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
     }
 
-    @Test(mainClass = StopResume.class, output = true)
+    @Test(mainClass = StopResume.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void stopResume(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert !out.contains("BusyLoops.method1");
@@ -34,7 +34,7 @@ public class ApiTests {
     }
 
     // https://github.com/async-profiler/async-profiler/issues/1564
-    @Test(mainClass = Version.class, output = true)
+    @Test(mainClass = Version.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void version(TestProcess p) throws Exception {
         String out = p.waitForExit(TestProcess.STDOUT).toString().trim();
         assert out.trim().equals(System.getenv("PROFILER_VERSION")) : out;
