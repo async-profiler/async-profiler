@@ -258,7 +258,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	PROFILER_VERSION=$(PROFILER_VERSION) $(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
