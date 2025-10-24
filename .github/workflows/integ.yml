@@ -104,14 +104,14 @@ jobs:
       - name: Run integration tests
         env:
           GITHUB_SHA: ${{ github.sha }}
+        shell: bash
         run: |
           mkdir -p build/jar
           cp ${{ steps.extract_artifact.outputs.jars_directory }}/* build/jar
           make build/test.jar
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
-          HASH=${GITHUB_SHA:0:7}
-          make COMMIT_TAG=$HASH test-java RETRY_COUNT=${{ inputs.retry-count }} -j
+          make test-java COMMIT_TAG=${GITHUB_SHA:0:7} RETRY_COUNT=${{ inputs.retry-count }} -j
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
         if: always()
