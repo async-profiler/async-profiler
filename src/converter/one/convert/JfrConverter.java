@@ -56,7 +56,8 @@ public abstract class JfrConverter extends Classifier {
     }
 
     protected void collectEvents() throws IOException {
-        Class<? extends Event> eventClass = args.nativemem ? MallocEvent.class
+        Class<? extends Event> eventClass = args.nativelock ? NativeLockEvent.class
+                : args.nativemem ? MallocEvent.class
                 : args.live ? LiveObject.class
                 : args.alloc ? AllocationSample.class
                 : args.lock ? ContendedLock.class
@@ -281,11 +282,11 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public double counterFactor() {
-        return args.lock ? 1e9 / jfr.ticksPerSec : 1.0;
+        return (args.lock || args.nativelock) ? 1e9 / jfr.ticksPerSec : 1.0;
     }
 
     // Select sum(samples) or sum(value) depending on the --total option.
-    // For lock events, convert lock duration from ticks to nanoseconds.
+    // For lock and nativelock events, convert lock duration from ticks to nanoseconds.
     protected abstract class AggregatedEventVisitor implements EventCollector.Visitor {
         private final double factor = !args.total ? 0.0 : counterFactor();
 
