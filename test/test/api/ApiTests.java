@@ -36,7 +36,8 @@ public class ApiTests {
     // https://github.com/async-profiler/async-profiler/issues/1564
     @Test(mainClass = Version.class, output = true)
     public void version(TestProcess p) throws Exception {
-        String out = p.waitForExit(TestProcess.STDOUT).toString().trim();
-        assert out.trim().equals(System.getenv("PROFILER_VERSION")) : out;
+        String actual = p.waitForExit(TestProcess.STDOUT).toString().trim();
+        String expected = System.getenv("PROFILER_VERSION");
+        assert expected.equals(actual) : String.format("%s != %s", expected, actual);
     }
 }
