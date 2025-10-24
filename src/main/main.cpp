@@ -413,7 +413,7 @@ int main(int argc, const char** argv) {
         String arg = args.next();
 
         if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" || arg == "check" ||
-            arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect") {
+            arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect" || arg == "metrics") {
             action = arg;
 
         } else if (arg == "load" || arg == "jcmd" || arg == "threaddump" || arg == "dumpheap" || arg == "inspectheap") {

@@ -24,7 +24,6 @@ public class MetricsTest {
         doStuff();
 
         String metrics = profiler.execute("metrics");
-        System.err.println(metrics);
         for (String line : metrics.split("\n")) {
             String[] pair = line.split(" ");
             assert pair.length == 2 : pair.length;
