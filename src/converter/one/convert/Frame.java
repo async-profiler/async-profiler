@@ -17,7 +17,7 @@ public class Frame extends HashMap<Integer, Frame> {
     public static final byte TYPE_C1_COMPILED = 6;
 
     static final int TYPE_SHIFT = 28;
-    static final int TYPE_MASK = -1 << TYPE_SHIFT;
+    static final int TITLE_MASK = (1 << TYPE_SHIFT) - 1;
 
     final int key;
     long total;
@@ -38,7 +38,7 @@ public class Frame extends HashMap<Integer, Frame> {
     }
 
     int getTitleIndex() {
-        return key & ((1 << TYPE_SHIFT) - 1);
+        return key & TITLE_MASK;
     }
 
     byte getType() {

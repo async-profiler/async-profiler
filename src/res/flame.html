@@ -30,9 +30,10 @@
 	// SPDX-License-Identifier: Apache-2.0
 	'use strict';
 	let root, px, pattern;
-	let level0 = 0, left0 = 0, width0 = 0;
+	let level0 = 0, left0 = 0, width0 = 0, d = 0;
 	let nav = [], navIndex, matchval;
 	let inverted = /*inverted:*/false;
+	const U = undefined;
 	const maxdiff = /*maxdiff:*/-1;
 	const levels = Array(/*depth:*/0);
 	for (let h = 0; h < levels.length; h++) {
@@ -67,27 +68,27 @@
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
 	}
 
-	function getDiffColor(width, diff) {
+	function getDiffColor(diff) {
+		if (diff === U) return '#ffdd33';
 		if (diff === 0) return '#e0e0e0';
-		if (diff === width) return '#ffdd33';
 		const v = Math.round(210 * (maxdiff - Math.abs(diff)) / maxdiff);
 		return diff > 0 ? 'rgb(255,' + v + ',' + v + ')' : 'rgb(' + v + ',' + v + ',255)';
 	}
 
-	function f(key, level, left, width, diff, inln, c1, int) {
+	function f(key, level, left, width, inln, c1, int) {
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
-			color: maxdiff >= 0 ? getDiffColor(width, diff || 0) : getColor(palette[key & 7]),
+			color: maxdiff >= 0 ? getDiffColor(d) : getColor(palette[key & 7]),
 			title: cpool[key >>> 3],
-			details: (diff ? (diff > 0 ? ', +' : ', ') + diff : '') + (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
+			details: (d ? (d > 0 ? ', +' : ', ') + d : '') + (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
 	}
 
-	function u(key, width, diff, inln, c1, int) {
-		f(key, level0 + 1, 0, width, diff, inln, c1, int)
+	function u(key, width, inln, c1, int) {
+		f(key, level0 + 1, 0, width, inln, c1, int)
 	}
 
-	function n(key, width, diff, inln, c1, int) {
-		f(key, level0, width0, width, diff, inln, c1, int)
+	function n(key, width, inln, c1, int) {
+		f(key, level0, width0, width, inln, c1, int)
 	}
 
 	function samples(n) {

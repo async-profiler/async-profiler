@@ -44,18 +44,20 @@ public class Main {
                 throw new IllegalArgumentException("--diff option requires html or collapsed output format");
             }
 
+            args.norm = true;  // don't let random IDs in class names spoil comparison
+
             String input1 = args.files.get(0);
             String input2 = args.files.get(1);
-            String output = isDirectory ? new File(lastFile, replaceExt(input1, "diff." + args.output)).getPath() : lastFile;
+            String output = isDirectory ? new File(lastFile, replaceExt(input2, "diff." + args.output)).getPath() : lastFile;
 
-            System.out.print("Converting " + getFileName(input1) + " + " + getFileName(input2) + " -> " + getFileName(output) + " ");
+            System.out.print("Converting " + getFileName(input2) + " vs " + getFileName(input1) + " -> " + getFileName(output) + " ");
             System.out.flush();
 
             long startTime = System.nanoTime();
-            FlameGraph left = parseFlameGraph(input1, args);
-            FlameGraph right = parseFlameGraph(input2, args);
-            left.diff(right);
-            left.dump(new FileOutputStream(output));
+            FlameGraph base = parseFlameGraph(input1, args);
+            FlameGraph current = parseFlameGraph(input2, args);
+            current.diff(base);
+            current.dump(new FileOutputStream(output));
             long endTime = System.nanoTime();
 
             System.out.print("# " + (endTime - startTime) / 1000000 / 1000.0 + " s\n");

@@ -16,11 +16,11 @@ import static one.convert.Frame.*;
 import static one.convert.ResourceProcessor.*;
 
 public class FlameGraph implements Comparator<Frame> {
-    private static final Frame EMPTY_FRAME = new Frame(0, (byte) 0);
     private static final Frame[] EMPTY_FRAME_ARRAY = {};
     private static final String[] FRAME_SUFFIX = {"_[0]", "_[j]", "_[i]", "", "", "_[k]", "_[1]"};
     private static final byte HAS_SUFFIX = (byte) 0x80;
     private static final int FLUSH_THRESHOLD = 15000;
+    private static final long NEW_FRAME_DIFF = Long.MIN_VALUE;
     private static final Pattern TID_FRAME_PATTERN = Pattern.compile("\\[(.* )?tid=\\d+]");
 
     private final Arguments args;
@@ -35,6 +35,7 @@ public class FlameGraph implements Comparator<Frame> {
     private int lastLevel;
     private long lastX;
     private long lastTotal;
+    private long lastDiff;
     private long mintotal;
     private long maxdiff = -1;
 
@@ -73,15 +74,12 @@ public class FlameGraph implements Comparator<Frame> {
         Frame[] levels = new Frame[128];
         int level = 0;
         long total = 0;
-        boolean hasDiff = false;
         boolean needRebuild = args.reverse || args.include != null || args.exclude != null;
 
         try (BufferedReader br = new BufferedReader(in)) {
             for (String line; !(line = br.readLine()).startsWith("const cpool"); ) {
                 if (line.startsWith("<h1")) {
                     title = line.substring(line.indexOf('>') + 1, line.lastIndexOf("</h1>"));
-                } else if (line.startsWith("\tconst maxdiff")) {
-                    hasDiff = true;
                 }
             }
             br.readLine();
@@ -96,6 +94,8 @@ public class FlameGraph implements Comparator<Frame> {
             while (!br.readLine().isEmpty()) ;
 
             for (String line; !(line = br.readLine()).isEmpty(); ) {
+                if (line.startsWith("d=")) continue;  // artifact of a differential flame graph
+
                 StringTokenizer st = new StringTokenizer(line.substring(2, line.length() - 1), ",");
                 int nameAndType = Integer.parseInt(st.nextToken());
 
@@ -121,7 +121,6 @@ public class FlameGraph implements Comparator<Frame> {
 
                 Frame f = level > 0 || needRebuild ? new Frame(titleIndex, type) : root;
                 f.self = f.total = total;
-                if (hasDiff && st.hasMoreTokens()) st.nextToken();
                 if (st.hasMoreTokens()) f.inlined = Long.parseLong(st.nextToken());
                 if (st.hasMoreTokens()) f.c1 = Long.parseLong(st.nextToken());
                 if (st.hasMoreTokens()) f.interpreted = Long.parseLong(st.nextToken());
@@ -187,17 +186,21 @@ public class FlameGraph implements Comparator<Frame> {
     public void diff(FlameGraph base) {
         // Build a map that translates this cpool keys to the base flamegraph's cpool keys
         cpoolMap = Arrays.stream(cpool.keys()).mapToInt(title -> base.cpool.getOrDefault(title, -1)).toArray();
-        diff(root, base.root);
+        diff(base.root, root);
     }
 
-    private void diff(Frame left, Frame right) {
-        left.diff = left.self - right.self;
-        maxdiff = Math.max(maxdiff, Math.abs(left.diff));
+    private void diff(Frame base, Frame current) {
+        current.diff = base == null ? NEW_FRAME_DIFF : current.self - base.self;
+        maxdiff = Math.max(maxdiff, Math.abs(current.diff));
 
-        for (Frame child : left.values()) {
-            int rightKey = cpoolMap[child.getTitleIndex()] | (child.key & TYPE_MASK);
-            diff(child, right.getOrDefault(rightKey, EMPTY_FRAME));
+        for (Frame child : current.values()) {
+            Frame baseChild = base == null ? null : base.get(translateKey(child.key));
+            diff(baseChild, child);
         }
+    }
+
+    private int translateKey(int key) {
+        return cpoolMap[key & TITLE_MASK] | (key & ~TITLE_MASK);
     }
 
     public void dump(OutputStream out) throws IOException {
@@ -265,6 +268,15 @@ public class FlameGraph implements Comparator<Frame> {
     }
 
     private void printFrame(PrintStream out, Frame frame, int level, long x) {
+        StringBuilder sb = outbuf;
+        if (frame.diff != lastDiff) {
+            if (frame.diff == NEW_FRAME_DIFF) {
+                sb.append("d=U\n");
+            } else {
+                sb.append("d=").append(frame.diff).append('\n');
+            }
+        }
+
         int nameAndType = order[frame.getTitleIndex()] << 3 | frame.getType();
         boolean hasExtraTypes = (frame.inlined | frame.c1 | frame.interpreted) != 0 &&
                 frame.inlined < frame.total && frame.interpreted < frame.total;
@@ -276,17 +288,14 @@ public class FlameGraph implements Comparator<Frame> {
             func = 'n';
         }
 
-        StringBuilder sb = outbuf.append(func).append('(').append(nameAndType);
+        sb.append(func).append('(').append(nameAndType);
         if (func == 'f') {
             sb.append(',').append(level).append(',').append(x - lastX);
         }
-        if (frame.total != lastTotal || frame.diff != 0 || hasExtraTypes) {
+        if (frame.total != lastTotal || hasExtraTypes) {
             sb.append(',').append(frame.total);
-            if (frame.diff != 0 || hasExtraTypes) {
-                sb.append(',').append(frame.diff);
-                if (hasExtraTypes) {
-                    sb.append(',').append(frame.inlined).append(',').append(frame.c1).append(',').append(frame.interpreted);
-                }
+            if (hasExtraTypes) {
+                sb.append(',').append(frame.inlined).append(',').append(frame.c1).append(',').append(frame.interpreted);
             }
         }
         sb.append(")\n");
@@ -299,6 +308,7 @@ public class FlameGraph implements Comparator<Frame> {
         lastLevel = level;
         lastX = x;
         lastTotal = frame.total;
+        lastDiff = frame.diff;
 
         Frame[] children = frame.values().toArray(EMPTY_FRAME_ARRAY);
         Arrays.sort(children, this);
