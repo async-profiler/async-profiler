@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -41,11 +42,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
             } catch (UnsatisfiedLinkError e) {
                 File file = extractEmbeddedLib();
                 if (file != null) {
-                    try {
-                        System.load(file.getAbsolutePath());
-                    } finally {
-                        file.delete();
-                    }
+                    System.load(file.getAbsolutePath());
                 } else {
                     System.loadLibrary("asyncProfiler");
                 }
@@ -58,22 +55,30 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     private static File extractEmbeddedLib() {
         String libraryPath = System.getProperty("one.profiler.libraryPath");
-        InputStream in = AsyncProfiler.class.getResourceAsStream(libraryPath == null
+        URL url = AsyncProfiler.class.getResource(libraryPath == null
             ? ("/" + getPlatformTag() + "/libasyncProfiler.so")
             : libraryPath
         );
-        if (in == null) {
+
+        if (url == null) {
             if (libraryPath != null) {
                 throw new IllegalArgumentException("Invalid embedded library path: " + libraryPath);
             }
             return null;
         }
 
+        if (!url.getPath().isEmpty()) {
+            return new File(url.getPath());
+        }
+
         try {
             String extractPath = System.getProperty("one.profiler.extractPath");
             File file = File.createTempFile("libasyncProfiler-", ".so",
                     extractPath == null || extractPath.isEmpty() ? null : new File(extractPath));
-            try (FileOutputStream out = new FileOutputStream(file)) {
+            file.deleteOnExit();
+
+            try (InputStream in = url.openStream();
+                    FileOutputStream out = new FileOutputStream(file)) {
                 byte[] buf = new byte[32000];
                 for (int bytes; (bytes = in.read(buf)) >= 0; ) {
                     out.write(buf, 0, bytes);
@@ -82,12 +87,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
             return file;
         } catch (IOException e) {
             throw new IllegalStateException(e);
-        } finally {
-            try {
-                in.close();
-            } catch (IOException e) {
-                // ignore
-            }
         }
     }
 
