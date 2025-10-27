@@ -28,6 +28,7 @@ class FdTransferClient {
 
     static int requestPerfFd(int* tid, int target_cpu, struct perf_event_attr* attr, const char* probe_name);
     static int requestKallsymsFd();
+    static int requestBpfMapFd(struct bpfmap_params* params);
 };
 
 #else

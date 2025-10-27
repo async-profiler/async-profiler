@@ -49,6 +49,10 @@ class LongHashTable {
         return getSize(_capacity);
     }
 
+    LongHashTable* trim() {
+        return __atomic_exchange_n(&_prev, NULL, __ATOMIC_ACQ_REL);
+    }
+
     LongHashTable* prev() {
         return _prev;
     }
@@ -113,6 +117,21 @@ size_t CallTraceStorage::usedMemory() {
         bytes += table->usedMemory();
     }
     return bytes;
+}
+
+Chunk* CallTraceStorage::trimAllocator() {
+    return _allocator.trim();
+}
+
+LongHashTable* CallTraceStorage::trimTable() {
+    return _current_table->trim();
+}
+
+void CallTraceStorage::freeMemory(Chunk* chunk, LongHashTable* table) {
+    _allocator.freeChain(chunk);
+    while (table != NULL) {
+        table = table->destroy();
+    }
 }
 
 void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
@@ -211,25 +230,6 @@ CallTrace* CallTraceStorage::storeCallTrace(int num_frames, ASGCT_CallFrame* fra
     return buf;
 }
 
-CallTrace* CallTraceStorage::findCallTrace(LongHashTable* table, u64 hash) {
-    u64* keys = table->keys();
-    u32 capacity = table->capacity();
-    u32 slot = hash & (capacity - 1);
-    u32 step = 0;
-
-    while (keys[slot] != hash) {
-        if (keys[slot] == 0) {
-            return NULL;
-        }
-        if (++step >= capacity) {
-            return NULL;
-        }
-        slot = (slot + step) & (capacity - 1);
-    }
-
-    return table->values()[slot].trace;
-}
-
 u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
     u64 hash = calcHash(num_frames, frames);
 
@@ -254,10 +254,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
             }
 
             // Migrate from a previous table to save space
-            CallTrace* trace = table->prev() == NULL ? NULL : findCallTrace(table->prev(), hash);
-            if (trace == NULL) {
-                trace = storeCallTrace(num_frames, frames);
-            }
+            CallTrace* trace = storeCallTrace(num_frames, frames);
             table->values()[slot].setTrace(trace);
             break;
         }

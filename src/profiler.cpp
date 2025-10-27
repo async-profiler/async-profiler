@@ -26,6 +26,7 @@
 #include "j9WallClock.h"
 #include "instrument.h"
 #include "itimer.h"
+#include "bpfClient.h"
 #include "dwarf.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
@@ -62,6 +63,7 @@ static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static CTimer ctimer;
 static ITimer itimer;
+static BpfClient bpf_client;
 static Instrument instrument;
 
 static ProfilingWindow profiling_window;
@@ -87,6 +89,7 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 static inline int hasNativeStack(EventType event_type) {
     const int events_with_native_stack =
         (1 << PERF_SAMPLE)       |
+        (1 << BPF_CLIENT_SAMPLE) |
         (1 << EXECUTION_SAMPLE)  |
         (1 << WALL_CLOCK_SAMPLE) |
         (1 << MALLOC_SAMPLE)     |
@@ -317,6 +320,8 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
         native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+    } else if (event_type == BPF_CLIENT_SAMPLE) {
+        native_frames = BpfClient::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
     } else if (_cstack == CSTACK_VM) {
         return 0;
     } else if (_cstack == CSTACK_DWARF) {
@@ -682,7 +687,8 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
     if (_add_sched_frame) {
-        num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
+        const char* sched = _engine == &bpf_client ? BpfClient::schedPolicy(tid) : OS::schedPolicy(0);
+        num_frames += makeFrame(frames + num_frames, BCI_ERROR, sched);
     }
     if (_add_cpu_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
@@ -788,9 +794,35 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
     return result;
 }
 
+void** Profiler::prepareLibraryTrap() {
+    CodeCache* lib = findJvmLibrary("libj9prt");
+    if (lib == NULL) {
+        return NULL;
+    }
+
+    void** dlopen_entry = lib->findImport(im_dlopen);
+
+#ifdef __x86_64__
+    if (dlopen_entry == NULL) {
+        // If dlopen is already hooked, try locating the entry by decoding the PLT instruction:
+        // jmp [rip + offset]
+        instruction_t* plt = (instruction_t*)lib->findSymbol("dlopen@plt");
+        if (plt != NULL && plt[0] == 0xff && plt[1] == 0x25) {
+            dlopen_entry = (void**)(plt + *(u32*)(plt + 2) + 6);
+        }
+    }
+#endif
+
+    if (dlopen_entry != NULL) {
+        _orig_dlopen = *dlopen_entry;
+    }
+
+    return dlopen_entry;
+}
+
 void Profiler::switchLibraryTrap(bool enable) {
     if (_dlopen_entry != NULL) {
-        void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
+        void* impl = enable ? (void*)dlopen_hook : _orig_dlopen;
         __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
     }
 }
@@ -995,6 +1027,8 @@ Engine* Profiler::selectEngine(const char* event_name) {
         } else {
             return &wall_clock;
         }
+    } else if (strcmp(event_name, EVENT_BPF) == 0) {
+        return &bpf_client;
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
         if (VM::isOpenJ9()) {
             return &j9_wall_clock;
@@ -1049,11 +1083,8 @@ Error Profiler::checkJvmCapabilities() {
             return Error("Could not find VMThread bridge. Unsupported JVM?");
         }
 
-        if (_dlopen_entry == NULL) {
-            CodeCache* lib = findJvmLibrary("libj9prt");
-            if (lib == NULL || (_dlopen_entry = lib->findImport(im_dlopen)) == NULL) {
-                return Error("Could not set dlopen hook. Unsupported JVM?");
-            }
+        if (_dlopen_entry == NULL && (_dlopen_entry = prepareLibraryTrap()) == NULL) {
+            return Error("Could not set dlopen hook. Unsupported JVM?");
         }
 
         if (!VMStructs::libjvm()->hasDebugSymbols()) {
@@ -1192,7 +1223,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
-    updateSymbols(_engine == &perf_events && !args._alluser);
+    updateSymbols((_engine == &perf_events || _engine == &bpf_client) && !args._alluser);
 
     error = installTraps(args._begin, args._end, args._nostop);
     if (error) {
@@ -1380,7 +1411,12 @@ Error Profiler::flushJfr() {
 
     lockAll();
     _jfr.flush();
+    Chunk* chunk = _call_trace_storage.trimAllocator();
+    LongHashTable* table = _call_trace_storage.trimTable();
     unlockAll();
+
+    // Release memory out of the lock, as it can be a lengthy operation
+    _call_trace_storage.freeMemory(chunk, table);
 
     return Error::OK;
 }

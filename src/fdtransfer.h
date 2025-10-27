@@ -24,6 +24,7 @@
 enum request_type {
     PERF_FD,
     KALLSYMS_FD,
+    BPFMAP_FD,
 };
 
 struct fd_request {
@@ -39,6 +40,11 @@ struct perf_fd_request {
     char probe_name[MAX_PROBE_LEN];
 };
 
+struct bpfmap_fd_request {
+    struct fd_request header;
+    int version;
+};
+
 struct fd_response {
     // of type "enum request_type"
     unsigned int type;
@@ -49,6 +55,18 @@ struct fd_response {
 struct perf_fd_response {
     struct fd_response header;
     int tid;
+};
+
+struct bpfmap_params {
+    unsigned long interval;
+    unsigned int num_entries;
+    unsigned int entry_size;
+    unsigned int salt;
+};
+
+struct bpfmap_fd_response {
+    struct fd_response header;
+    struct bpfmap_params params;
 };
 
 static inline bool socketPath(const char *path, struct sockaddr_un *sun, socklen_t *addrlen) {

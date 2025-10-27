@@ -101,3 +101,15 @@ Chunk* LinearAllocator::getNextChunk(Chunk* current) {
     Chunk* tail = __sync_val_compare_and_swap(&_tail, current, reserve);
     return tail == current ? reserve : tail;
 }
+
+Chunk* LinearAllocator::trim() {
+    return __atomic_exchange_n(&_tail->prev, NULL, __ATOMIC_ACQ_REL);
+}
+
+void LinearAllocator::freeChain(Chunk* chunk) {
+    while (chunk != NULL) {
+        Chunk* current = chunk;
+        chunk = chunk->prev;
+        freeChunk(current);
+    }
+}

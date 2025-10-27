@@ -368,6 +368,31 @@ Error Arguments::parse(const char* args) {
                 }
                 _fdtransfer_path = value;
 
+            CASE("cloud")
+                // Meta option for continuous eBPF-assisted cloud profiling
+                if (_action == ACTION_NONE) {
+                    _action = ACTION_START;
+                }
+                if (_event == NULL) {
+                    _event = EVENT_BPF;
+                    _sched = true;
+                    _alloc_hook = true;
+                }
+                if (_fdtransfer_path == NULL) {
+                    _fdtransfer = true;
+                    _fdtransfer_path = "/one/profile/profile.sock";
+                }
+                if (_file == NULL) {
+                    _file = "/one/logs/%{cloud_image}-%t.jfr";
+                }
+                if (_timeout == 0) {
+                    _loop = true;
+                    _timeout = 0xff0000ff;  // rotate at 00:00
+                }
+                if (_chunk_time == 0) {
+                    _chunk_time = 300;  // 5 min
+                }
+
             // Filters
             CASE("filter")
                 _filter = value == NULL ? "" : value;
@@ -389,6 +414,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("live")
                 _live = true;
+
+            CASE("allochook")
+                _alloc_hook = true;
 
             CASE("nobatch")
                 _nobatch = true;

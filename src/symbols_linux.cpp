@@ -680,7 +680,7 @@ static bool _in_parse_libraries = false;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
     int fd;
-    if (FdTransferClient::hasPeer()) {
+    if (false && FdTransferClient::hasPeer()) {
         fd = FdTransferClient::requestKallsymsFd();
     } else {
         fd = open("/proc/kallsyms", O_RDONLY);

@@ -389,7 +389,7 @@ void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
     munmap(buf, offset);
 }
 
-void OS::freePageCache(int fd, off_t start_offset) {
+void OS::freePageCache(int fd, off_t start_offset, off_t len) {
     // Not supported on macOS
 }
 

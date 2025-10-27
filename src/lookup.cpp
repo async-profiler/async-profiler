@@ -43,19 +43,14 @@ size_t MethodMap::usedMemory() {
 
 MethodInfo* Lookup::resolveMethod(ASGCT_CallFrame& frame) {
     jmethodID method = frame.method_id;
-    MethodInfo* mi = &(*_method_map)[method];
+    MethodInfo* mi = &_method_map[method];
 
-    bool first_time = mi->_key == 0;
-    if (first_time) {
-        mi->_key = _method_map->size();
-    }
-
-    if (!mi->_mark) {
-        mi->_mark = true;
+    if (mi->_key == 0) {
+        mi->_key = _method_map.size();
         if (method == NULL) {
             fillNativeMethodInfo(mi, "unknown", NULL);
         } else if (frame.bci > BCI_NATIVE_FRAME) {
-            if (!fillJavaMethodInfo(mi, method, first_time)) {
+            if (!fillJavaMethodInfo(mi, method)) {
                 fillNativeMethodInfo(mi, "stale_jmethodID", NULL);
             }
         } else if (frame.bci == BCI_NATIVE_FRAME) {
@@ -80,7 +75,6 @@ MethodInfo* Lookup::resolveMethod(ASGCT_CallFrame& frame) {
 }
 
 u32 Lookup::getPackage(const char* class_name) {
-    assert(_packages != nullptr);
     const char* package = strrchr(class_name, '/');
     if (package == NULL) {
         return 0;
@@ -94,7 +88,7 @@ u32 Lookup::getPackage(const char* class_name) {
     if (class_name[0] == '[') {
         class_name = strchr(class_name, 'L') + 1;
     }
-    return _packages->indexOf(class_name, package - class_name);
+    return _packages.indexOf(class_name, package - class_name);
 }
 
 void Lookup::fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
@@ -111,8 +105,8 @@ void Lookup::fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* 
     if (Demangle::needsDemangling(name)) {
         char* demangled = Demangle::demangle(name, false);
         if (demangled != NULL) {
-            mi->_name = _symbols->indexOf(demangled);
-            mi->_sig = _symbols->indexOf("()L;");
+            mi->_name = _symbols.indexOf(demangled);
+            mi->_sig = _symbols.indexOf("()L;");
             mi->_type = FRAME_CPP;
             free(demangled);
             return;
@@ -121,17 +115,17 @@ void Lookup::fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* 
 
     size_t len = strlen(name);
     if (len >= 4 && strcmp(name + len - 4, "_[k]") == 0) {
-        mi->_name = _symbols->indexOf(name, len - 4);
-        mi->_sig = _symbols->indexOf("(Lk;)L;");
+        mi->_name = _symbols.indexOf(name, len - 4);
+        mi->_sig = _symbols.indexOf("(Lk;)L;");
         mi->_type = FRAME_KERNEL;
     } else {
-        mi->_name = _symbols->indexOf(name);
-        mi->_sig = _symbols->indexOf("()L;");
+        mi->_name = _symbols.indexOf(name);
+        mi->_sig = _symbols.indexOf("()L;");
         mi->_type = FRAME_NATIVE;
     }
 }
 
-bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
+bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method) {
     if (VMMethod::isStaleMethodId(method)) {
         return false;
     }
@@ -146,8 +140,8 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_tim
 
     if ((err = jvmti->GetMethodName(method, &method_name, &method_sig, NULL)) == 0 &&
         (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0) {
-        mi->_sig = _symbols->indexOf(method_sig);
-        mi->_name = _symbols->indexOf(method_name);
+        mi->_sig = _symbols.indexOf(method_sig);
+        mi->_name = _symbols.indexOf(method_name);
 
         if ((err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
             mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
@@ -165,11 +159,11 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_tim
         return false;
     }
 
-    if (first_time && jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
+    if (jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
         mi->_modifiers = 0;
     }
 
-    if (first_time && jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
+    if (jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
     }
@@ -180,7 +174,7 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_tim
 
 void Lookup::fillJavaClassInfo(MethodInfo* mi, u32 class_id) {
     mi->_class = class_id;
-    mi->_name = _symbols->indexOf("");
-    mi->_sig = _symbols->indexOf("()L;");
+    mi->_name = _symbols.indexOf("");
+    mi->_sig = _symbols.indexOf("()L;");
     mi->_type = FRAME_INLINED;
 }

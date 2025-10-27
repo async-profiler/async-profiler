@@ -40,20 +40,18 @@ class MethodMap : public std::unordered_map<jmethodID, MethodInfo> {
 
 class Lookup {
   public:
-    MethodMap* _method_map;
+    MethodMap _method_map;
     // Dictionary is thread-safe and can be safely shared, as opposed to Index
     Dictionary* _classes;
-    Index* _packages;
-    Index* _symbols;
+    Index _packages;
+    Index _symbols;
 
-    Lookup(MethodMap* method_map, Dictionary* classes, Index* packages, Index* symbols, Output output) :
-        _method_map(method_map),
-        _classes(classes),
-        _packages(packages),
-        _symbols(symbols),
-        _output_type(output),
+    Lookup() :
+        _method_map(),
+        _classes(Profiler::instance()->classMap()),
+        _packages(1),
+        _symbols(1),
         _jni(VM::jni()) {
-        assert(_packages != nullptr || output != OUTPUT_JFR);
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame);
@@ -61,10 +59,9 @@ class Lookup {
 
   private:
     JNIEnv* _jni;
-    Output _output_type;
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name);
-    bool fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time);
+    bool fillJavaMethodInfo(MethodInfo* mi, jmethodID method);
     void fillJavaClassInfo(MethodInfo* mi, u32 class_id);
 };
 

@@ -233,15 +233,15 @@ class Recording {
     char* _master_recording_file;
     off_t _chunk_start;
     ThreadFilter _thread_set;
-    MethodMap _method_map;
+    Lookup _lookup;
 
     u64 _start_time;
     u64 _start_ticks;
     u64 _stop_time;
     u64 _stop_ticks;
 
-    u64 _base_id;
     u64 _bytes_written;
+    u64 _last_cpool_offset;
     u64 _chunk_size;
     u64 _chunk_time;
 
@@ -262,13 +262,14 @@ class Recording {
     }
 
   public:
-    Recording(int fd, const char* master_recording_file, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
+    Recording(int fd, const char* master_recording_file, Arguments& args) : _fd(fd), _thread_set() {
         _master_recording_file = master_recording_file == NULL ? NULL : strdup(master_recording_file);
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
-        _base_id = 0;
+        _stop_time = _start_time;  // also the last checkpoint time
         _bytes_written = 0;
+        _last_cpool_offset = 0;
         _memfd = -1;
         _in_memory = false;
 
@@ -315,7 +316,7 @@ class Recording {
     }
 
     ~Recording() {
-        off_t chunk_end = finishChunk();
+        off_t chunk_end = checkpoint(true);
 
         if (_memfd >= 0) {
             close(_memfd);
@@ -329,7 +330,7 @@ class Recording {
         close(_fd);
     }
 
-    off_t finishChunk() {
+    off_t checkpoint(bool last) {
         flush(&_monitor_buf);
         flush(&_proc_buf);
 
@@ -347,17 +348,6 @@ class Recording {
             _in_memory = false;
         }
 
-        off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
-        writeCpool(_buf);
-        flush(_buf);
-
-        off_t chunk_end = lseek(_fd, 0, SEEK_CUR);
-
-        // Patch cpool size field
-        _buf->putVar32(0, chunk_end - cpool_offset);
-        ssize_t result = pwrite(_fd, _buf->data(), 5, cpool_offset);
-        (void)result;
-
         // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
         u64 tsc_frequency;
         if (TSC::enabled()) {
@@ -367,9 +357,21 @@ class Recording {
             tsc_frequency = TSC::frequency();
         }
 
+        off_t cpool_start = lseek(_fd, 0, SEEK_CUR);
+        writeCpool(_buf, _last_cpool_offset == 0 ? 0 : _last_cpool_offset - cpool_start);
+        flush(_buf);
+        off_t cpool_end = lseek(_fd, 0, SEEK_CUR);
+        _last_cpool_offset = cpool_start;
+
+        // Patch cpool size field
+        _buf->putVar32(0, cpool_end - cpool_start);
+        ssize_t result = pwrite(_fd, _buf->data(), 5, cpool_start);
+        (void)result;
+
+
         // Patch chunk header
-        _buf->put64(chunk_end - _chunk_start);
-        _buf->put64(cpool_offset - _chunk_start);
+        _buf->put64(last ? cpool_end - _chunk_start : 0);
+        _buf->put64(cpool_start - _chunk_start);
         _buf->put64(68);
         _buf->put64(_start_time * 1000);
         _buf->put64((_stop_time - _start_time) * 1000);
@@ -378,18 +380,18 @@ class Recording {
         result = pwrite(_fd, _buf->data(), 56, _chunk_start + 8);
         (void)result;
 
-        OS::freePageCache(_fd, _chunk_start);
+        OS::freePageCache(_fd, 0, 0);
 
         _buf->reset();
-        return chunk_end;
+        return cpool_end;
     }
 
     void switchChunk() {
-        _chunk_start = finishChunk();
+        _chunk_start = checkpoint(true);
         _start_time = _stop_time;
         _start_ticks = _stop_ticks;
-        _base_id += 0x1000000;
         _bytes_written = 0;
+        _last_cpool_offset = 0;
 
         writeHeader(_buf);
         writeMetadata(_buf);
@@ -403,12 +405,12 @@ class Recording {
     }
 
     bool needSwitchChunk(u64 wall_time) {
-        return loadAcquire(_bytes_written) >= _chunk_size || wall_time - _start_time >= _chunk_time;
+        return loadAcquire(_bytes_written) >= _chunk_size || wall_time - _stop_time >= _chunk_time;
     }
 
     size_t usedMemory() {
-        return _method_map.usedMemory() + _thread_set.usedMemory() +
-               (_memfd >= 0 ? lseek(_memfd, 0, SEEK_CUR) : 0);
+        return _thread_set.usedMemory() +
+               _lookup._method_map.usedMemory();
     }
 
     void cpuMonitorCycle() {
@@ -574,9 +576,9 @@ class Recording {
         buf->put("FLR\0", 4);            // magic
         buf->put16(2);                   // major
         buf->put16(0);                   // minor
-        buf->put64(1024 * 1024 * 1024);  // chunk size (initially large, for JMC to skip incomplete chunk)
+        buf->put64(0);  // chunk size (initially large, for JMC to skip incomplete chunk)
         buf->put64(0);                   // cpool offset
-        buf->put64(0);                   // meta offset
+        buf->put64(68);                   // meta offset
         buf->put64(_start_time * 1000);  // start time, ns
         buf->put64(0);                   // duration, ns
         buf->put64(_start_ticks);        // start ticks
@@ -822,33 +824,32 @@ class Recording {
         _recorded_lib_count = native_lib_count;
     }
 
-    void writeCpool(Buffer* buf) {
+    void writeCpool(Buffer* buf, u64 delta) {
         buf->skip(5);  // size will be patched later
         buf->putVar32(T_CPOOL);
         buf->putVar64(_start_ticks);
         buf->putVar32(0);
-        buf->putVar32(0);
+        buf->putVar64(delta);
         buf->putVar32(1);
 
-        buf->putVar32(11);
+        if (delta == 0) {
+            // First cpool
+            buf->putVar32(11);
+            writeFrameTypes(buf);
+            writeThreadStates(buf);
+            writeLogLevels(buf);
+        } else {
+            buf->putVar32(8);
+        }
 
-        Index packages(1);
-        Index symbols(1);
-        Lookup lookup(&_method_map, Profiler::instance()->classMap(), &packages, &symbols, OUTPUT_JFR);
-        writeFrameTypes(buf);
-        writeThreadStates(buf);
         writeGCWhen(buf);
         writeThreads(buf);
-        writeStackTraces(buf, &lookup);
-        writeMethods(buf, &lookup);
-        writeClasses(buf, &lookup);
-        writePackages(buf, &lookup);
-        writeSymbols(buf, &lookup);
+        writeStackTraces(buf);
+        writeMethods(buf);
+        writeClasses(buf);
+        writePackages(buf);
+        writeSymbols(buf);
         writeUserEventTypes(buf);
-        // Write log levels last. The order does not affect the JFR's validity,
-        // but log levels have an easily-visible format that makes it easy
-        // to see if a JFR file has been accidentally truncated.
-        writeLogLevels(buf);
     }
 
     void writePoolHeader(Buffer* buf, JfrType type, u32 size) {
@@ -930,7 +931,7 @@ class Recording {
         }
     }
 
-    void writeStackTraces(Buffer* buf, Lookup* lookup) {
+    void writeStackTraces(Buffer* buf) {
         std::map<u32, CallTrace*> traces;
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
@@ -941,7 +942,7 @@ class Recording {
             buf->putVar32(0);  // truncated
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
-                MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
+                MethodInfo* mi = _lookup.resolveMethod(trace->frames[i]);
                 buf->putVar32(mi->_key);
                 if (mi->_type == FRAME_INTERPRETED) {
                     jint bci = trace->frames[i].bci;
@@ -961,25 +962,23 @@ class Recording {
         }
     }
 
-    void writeMethods(Buffer* buf, Lookup* lookup) {
-        MethodMap* method_map = lookup->_method_map;
-
-        u32 marked_count = 0;
-        for (MethodMap::const_iterator it = method_map->begin(); it != method_map->end(); ++it) {
-            if (it->second._mark) {
-                marked_count++;
+    void writeMethods(Buffer* buf) {
+        u32 new_methods = 0;
+        for (MethodMap::const_iterator it = _lookup._method_map.begin(); it != _lookup._method_map.end(); ++it) {
+            if (!it->second._mark) {
+                new_methods++;
             }
         }
 
-        writePoolHeader(buf, T_METHOD, marked_count);
-        for (MethodMap::iterator it = method_map->begin(); it != method_map->end(); ++it) {
+        writePoolHeader(buf, T_METHOD, new_methods);
+        for (MethodMap::iterator it = _lookup._method_map.begin(); it != _lookup._method_map.end(); ++it) {
             MethodInfo& mi = it->second;
-            if (mi._mark) {
-                mi._mark = false;
+            if (!mi._mark) {
+                mi._mark = true;
                 buf->putVar32(mi._key);
                 buf->putVar32(mi._class);
-                buf->putVar64(mi._name | _base_id);
-                buf->putVar64(mi._sig | _base_id);
+                buf->putVar32(mi._name);
+                buf->putVar32(mi._sig);
                 buf->putVar32(mi._modifiers);
                 buf->putVar32(0);  // hidden
                 flushIfNeeded(buf);
@@ -987,35 +986,35 @@ class Recording {
         }
     }
 
-    void writeClasses(Buffer* buf, Lookup* lookup) {
+    void writeClasses(Buffer* buf) {
         std::map<u32, const char*> classes;
-        lookup->_classes->collect(classes);
+        _lookup._classes->collect(classes);
 
         writePoolHeader(buf, T_CLASS, classes.size());
         for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
             buf->putVar32(it->first);
             buf->putVar32(0);  // classLoader
-            buf->putVar64(lookup->_symbols->indexOf(it->second) | _base_id);
-            buf->putVar64(lookup->getPackage(it->second) | _base_id);
+            buf->putVar64(_lookup._symbols.indexOf(it->second));
+            buf->putVar32(_lookup.getPackage(it->second));
             buf->putVar32(0);  // access flags
             flushIfNeeded(buf);
         }
     }
 
-    void writePackages(Buffer* buf, Lookup* lookup) {
-        writePoolHeader(buf, T_PACKAGE, lookup->_packages->size());
-        lookup->_packages->forEachOrdered([&] (size_t idx, const std::string& s) {
-            buf->putVar64(idx | _base_id);
-            buf->putVar64(lookup->_symbols->indexOf(s) | _base_id);
+    void writePackages(Buffer* buf) {
+        writePoolHeader(buf, T_PACKAGE, _lookup._packages.size());
+        _lookup._packages.forEachOrdered([&] (size_t idx, const std::string& s) {
+            buf->putVar64(idx);
+            buf->putVar64(_lookup._symbols.indexOf(s));
             flushIfNeeded(buf);
         });
     }
 
-    void writeSymbols(Buffer* buf, Lookup* lookup) {
-        writePoolHeader(buf, T_SYMBOL, lookup->_symbols->size());
-        lookup->_symbols->forEachOrdered([&] (size_t idx, const std::string& s) {
+    void writeSymbols(Buffer* buf) {
+        writePoolHeader(buf, T_SYMBOL, _lookup._symbols.size());
+        _lookup._symbols.forEachOrdered([&] (size_t idx, const std::string& s) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
-            buf->putVar64(idx | _base_id);
+            buf->putVar64(idx);
             buf->putUtf8(s.c_str());
         });
     }
@@ -1413,6 +1412,7 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
             case PERF_SAMPLE:
+            case BPF_CLIENT_SAMPLE:
             case EXECUTION_SAMPLE:
             case INSTRUMENTED_METHOD:
                 _rec->recordExecutionSample(buf, tid, call_trace_id, (ExecutionEvent*)event);

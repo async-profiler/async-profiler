@@ -93,6 +93,26 @@ int FdTransferClient::requestKallsymsFd() {
     return fd;
 }
 
+int FdTransferClient::requestBpfMapFd(struct bpfmap_params* params) {
+    struct bpfmap_fd_request request;
+    request.header.type = BPFMAP_FD;
+    request.version = 1;
+
+    if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {
+        Log::warn("FdTransferClient send(): %s", strerror(errno));
+        return -1;
+    }
+
+    struct bpfmap_fd_response resp;
+    int fd = recvFd(request.header.type, &resp.header, sizeof(resp));
+    if (fd == -1) {
+        errno = resp.header.error;
+    } else {
+        *params = resp.params;
+    }
+    return fd;
+}
+
 int FdTransferClient::recvFd(unsigned int type, struct fd_response *resp, size_t resp_size) {
     struct msghdr msg = {0};
 

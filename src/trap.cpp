@@ -46,7 +46,7 @@ void Trap::pair(Trap& second) {
 }
 
 // Patch instruction at the entry point
-bool Trap::patch(instruction_t insn) {
+bool Trap::patch(instruction_t insn, void* jump_target) {
     if (_unprotect) {
         int prot = WX_MEMORY ? (PROT_READ | PROT_WRITE) : (PROT_READ | PROT_WRITE | PROT_EXEC);
         if (OS::mprotect((void*)(_entry & -OS::page_size), OS::page_size, prot) != 0) {
@@ -54,7 +54,17 @@ bool Trap::patch(instruction_t insn) {
         }
     }
 
-    *(instruction_t*)_entry = insn;
+    if (jump_target != NULL) {
+        // FIXME: x64 specific
+        instruction_t* code = (instruction_t*)_entry;
+        code[0] = 0x48;
+        code[1] = 0xb8;
+        *(void**)(code + 2) = jump_target;
+        code[10] = 0xff;
+        code[11] = 0xe0;
+    } else {
+        *(instruction_t*)_entry = insn;
+    }
     flushCache(_entry);
 
     if (_protect) {

@@ -17,6 +17,7 @@ const long DEFAULT_PROC_INTERVAL = 30;       // 30 seconds
 const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU        = "cpu";
+const char* const EVENT_BPF        = "bpf";
 const char* const EVENT_ALLOC      = "alloc";
 const char* const EVENT_NATIVEMEM  = "nativemem";
 const char* const EVENT_LOCK       = "lock";
@@ -199,6 +200,7 @@ class Arguments {
     bool _sched;
     bool _record_cpu;
     bool _live;
+    bool _alloc_hook;
     bool _nofree;
     bool _nobatch;
     bool _nostop;
@@ -259,6 +261,7 @@ class Arguments {
         _sched(false),
         _record_cpu(false),
         _live(false),
+        _alloc_hook(false),
         _nofree(false),
         _nobatch(false),
         _nostop(false),
@@ -272,7 +275,7 @@ class Arguments {
         _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),
         _chunk_size(100 * 1024 * 1024),
-        _chunk_time(3600),
+        _chunk_time(0),
         _jfr_sync(NULL),
         _jfr_options(0),
         _dump_traces(0),

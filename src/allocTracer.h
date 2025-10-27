@@ -18,9 +18,15 @@ class AllocTracer : public Engine {
     static int _trap_kind;
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
+    static volatile bool _use_hook;
 
     static u64 _interval;
     static volatile u64 _allocated_bytes;
+
+    static void inNewTLAB1(uintptr_t klass, void* obj, size_t tlab_size, size_t alloc_size);
+    static void outsideTLAB1(uintptr_t klass, void* obj, size_t alloc_size);
+    static void inNewTLAB2(uintptr_t klass, size_t tlab_size, size_t alloc_size);
+    static void outsideTLAB2(uintptr_t klass, size_t alloc_size);
 
     static void recordAllocation(void* ucontext, EventType event_type, uintptr_t rklass,
                                  uintptr_t total_size, uintptr_t instance_size);

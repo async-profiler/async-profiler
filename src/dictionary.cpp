@@ -9,15 +9,16 @@
 #include "arch.h"
 
 
-static inline char* allocateKey(const char* key, size_t length) {
-    char* result = (char*)malloc(length + 1);
-    memcpy(result, key, length);
-    result[length] = 0;
-    return result;
+static inline DictKey* allocateKey(const char* key, size_t length) {
+    DictKey* dk = (DictKey*)malloc(length + 2);
+    dk->mark = false;
+    memcpy(dk->key, key, length);
+    dk->key[length] = 0;
+    return dk;
 }
 
-static inline bool keyEquals(const char* candidate, const char* key, size_t length) {
-    return strncmp(candidate, key, length) == 0 && candidate[length] == 0;
+static inline bool keyEquals(DictKey* dk, const char* key, size_t length) {
+    return strncmp(dk->key, key, length) == 0 && dk->key[length] == 0;
 }
 
 
@@ -87,11 +88,11 @@ unsigned int Dictionary::lookup(const char* key, size_t length) {
         DictRow* row = &table->rows[h % ROWS];
         for (int c = 0; c < CELLS; c++) {
             if (row->keys[c] == NULL) {
-                char* new_key = allocateKey(key, length);
-                if (__sync_bool_compare_and_swap(&row->keys[c], NULL, new_key)) {
+                DictKey* new_dk = allocateKey(key, length);
+                if (__sync_bool_compare_and_swap(&row->keys[c], NULL, new_dk)) {
                     return table->index(h % ROWS, c);
                 }
-                free(new_key);
+                free(new_dk);
             }
             if (keyEquals(row->keys[c], key, length)) {
                 return table->index(h % ROWS, c);
@@ -119,8 +120,10 @@ void Dictionary::collect(std::map<unsigned int, const char*>& map, DictTable* ta
     for (int i = 0; i < ROWS; i++) {
         DictRow* row = &table->rows[i];
         for (int j = 0; j < CELLS; j++) {
-            if (row->keys[j] != NULL) {
-                map[table->index(i, j)] = row->keys[j];
+            DictKey* dk = row->keys[j];
+            if (dk != NULL && !dk->mark) {
+                dk->mark = true;
+                map[table->index(i, j)] = dk->key;
             }
         }
         if (row->next != NULL) {

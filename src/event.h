@@ -14,6 +14,7 @@
 // The order is important: look for event_type comparison
 enum EventType {
     PERF_SAMPLE,
+    BPF_CLIENT_SAMPLE,
     EXECUTION_SAMPLE,
     WALL_CLOCK_SAMPLE,
     MALLOC_SAMPLE,

@@ -395,8 +395,8 @@ void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
     }
 }
 
-void OS::freePageCache(int fd, off_t start_offset) {
-    posix_fadvise(fd, start_offset & ~page_mask, 0, POSIX_FADV_DONTNEED);
+void OS::freePageCache(int fd, off_t start_offset, off_t len) {
+    posix_fadvise(fd, start_offset, len, POSIX_FADV_DONTNEED);
 }
 
 int OS::mprotect(void* addr, size_t size, int prot) {

@@ -97,7 +97,9 @@ class Profiler {
 
     // dlopen() hook support
     void** _dlopen_entry;
+    void* _orig_dlopen;
     static void* dlopen_hook(const char* filename, int flags);
+    void** prepareLibraryTrap();
     void switchLibraryTrap(bool enable);
 
     Error installTraps(const char* begin, const char* end, bool nostop);
