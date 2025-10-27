@@ -144,7 +144,7 @@ public class TestProcess implements Closeable {
                 cmd.add("-XX:+UnlockDiagnosticVMOptions");
                 cmd.add("-XX:+DebugNonSafepoints");
             }
-            cmd.add("-Done.profiler.embeddedLibraryPath=/" + profilerLibFileName());
+            cmd.add("-Done.profiler.libraryPath=/" + profilerLibFileName());
             cmd.add("-Djava.library.path=" + System.getProperty("java.library.path"));
             cmd.add("-ea");
             addArgs(cmd, test.jvmArgs());

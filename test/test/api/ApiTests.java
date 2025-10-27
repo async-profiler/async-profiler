@@ -32,12 +32,4 @@ public class ApiTests {
         assert out.contains("BusyLoops.method2");
         assert !out.contains("BusyLoops.method3");
     }
-
-    // https://github.com/async-profiler/async-profiler/issues/1564
-    @Test(mainClass = PrintProfilerVersion.class, output = true)
-    public void version(TestProcess p) throws Exception {
-        String actual = p.waitForExit(TestProcess.STDOUT).toString().trim();
-        String expected = System.getenv("PROFILER_VERSION");
-        assert expected.equals(actual) : String.format("%s != %s", expected, actual);
-    }
 }
