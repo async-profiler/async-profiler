@@ -111,12 +111,8 @@ public class TestProcess implements Closeable {
         return this.currentOs;
     }
 
-    private String profilerLibFileName() {
-        return "libasyncProfiler." + currentOs.getLibExt();
-    }
-
     public String profilerLibPath() {
-        return "build/lib/" + profilerLibFileName();
+        return "build/lib/libasyncProfiler." + currentOs.getLibExt();
     }
 
     public String testBinPath() {
@@ -144,7 +140,7 @@ public class TestProcess implements Closeable {
                 cmd.add("-XX:+UnlockDiagnosticVMOptions");
                 cmd.add("-XX:+DebugNonSafepoints");
             }
-            cmd.add("-Done.profiler.libraryPath=" + System.getProperty("one.profiler.libraryPath"));
+            cmd.add("-Done.profiler.libraryPath=" + System.getProperty("one.profiler.libraryPath", profilerLibPath()));
             cmd.add("-Djava.library.path=" + System.getProperty("java.library.path"));
             cmd.add("-ea");
             addArgs(cmd, test.jvmArgs());

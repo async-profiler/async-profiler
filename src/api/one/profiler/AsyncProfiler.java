@@ -40,7 +40,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
                 profiler.getVersion();
             } catch (UnsatisfiedLinkError e) {
                 String libraryPath = System.getProperty("one.profiler.libraryPath");
-                if (libraryPath != null) {
+                if (libraryPath != null && !libraryPath.isEmpty()) {
                     System.load(new File(libraryPath).getAbsolutePath());
                 } else {
                     File file = extractEmbeddedLib();
