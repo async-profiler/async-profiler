@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -40,9 +39,22 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
                 // No need to load library, if it has been preloaded with -agentpath
                 profiler.getVersion();
             } catch (UnsatisfiedLinkError e) {
-                if (!loadEmbeddedLib()) {
-                    System.loadLibrary("asyncProfiler");
+                String libraryPath = System.getProperty("one.profiler.libraryPath");
+                if (libraryPath != null) {
+                    System.load(new File(libraryPath).getAbsolutePath());
+                } else {
+                    File file = extractEmbeddedLib();
+                    if (file != null) {
+                        try {
+                            System.load(file.getAbsolutePath());
+                        } finally {
+                            file.delete();
+                        }
+                    } else {
+                        System.loadLibrary("asyncProfiler");
+                    }
                 }
+
             }
         }
 
@@ -50,47 +62,33 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         return profiler;
     }
 
-    private static boolean loadEmbeddedLib() {
-        String libraryPath = System.getProperty("one.profiler.libraryPath");
-        URL url = AsyncProfiler.class.getResource(libraryPath == null
-            ? ("/" + getPlatformTag() + "/libasyncProfiler.so")
-            : libraryPath
-        );
-
-        if (url == null) {
-            if (libraryPath != null) {
-                throw new RuntimeException("Invalid embedded library path: " + libraryPath);
-            }
-            return false;
+    private static File extractEmbeddedLib() {
+        String resourceName = "/" + getPlatformTag() + "/libasyncProfiler.so";
+        InputStream in = AsyncProfiler.class.getResourceAsStream(resourceName);
+        if (in == null) {
+            return null;
         }
 
-        if (!url.getPath().isEmpty()) {
-            System.load(new File(url.getPath()).getAbsolutePath());
-            return true;
-        }
-
-        File file = null;
-        String extractPath = System.getProperty("one.profiler.extractPath");
         try {
-            file = File.createTempFile("libasyncProfiler-", ".so",
+            String extractPath = System.getProperty("one.profiler.extractPath");
+            File file = File.createTempFile("libasyncProfiler-", ".so",
                     extractPath == null || extractPath.isEmpty() ? null : new File(extractPath));
-
-            try (InputStream in = url.openStream();
-                    FileOutputStream out = new FileOutputStream(file)) {
+            try (FileOutputStream out = new FileOutputStream(file)) {
                 byte[] buf = new byte[32000];
                 for (int bytes; (bytes = in.read(buf)) >= 0; ) {
                     out.write(buf, 0, bytes);
                 }
             }
-            System.load(file.getAbsolutePath());
+            return file;
         } catch (IOException e) {
             throw new IllegalStateException(e);
         } finally {
-            if (file != null) {
-                file.delete();
+            try {
+                in.close();
+            } catch (IOException e) {
+                // ignore
             }
         }
-        return true;
     }
 
     private static String getPlatformTag() {
