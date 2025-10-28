@@ -40,10 +40,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
                 // No need to load library, if it has been preloaded with -agentpath
                 profiler.getVersion();
             } catch (UnsatisfiedLinkError e) {
-                File file = extractEmbeddedLib();
-                if (file != null) {
-                    System.load(file.getAbsolutePath());
-                } else {
+                if (!loadEmbeddedLib()) {
                     System.loadLibrary("asyncProfiler");
                 }
             }
@@ -53,7 +50,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         return profiler;
     }
 
-    private static File extractEmbeddedLib() {
+    private static boolean loadEmbeddedLib() {
         String libraryPath = System.getProperty("one.profiler.libraryPath");
         URL url = AsyncProfiler.class.getResource(libraryPath == null
             ? ("/" + getPlatformTag() + "/libasyncProfiler.so")
@@ -64,18 +61,19 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
             if (libraryPath != null) {
                 throw new RuntimeException("Invalid embedded library path: " + libraryPath);
             }
-            return null;
+            return false;
         }
 
         if (!url.getPath().isEmpty()) {
-            return new File(url.getPath());
+            System.load(new File(url.getPath()).getAbsolutePath());
+            return true;
         }
 
+        File file = null;
+        String extractPath = System.getProperty("one.profiler.extractPath");
         try {
-            String extractPath = System.getProperty("one.profiler.extractPath");
-            File file = File.createTempFile("libasyncProfiler-", ".so",
+            file = File.createTempFile("libasyncProfiler-", ".so",
                     extractPath == null || extractPath.isEmpty() ? null : new File(extractPath));
-            file.deleteOnExit();
 
             try (InputStream in = url.openStream();
                     FileOutputStream out = new FileOutputStream(file)) {
@@ -84,10 +82,15 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
                     out.write(buf, 0, bytes);
                 }
             }
-            return file;
+            System.load(file.getAbsolutePath());
         } catch (IOException e) {
             throw new IllegalStateException(e);
+        } finally {
+            if (file != null) {
+                file.delete();
+            }
         }
+        return true;
     }
 
     private static String getPlatformTag() {
