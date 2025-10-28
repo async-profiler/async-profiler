@@ -62,7 +62,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
         if (url == null) {
             if (libraryPath != null) {
-                throw new IllegalArgumentException("Invalid embedded library path: " + libraryPath);
+                throw new RuntimeException("Invalid embedded library path: " + libraryPath);
             }
             return null;
         }
