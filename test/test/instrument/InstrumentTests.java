@@ -451,7 +451,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = MethodTracingStop.class,
-        jvmArgs   = "-Djava.library.path=build/lib -Xverify:all -XX:+IgnoreUnrecognizedVMOptions --enable-native-access=ALL-UNNAMED",
+        jvmArgs   = "-Xverify:all -XX:+IgnoreUnrecognizedVMOptions --enable-native-access=ALL-UNNAMED",
         output    = true,
         error     = true
     )
