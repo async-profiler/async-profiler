@@ -43,10 +43,6 @@ static inline u64 loadAcquire(u64& var) {
     return __atomic_load_n(&var, __ATOMIC_ACQUIRE);
 }
 
-static inline u64 loadRelaxed(u64& var) {
-    return __atomic_load_n(&var, __ATOMIC_RELAXED);
-}
-
 static inline void storeRelease(u64& var, u64 value) {
     return __atomic_store_n(&var, value, __ATOMIC_RELEASE);
 }

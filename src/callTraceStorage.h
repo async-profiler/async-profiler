@@ -60,7 +60,7 @@ class CallTraceStorage {
     void clear();
     u32 capacity();
     size_t usedMemory();
-    u64 overflow() { return loadRelaxed(_overflow); }
+    u64 overflow() { return _overflow; }
 
     void collectTraces(std::map<u32, CallTrace*>& map);
     void collectSamples(std::vector<CallTraceSample*>& samples);

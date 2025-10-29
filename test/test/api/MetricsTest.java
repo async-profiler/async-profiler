@@ -14,7 +14,7 @@ public class MetricsTest {
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
         profiler.execute("start,trace=test.api.MetricsTest.doStuff,features=stats,jfr,file=/dev/null");
-        
+
         doStuff();
         doStuff();
         doStuff();
