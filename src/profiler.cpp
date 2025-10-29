@@ -1479,7 +1479,7 @@ void Profiler::writeMetrics(Writer& out) {
 
     out << "samples_total " << _total_samples << '\n';
     out << "sample_failures_total " << _failures[-ticks_skipped] << '\n';
-    out << "calltracestorage_overflows_total " << _call_trace_storage.getOverflow() << '\n';
+    out << "calltracestorage_overflows_total " << _call_trace_storage.overflow() << '\n';
 
     if (_total_stack_walk_time != 0) {
         out << "stackwalk_ns_total " << _total_stack_walk_time << '\n';
