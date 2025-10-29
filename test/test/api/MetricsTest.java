@@ -26,17 +26,17 @@ public class MetricsTest {
         String metrics = profiler.execute("metrics");
         for (String line : metrics.split("\n")) {
             String[] pair = line.split(" ");
-            assert pair.length == 2 : pair.length;
+            assert pair.length == 2 : line;
             if (pair[1].startsWith("0")) {
-                assert "sample_failures".equals(pair[0]) || "call_trace_storage_overflows".equals(pair[0]) : pair[0];
+                assert "sample_failures_total".equals(pair[0]) || "calltracestorage_overflows_total".equals(pair[0]) : line;
             }
 
             if (pair[0].equals("total_samples")) {
-                assert pair[1].equals("3");
+                assert pair[1].equals("3") : line;
             }
         }
 
-        // total_stackwalk_time should be present since we used features=stats
-        assert metrics.contains("total_stackwalk_time");
+        // Should be found since we used features=stats
+        assert metrics.contains("stackwalk_ns_total") : metrics;
     }
 }

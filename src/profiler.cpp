@@ -1453,13 +1453,7 @@ void Profiler::printUsedMemory(Writer& out) {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
     size_t flight_recording = _jfr.usedMemory();
     size_t dictionaries = _class_map.usedMemory() + _thread_filter.usedMemory();
-
-    size_t code_cache = _runtime_stubs.usedMemory();
-    int native_lib_count = _native_libs.count();
-    for (int i = 0; i < native_lib_count; i++) {
-        code_cache += _native_libs[i]->usedMemory();
-    }
-    code_cache += native_lib_count * sizeof(CodeCache);
+    size_t code_cache = _runtime_stubs.usedMemory() + _native_libs.usedMemory();
 
     char buf[1024];
     const size_t KB = 1024;
@@ -1476,26 +1470,19 @@ void Profiler::printUsedMemory(Writer& out) {
 }
 
 void Profiler::writeMetrics(Writer& out) {
-    // bytes
-    out << "call_trace_storage_memory " << (u64) _call_trace_storage.usedMemory() << '\n';
-    out << "flight_recorder_memory " << (u64) _jfr.usedMemory() << '\n';
-    out << "class_map_memory " << (u64) _class_map.usedMemory() << '\n';
-    out << "thread_filter_memory " << (u64) _thread_filter.usedMemory() << '\n';
-    out << "code_cache_memory " << (u64) _runtime_stubs.usedMemory() << '\n';
-    u64 native_libs_memory = 0;
-    for (size_t i = 0; i < _native_libs.count(); i++) {
-        native_libs_memory += _native_libs[i]->usedMemory();
-    }
-    out << "native_libs_memory " << native_libs_memory << '\n';
+    out << "calltracestorage_bytes " << (u64) _call_trace_storage.usedMemory() << '\n';
+    out << "flightrecorder_bytes " << (u64) _jfr.usedMemory() << '\n';
+    out << "classmap_bytes " << (u64) _class_map.usedMemory() << '\n';
+    out << "threadfilter_bytes " << (u64) _thread_filter.usedMemory() << '\n';
+    out << "runtimestubs_bytes " << (u64) _runtime_stubs.usedMemory() << '\n';
+    out << "nativelibs_bytes " << (u64) _native_libs.usedMemory() << '\n';
 
-    // count
-    out << "total_samples " << _total_samples << '\n';
-    out << "sample_failures " << _failures[-ticks_skipped] << '\n';
-    out << "call_trace_storage_overflows " << _call_trace_storage.getOverflow() << '\n';
+    out << "samples_total " << _total_samples << '\n';
+    out << "sample_failures_total " << _failures[-ticks_skipped] << '\n';
+    out << "calltracestorage_overflows_total " << _call_trace_storage.getOverflow() << '\n';
 
-    // ns
     if (_total_stack_walk_time != 0) {
-        out << "total_stackwalk_time " << _total_stack_walk_time << '\n';
+        out << "stackwalk_ns_total " << _total_stack_walk_time << '\n';
     }
 }
 
