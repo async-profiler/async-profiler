@@ -1464,6 +1464,8 @@ void Profiler::writeMetrics(Writer& out) {
 
     if (_total_stack_walk_time != 0) {
         out << "stackwalk_ns_total " << _total_stack_walk_time << '\n';
+        u64 stacks = _total_samples - _failures[-ticks_skipped];
+        out << "stackwalk_ns_average " << (_total_stack_walk_time / stacks) << '\n';
     }
 }
 
