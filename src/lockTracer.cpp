@@ -21,7 +21,7 @@ INCLUDE_HELPER_CLASS(LOCK_TRACER_NAME, LOCK_TRACER_CLASS, "one/profiler/LockTrac
 
 
 bool LockTracer::_initialized = false;
-double LockTracer::_ticks_to_nanos;
+double LockTracer::_ticks_to_nanos = 0;
 u64 LockTracer::_interval;
 volatile u64 LockTracer::_total_duration;  // for interval sampling
 u64 LockTracer::_start_time = 0;
@@ -36,11 +36,6 @@ UnsafeParkFunc LockTracer::_orig_unsafe_park = NULL;
 
 
 Error LockTracer::start(Arguments& args) {
-    // There is a JVM here, so TSC::frequency is calibrated from it
-    _ticks_to_nanos = 1e9 / TSC::frequency();
-    _interval = (u64)(args._lock * (TSC::frequency() / 1e9));
-    _total_duration = 0;
-
     jvmtiEnv* jvmti = VM::jvmti();
     JNIEnv* env = VM::jni();
 
@@ -53,18 +48,20 @@ Error LockTracer::start(Arguments& args) {
         _initialized = true;
     }
 
-    // Enable Java Monitor events
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
+    // There is a JVM here, so TSC::frequency is calibrated from it
+    _interval = (u64)(args._lock * (TSC::frequency() / 1e9));
     _start_time = TSC::ticks();
-
-    // Intercept Unsafe.park() for tracing contended ReentrantLocks
-    setUnsafeParkEntry(env, UnsafeParkHook);
+    _total_duration = 0;
 
     return Error::OK;
 }
 
-void LockTracer::stop() {
+void LockTracer::stop(bool restart) {
+    if (restart) {
+        // Nothing to do
+        return;
+    }
+
     jvmtiEnv* jvmti = VM::jvmti();
     JNIEnv* env = VM::jni();
 
@@ -136,6 +133,16 @@ Error LockTracer::initialize(jvmtiEnv* jvmti, JNIEnv* env) {
     if (_setEntry == NULL) {
         return Error("setEntry method not found");
     }
+
+    // Enable Java Monitor events
+    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
+    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
+
+    // Intercept Unsafe.park() for tracing contended ReentrantLocks
+    setUnsafeParkEntry(env, UnsafeParkHook);
+
+    // There is a JVM here, so TSC::frequency is calibrated from it
+    _ticks_to_nanos = 1e9 / TSC::frequency();
 
     return Error::OK;
 }

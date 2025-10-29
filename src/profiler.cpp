@@ -1285,7 +1285,7 @@ error5:
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
 
 error4:
-    if (_event_mask & EM_LOCK) lock_tracer.stop();
+    if (_event_mask & EM_LOCK) lock_tracer.stop(false /* restart */);
 
 error3:
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
@@ -1314,7 +1314,7 @@ Error Profiler::stop(bool restart) {
     uninstallTraps();
 
     if (_event_mask & EM_WALL) wall_clock.stop();
-    if (_event_mask & EM_LOCK) lock_tracer.stop();
+    if (_event_mask & EM_LOCK) lock_tracer.stop(restart);
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
     if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
@@ -1998,9 +1998,8 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             }
             break;
         }
-        case ACTION_MEMINFO: {
-            MutexLocker ml(_state_lock);
-            printUsedMemory(out);
+        case ACTION_METRICS: {
+            writeMetrics(out);
             break;
         }
         case ACTION_LIST: {
@@ -2031,9 +2030,6 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
         }
         case ACTION_VERSION:
             out << PROFILER_VERSION;
-            break;
-        case ACTION_METRICS:
-            writeMetrics(out);
             break;
         default:
             break;

@@ -37,7 +37,7 @@ static const char USAGE_STRING[] =
     "  dump                dump collected data without stopping profiling session\n"
     "  check               check if the specified profiling event is available\n"
     "  status              print profiling status\n"
-    "  meminfo             print profiler memory stats\n"
+    "  metrics             print profiler metrics in Prometheus format\n"
     "  list                list profiling events supported by the target JVM\n"
     "  load                load agent library (jattach action)\n"
     "  jcmd                run JVM diagnostic command (jattach action)\n"
@@ -414,7 +414,7 @@ int main(int argc, const char** argv) {
         String arg = args.next();
 
         if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" || arg == "check" ||
-            arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect" || arg == "metrics") {
+            arg == "status" || arg == "metrics" || arg == "list" || arg == "collect") {
             action = arg;
 
         } else if (arg == "load" || arg == "jcmd" || arg == "threaddump" || arg == "dumpheap" || arg == "inspectheap") {
