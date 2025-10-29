@@ -1459,13 +1459,13 @@ void Profiler::writeMetrics(Writer& out) {
     out << "mem_nativelibs_kb " << (u64) _native_libs.usedMemory() / KB << '\n';
 
     out << "samples_total " << _total_samples << '\n';
-    out << "samples_failures_total " << _failures[-ticks_skipped] << '\n';
+    out << "samples_skipped_total " << _failures[-ticks_skipped] << '\n';
     out << "overflows_calltracestorage_total " << _call_trace_storage.overflow() << '\n';
 
     if (_total_stack_walk_time != 0) {
         out << "stackwalk_ns_total " << _total_stack_walk_time << '\n';
         u64 stacks = _total_samples - _failures[-ticks_skipped];
-        out << "stackwalk_ns_average " << (_total_stack_walk_time / stacks) << '\n';
+        out << "stackwalk_ns_avg " << (_total_stack_walk_time / stacks) << '\n';
     }
 }
 
