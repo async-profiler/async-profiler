@@ -22,10 +22,4 @@ public class LockTests {
         out = p.profile("-e lock -d 3 -o collapsed");
         assert out.contains("sun/nio/ch/DatagramChannelImpl.send");
     }
-
-    @Test(mainClass = DatagramTest.class, debugNonSafepoints = true, jvmVer = {11, Integer.MAX_VALUE})
-    public void datagramSocketLockLoop(TestProcess p) throws Exception {
-        Output out = p.profile("-e cpu -d 3 -o collapsed --loop 1s --cstack dwarf");
-        System.out.println("'" + out + "'");
-    }
 }

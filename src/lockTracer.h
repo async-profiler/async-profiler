@@ -60,7 +60,7 @@ class LockTracer : public Engine {
     }
 
     Error start(Arguments& args);
-    void stop(bool restart);
+    void stop();
 
     static void JNICALL MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
     static void JNICALL MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
