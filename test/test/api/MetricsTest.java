@@ -9,11 +9,7 @@ import one.profiler.AsyncProfiler;
 
 public class MetricsTest {
 
-    static volatile int sink = 0;
-
-    static void doStuff() {
-        sink++;
-    }
+    static void doStuff() {}
 
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
