@@ -200,7 +200,6 @@ class Profiler {
     Error stop(bool restart = false);
     Error flushJfr();
     Error dump(Writer& out, Arguments& args);
-    void printUsedMemory(Writer& out);
     void logStats();
     void writeMetrics(Writer& out);
     void switchThreadEvents(jvmtiEventMode mode);
