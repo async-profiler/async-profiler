@@ -13,7 +13,7 @@ import java.util.Random;
 public class MethodTracingStop {
 
     private static void func1() {}
-    
+
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();
 
