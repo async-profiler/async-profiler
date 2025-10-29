@@ -44,3 +44,20 @@ jobs:
             cat "$offenders_path"
             exit 1
           fi
+  trailing-spaces:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: EOF newline check
+        env:
+          offenders_path: /tmp/trailing_space_offenders.txt
+        run: |
+          find . -path './.git' -prune -o -exec file --mime-type {} + | grep 'text/' | awk -F: '{print $1}' | while read -r file; do
+            if [ $(grep -c '[[:blank:]]$' "$file") -eq 1 ]; then
+              echo "$file" >> "$offenders_path"
+            fi
+          done
+          if [ -s "$offenders_path" ]; then
+            cat "$offenders_path"
+            exit 1
+          fi
