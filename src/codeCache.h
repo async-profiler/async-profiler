@@ -234,8 +234,7 @@ class CodeCacheArray {
     }
 
     size_t usedMemory() {
-        size_t out = count() * sizeof(CodeCache);
-        return out + _used_memory;
+        return _used_memory;
     }
 
     void add(CodeCache* lib) {
