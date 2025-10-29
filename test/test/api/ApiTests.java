@@ -33,7 +33,7 @@ public class ApiTests {
         assert !out.contains("BusyLoops.method3");
     }
 
-    @Test(mainClass = MetricsTest.class, jvmArgs = "-Djava.library.path=build/lib")
+    @Test(mainClass = MetricsTest.class)
     public void metrics(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
