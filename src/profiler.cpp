@@ -1982,6 +1982,7 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             break;
         }
         case ACTION_METRICS: {
+            MutexLocker ml(_state_lock);
             writeMetrics(out);
             break;
         }
