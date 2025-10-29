@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: EOF newline check
+      - name: Trailing spaces check
         env:
           offenders_path: /tmp/trailing_space_offenders.txt
         run: |
