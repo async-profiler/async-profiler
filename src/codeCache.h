@@ -234,7 +234,8 @@ class CodeCacheArray {
     }
 
     size_t usedMemory() {
-        return __atomic_load_n(&_used_memory, __ATOMIC_ACQUIRE) + count() * sizeof(CodeCache);
+        size_t out = count() * sizeof(CodeCache);
+        return out + _used_memory;
     }
 
     void add(CodeCache* lib) {
