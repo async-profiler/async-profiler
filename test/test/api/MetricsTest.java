@@ -24,10 +24,10 @@ public class MetricsTest {
             String[] pair = line.split(" ");
             assert pair.length == 2 : line;
             if (pair[1].startsWith("0")) {
-                assert "sample_failures_total".equals(pair[0]) || "calltracestorage_overflows_total".equals(pair[0]) : line;
+                assert "samples_failures_total".equals(pair[0]) || "overflows_calltracestorage_total".equals(pair[0]) : line;
             }
 
-            if (pair[0].equals("total_samples")) {
+            if (pair[0].equals("samples_total")) {
                 assert pair[1].equals("3") : line;
             }
         }

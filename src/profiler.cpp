@@ -1450,16 +1450,17 @@ Error Profiler::dump(Writer& out, Arguments& args) {
 }
 
 void Profiler::writeMetrics(Writer& out) {
-    out << "calltracestorage_bytes " << (u64) _call_trace_storage.usedMemory() << '\n';
-    out << "flightrecorder_bytes " << (u64) _jfr.usedMemory() << '\n';
-    out << "classmap_bytes " << (u64) _class_map.usedMemory() << '\n';
-    out << "threadfilter_bytes " << (u64) _thread_filter.usedMemory() << '\n';
-    out << "runtimestubs_bytes " << (u64) _runtime_stubs.usedMemory() << '\n';
-    out << "nativelibs_bytes " << (u64) _native_libs.usedMemory() << '\n';
+    constexpr size_t KB = 1024;
+    out << "mem_calltracestorage_kb " << (u64) _call_trace_storage.usedMemory() / KB << '\n';
+    out << "mem_flightrecorder_kb " << (u64) _jfr.usedMemory() / KB << '\n';
+    out << "mem_classmap_kb " << (u64) _class_map.usedMemory() / KB << '\n';
+    out << "mem_threadfilter_kb " << (u64) _thread_filter.usedMemory() / KB << '\n';
+    out << "mem_runtimestubs_kb " << (u64) _runtime_stubs.usedMemory() / KB << '\n';
+    out << "mem_nativelibs_kb " << (u64) _native_libs.usedMemory() / KB << '\n';
 
     out << "samples_total " << _total_samples << '\n';
-    out << "sample_failures_total " << _failures[-ticks_skipped] << '\n';
-    out << "calltracestorage_overflows_total " << _call_trace_storage.overflow() << '\n';
+    out << "samples_failures_total " << _failures[-ticks_skipped] << '\n';
+    out << "overflows_calltracestorage_total " << _call_trace_storage.overflow() << '\n';
 
     if (_total_stack_walk_time != 0) {
         out << "stackwalk_ns_total " << _total_stack_walk_time << '\n';
