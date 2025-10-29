@@ -20,6 +20,7 @@
 #include "allocTracer.h"
 #include "mallocTracer.h"
 #include "lockTracer.h"
+#include "nativeLockTracer.h"
 #include "wallClock.h"
 #include "j9ObjectSampler.h"
 #include "j9StackTraces.h"
@@ -56,6 +57,7 @@ static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
 static MallocTracer malloc_tracer;
 static LockTracer lock_tracer;
+static NativeLockTracer native_lock_tracer;
 static ObjectSampler object_sampler;
 static J9ObjectSampler j9_object_sampler;
 static WallClock wall_clock;
@@ -86,11 +88,12 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 
 static inline int hasNativeStack(EventType event_type) {
     const int events_with_native_stack =
-        (1 << PERF_SAMPLE)       |
-        (1 << EXECUTION_SAMPLE)  |
-        (1 << WALL_CLOCK_SAMPLE) |
-        (1 << MALLOC_SAMPLE)     |
-        (1 << ALLOC_SAMPLE)      |
+        (1 << PERF_SAMPLE)        |
+        (1 << EXECUTION_SAMPLE)   |
+        (1 << WALL_CLOCK_SAMPLE)  |
+        (1 << NATIVE_LOCK_SAMPLE) |
+        (1 << MALLOC_SAMPLE)      |
+        (1 << ALLOC_SAMPLE)       |
         (1 << ALLOC_OUTSIDE_TLAB);
     return (1 << event_type) & events_with_native_stack;
 }
@@ -340,7 +343,7 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
                 // Skip all internal frames above VM runtime entry for allocation samples
                 depth = 0;
                 continue;
-            } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
+            } else if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
                 // Skip all internal frames above the *_hook functions. Include the hook function itself.
                 depth = 0;
             } else if (mark == MARK_INTERPRETER) {
@@ -784,6 +787,7 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
     if (result != NULL) {
         instance()->updateSymbols(false);
         MallocTracer::installHooks();
+        NativeLockTracer::installHooks();
     }
     return result;
 }
@@ -1032,6 +1036,8 @@ Engine* Profiler::activeEngine() {
             return &wall_clock;
         case EM_NATIVEMEM:
             return &malloc_tracer;
+        case EM_NATIVELOCK:
+            return &native_lock_tracer;
         case EM_METHOD_TRACE:
             return &instrument;
         default:
@@ -1243,10 +1249,16 @@ Error Profiler::start(Arguments& args, bool reset) {
             goto error5;
         }
     }
+    if (_event_mask & EM_NATIVELOCK) {
+        error = native_lock_tracer.start(args);
+        if (error) {
+            goto error6;
+        }
+    }
     if (_event_mask & EM_METHOD_TRACE) {
         error = instrument.start(args);
         if (error) {
-            goto error6;
+            goto error7;
         }
     }
 
@@ -1263,8 +1275,11 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     return Error::OK;
 
-error6:
+error7:
     if (_event_mask & EM_METHOD_TRACE) instrument.stop();
+
+error6:
+    if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
 
 error5:
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
@@ -1302,6 +1317,7 @@ Error Profiler::stop(bool restart) {
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
+    if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
     if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
     _engine->stop();
@@ -1351,6 +1367,9 @@ Error Profiler::check(Arguments& args) {
     }
     if (!error && args._lock >= 0) {
         error = lock_tracer.check(args);
+    }
+    if (!error && args._nativelock >= 0) {
+        error = native_lock_tracer.check(args);
     }
     if (!error && !args._trace.empty()) {
         error = instrument.check(args);
@@ -2003,6 +2022,7 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             out << "  " << EVENT_ALLOC << "\n";
             out << "  " << EVENT_NATIVEMEM << "\n";
             out << "  " << EVENT_LOCK << "\n";
+            out << "  " << EVENT_NATIVELOCK << "\n";
             out << "  " << EVENT_WALL << "\n";
             out << "  " << EVENT_ITIMER << "\n";
             if (CTimer::supported()) {
