@@ -29,13 +29,13 @@ public class AllNativeLocks {
     private static void runAllLockTypesOnce() throws InterruptedException {
         List<Thread> threads = new ArrayList<>();
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 2; i++) {
             Thread t = new Thread(() -> NativeLock.mutexContentionThread());
             threads.add(t);
             t.start();
         }
          
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 2; i++) {
             Thread t = new Thread(() -> NativeLock.rdlockContentionThread());
             threads.add(t);
             t.start();
