@@ -431,11 +431,11 @@ public class InstrumentTests {
 
         // recursive(i) = \sum_{j=i}^5 200*(MAX_RECURSION-j) ms
         // MAX_RECURSION = 3
-        
+
         // recursive(3) is filtered out
         Duration duration = Duration.ZERO;
         assert !out.contains(MAIN_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + " ");
-        
+
         // recursive(2) is filtered out
         duration = duration.plus(Duration.ofMillis(200));
         assert !out.contains(MAIN_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + RECURSIVE_METHOD_SEGMENT + " ");
