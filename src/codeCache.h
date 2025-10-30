@@ -219,6 +219,7 @@ class CodeCacheArray {
   private:
     CodeCache* _libs[MAX_NATIVE_LIBS];
     int _count;
+    size_t _used_memory;
 
   public:
     CodeCacheArray() : _count(0) {
@@ -232,9 +233,14 @@ class CodeCacheArray {
         return __atomic_load_n(&_count, __ATOMIC_ACQUIRE);
     }
 
+    size_t usedMemory() {
+        return _used_memory;
+    }
+
     void add(CodeCache* lib) {
         int index = __atomic_load_n(&_count, __ATOMIC_ACQUIRE);
         _libs[index] = lib;
+        _used_memory += lib->usedMemory();
         __atomic_store_n(&_count, index + 1, __ATOMIC_RELEASE);
     }
 };

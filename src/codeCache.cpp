@@ -323,5 +323,5 @@ size_t CodeCache::usedMemory() {
     for (int i = 0; i < _count; i++) {
         bytes += NativeFunc::usedMemory(_blobs[i]._name);
     }
-    return bytes;
+    return bytes + sizeof(CodeCache);
 }
