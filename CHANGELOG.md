@@ -31,7 +31,7 @@
 
  - #1515: Fix UnsatisfiedLinkError when tmpdir is set to a relative path
  - #1500: Detect if `calloc` calls `malloc` for nativemem profiling
- - #1427: Re-implement SafeAccess crash protection 
+ - #1427: Re-implement SafeAccess crash protection
  - #1417: Two wall-clock profilers interfere with each other
 
 ### Project Infrastructure
@@ -421,7 +421,7 @@
 ### Features
  - Converters between different output formats:
    - JFR -> nflx (FlameScope)
-   - Collapsed stacks -> HTML 5 Flame Graph 
+   - Collapsed stacks -> HTML 5 Flame Graph
 
 ### Improvements
  - `profiler.sh` no longer requires bash (contributed by @cfstras)
@@ -505,7 +505,7 @@
 ### Features
  - Interactive Call tree and Backtrace tree in HTML format (contributed by @rpulle)
  - Experimental support for Java Flight Recorder (JFR) compatible output
- 
+
 ### Improvements
  - Added units: `ms`, `us`, `s` and multipliers: `K`, `M`, `G` for interval argument
  - API and command-line option `-v` for profiler version
@@ -519,7 +519,7 @@
 
 ### Features
  - Profiling of native functions, e.g. malloc
- 
+
 ### Improvements
  - JDK 9, 10, 11 support for heap profiling with accurate stack traces
  - `root` can now profile Java processes of any user
@@ -531,7 +531,7 @@
  - Produce SVG files out of the box; flamegraph.pl is no longer needed
  - Profile ReentrantLock contention
  - Java API
- 
+
 ### Improvements
  - Allocation and Lock profiler now works on JDK 7, too
  - Faster dumping of results
