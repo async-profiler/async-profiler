@@ -34,7 +34,7 @@ public class AllNativeLocks {
             threads.add(t);
             t.start();
         }
-         
+
         for (int i = 0; i < 2; i++) {
             Thread t = new Thread(() -> NativeLock.rdlockContentionThread());
             threads.add(t);
