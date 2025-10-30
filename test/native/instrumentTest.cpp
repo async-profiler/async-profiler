@@ -88,7 +88,7 @@ TEST_CASE(Instrument_test_instructionBytes) {
 
     code[0] = JVM_OPC_istore;
     CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 2);
-    
+
     code[0] = JVM_OPC_istore_2;
     CHECK_EQ(BytecodeRewriter::instructionBytes(code, 0), 1);
 }
@@ -128,7 +128,7 @@ TEST_CASE(Instrument_test_instructionBytes_tableswitch) {
 TEST_CASE(Instrument_test_instructionBytes_largeTableswitch) {
     u8 code[16];
     code[0] = JVM_OPC_tableswitch;
-    
+
     int32_t low = 0;
     *(u32*)(code+8) = htonl(low);
     int32_t high = 0xFFF;
