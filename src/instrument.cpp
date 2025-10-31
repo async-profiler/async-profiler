@@ -1060,6 +1060,11 @@ volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
 Error Instrument::check(Arguments& args) {
+    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
+    return Error::OK;
+}
+
+Error Instrument::start(Arguments& args) {
     if (!_instrument_class_loaded) {
         if (!VM::loaded()) {
             return Error("Profiling event is not supported with non-Java processes");
@@ -1079,14 +1084,7 @@ Error Instrument::check(Arguments& args) {
         _instrument_class_loaded = true;
     }
 
-    return Error::OK;
-}
-
-Error Instrument::start(Arguments& args) {
-    Error error = check(args);
-    if (error) return error;
-
-    error = setupTargetClassAndMethod(args);
+    Error error = setupTargetClassAndMethod(args);
     if (error) return error;
 
     bool no_cpu_profiling = (args._event == NULL) ^ args._trace.empty();

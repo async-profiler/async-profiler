@@ -1347,49 +1347,8 @@ Error Profiler::stop(bool restart) {
 }
 
 Error Profiler::check(Arguments& args) {
-    MutexLocker ml(_state_lock);
-    if (_state > IDLE) {
-        return Error("Profiler already started");
-    }
-
-    Error error = checkJvmCapabilities();
-
-    if (!error && args._event != NULL) {
-        _engine = selectEngine(args._event);
-        error = _engine->check(args);
-    }
-    if (!error && args._alloc >= 0) {
-        _alloc_engine = selectAllocEngine(args._alloc, args._live);
-        error = _alloc_engine->check(args);
-    }
-    if (!error && args._nativemem >= 0) {
-        error = malloc_tracer.check(args);
-    }
-    if (!error && args._lock >= 0) {
-        error = lock_tracer.check(args);
-    }
-    if (!error && args._nativelock >= 0) {
-        error = native_lock_tracer.check(args);
-    }
-    if (!error && !args._trace.empty()) {
-        error = instrument.check(args);
-    }
-
-    if (!error) {
-        if (args._wall >= 0 && _engine == &wall_clock) {
-            return Error("Cannot start wall clock with the selected event");
-        }
-
-        if (args._cstack == CSTACK_DWARF && !DWARF_SUPPORTED) {
-            return Error("DWARF unwinding is not supported on this platform");
-        } else if (args._cstack == CSTACK_LBR && _engine != &perf_events) {
-            return Error("Branch stack is supported only with PMU events");
-        } else if (args._cstack == CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
-            return Error("VMStructs stack walking is not supported on this JVM/platform");
-        }
-    }
-
-    return error;
+    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
+    return Error::OK;
 }
 
 Error Profiler::flushJfr() {

@@ -11,6 +11,11 @@
 
 
 Error ITimer::check(Arguments& args) {
+    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
+    return Error::OK;
+}
+
+Error ITimer::start(Arguments& args) {
     OS::installSignalHandler(SIGPROF, NULL, SIG_IGN);
 
     struct itimerval tv_on = {{1, 0}, {1, 0}};
@@ -21,10 +26,6 @@ Error ITimer::check(Arguments& args) {
     struct itimerval tv_off = {{0, 0}, {0, 0}};
     setitimer(ITIMER_PROF, &tv_off, NULL);
 
-    return Error::OK;
-}
-
-Error ITimer::start(Arguments& args) {
     if (args._interval < 0) {
         return Error("interval must be positive");
     }

@@ -23,16 +23,13 @@ void J9ObjectSampler::VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread
 }
 
 Error J9ObjectSampler::check(Arguments& args) {
-    if (J9Ext::InstrumentableObjectAlloc_id < 0) {
-        return Error("InstrumentableObjectAlloc is not supported on this JVM");
-    }
+    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
     return Error::OK;
 }
 
 Error J9ObjectSampler::start(Arguments& args) {
-    Error error = check(args);
-    if (error) {
-        return error;
+    if (J9Ext::InstrumentableObjectAlloc_id < 0) {
+        return Error("InstrumentableObjectAlloc is not supported on this JVM");
     }
 
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
