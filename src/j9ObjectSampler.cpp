@@ -5,6 +5,7 @@
 
 #include "j9ObjectSampler.h"
 #include "j9Ext.h"
+#include "log.h"
 #include "vmEntry.h"
 
 

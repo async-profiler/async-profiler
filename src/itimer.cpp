@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include "itimer.h"
 #include "j9StackTraces.h"
+#include "log.h"
 #include "os.h"
 #include "vmEntry.h"
 
