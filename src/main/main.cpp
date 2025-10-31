@@ -532,7 +532,6 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--timeout" || arg == "--loop") {
             params << "," << (arg.str() + 2) << "=" << args.next();
-            if (action == "collect") action = "start";
 
         } else if (arg == "--libpath") {
             libpath = args.next();
