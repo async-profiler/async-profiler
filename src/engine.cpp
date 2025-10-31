@@ -4,11 +4,13 @@
  */
 
 #include "engine.h"
+#include "log.h"
 
 
 volatile bool Engine::_enabled = false;
 
 Error Engine::check(Arguments& args) {
+    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
     return Error::OK;
 }
 

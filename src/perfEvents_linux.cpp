@@ -745,55 +745,7 @@ const char* PerfEvents::units() {
 }
 
 Error PerfEvents::check(Arguments& args) {
-    PerfEventType* event_type = PerfEventType::forName(args._event);
-    if (event_type == NULL) {
-        return Error("Unsupported event type");
-    } else if (event_type->counter_arg > 4) {
-        return Error("Only arguments 1-4 can be counted");
-    }
-
-    if (!setupThreadHook()) {
-        return Error("Could not set pthread hook");
-    }
-
-    struct perf_event_attr attr = {0};
-    attr.size = sizeof(attr);
-    attr.type = event_type->type;
-
-    if (attr.type == PERF_TYPE_BREAKPOINT) {
-        attr.bp_type = event_type->config;
-    } else {
-        attr.config = event_type->config;
-    }
-    attr.config1 = event_type->config1;
-    attr.config2 = event_type->config2;
-
-    attr.sample_period = event_type->default_interval;
-    attr.sample_type = PERF_SAMPLE_CALLCHAIN;
-    attr.disabled = 1;
-
-    if (args._alluser) {
-        attr.exclude_kernel = 1;
-    }
-
-#ifdef PERF_ATTR_SIZE_VER5
-    if (args._cstack == CSTACK_LBR) {
-        attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
-        attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
-        attr.sample_regs_user = 1ULL << PERF_REG_PC;
-    }
-#endif
-
-    if (args._record_cpu) {
-        attr.sample_type |= PERF_SAMPLE_CPU;
-    }
-
-    int fd = syscall(__NR_perf_event_open, &attr, 0, args._target_cpu, -1, 0);
-    if (fd == -1) {
-        return Error(strerror(errno));
-    }
-
-    close(fd);
+    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
     return Error::OK;
 }
 
