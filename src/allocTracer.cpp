@@ -13,7 +13,6 @@
 int AllocTracer::_trap_kind;
 Trap AllocTracer::_in_new_tlab(0);
 Trap AllocTracer::_outside_tlab(1);
-volatile bool AllocTracer::_use_hook = false;
 
 u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
@@ -51,30 +50,6 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
     if (_enabled && updateCounter(_allocated_bytes, total_size, _interval)) {
         recordAllocation(ucontext, event_type, klass, total_size, instance_size);
-    }
-}
-
-void AllocTracer::inNewTLAB1(uintptr_t klass, void* obj, size_t tlab_size, size_t alloc_size) {
-    if (_use_hook && _enabled && updateCounter(_allocated_bytes, tlab_size, _interval)) {
-        recordAllocation(NULL, ALLOC_SAMPLE, klass, tlab_size, alloc_size);
-    }
-}
-
-void AllocTracer::outsideTLAB1(uintptr_t klass, void* obj, size_t alloc_size) {
-    if (_use_hook && _enabled && updateCounter(_allocated_bytes, alloc_size, _interval)) {
-        recordAllocation(NULL, ALLOC_OUTSIDE_TLAB, klass, alloc_size, 0);
-    }
-}
-
-void AllocTracer::inNewTLAB2(uintptr_t klass, size_t tlab_size, size_t alloc_size) {
-    if (_use_hook && _enabled && updateCounter(_allocated_bytes, tlab_size, _interval)) {
-        recordAllocation(NULL, ALLOC_SAMPLE, klass, tlab_size, alloc_size);
-    }
-}
-
-void AllocTracer::outsideTLAB2(uintptr_t klass, size_t alloc_size) {
-    if (_use_hook && _enabled && updateCounter(_allocated_bytes, alloc_size, _interval)) {
-        recordAllocation(NULL, ALLOC_OUTSIDE_TLAB, klass, alloc_size, 0);
     }
 }
 
@@ -138,24 +113,14 @@ Error AllocTracer::start(Arguments& args) {
     _interval = args._alloc > 0 ? args._alloc : 0;
     _allocated_bytes = 0;
 
-    if (args._alloc_hook) {
-        if ((_trap_kind == 1 && _in_new_tlab.install((void*)inNewTLAB1) && _outside_tlab.install((void*)outsideTLAB1)) ||
-            (_trap_kind == 2 && _in_new_tlab.install((void*)inNewTLAB2) && _outside_tlab.install((void*)outsideTLAB2))) {
-            _use_hook = true;
-            return Error::OK;
-        }
-    } else if (_in_new_tlab.install() && _outside_tlab.install()) {
-        return Error::OK;
+    if (!_in_new_tlab.install() || !_outside_tlab.install()) {
+        return Error("Cannot install allocation breakpoints");
     }
 
-    return Error("Cannot install allocation breakpoints");
+    return Error::OK;
 }
 
 void AllocTracer::stop() {
-    if (_use_hook) {
-        _use_hook = false;
-    } else {
-        _in_new_tlab.uninstall();
-        _outside_tlab.uninstall();
-    }
+    _in_new_tlab.uninstall();
+    _outside_tlab.uninstall();
 }

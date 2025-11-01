@@ -22,7 +22,7 @@ class Trap {
     instruction_t _breakpoint_insn;
     instruction_t _saved_insn;
 
-    bool patch(instruction_t insn, void* jump_target);
+    bool patch(instruction_t insn);
 
     static uintptr_t _page_start[TRAP_COUNT];
 
@@ -42,12 +42,12 @@ class Trap {
     void assign(const void* address, uintptr_t offset = BREAKPOINT_OFFSET);
     void pair(Trap& second);
 
-    bool install(void* jump_target = NULL) {
-        return _entry == 0 || patch(_breakpoint_insn, jump_target);
+    bool install() {
+        return _entry == 0 || patch(_breakpoint_insn);
     }
 
     bool uninstall() {
-        return _entry == 0 || patch(_saved_insn, NULL);
+        return _entry == 0 || patch(_saved_insn);
     }
 
     static bool isFaultInstruction(uintptr_t pc);
