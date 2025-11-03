@@ -1347,7 +1347,7 @@ Error Profiler::stop(bool restart) {
 }
 
 Error Profiler::check(Arguments& args) {
-    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
+    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release");
     return Error::OK;
 }
 

@@ -73,18 +73,7 @@ void CTimer::destroyForThread(int tid) {
     }
 }
 
-Error CTimer::check(Arguments& args) {
-    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
-    return Error::OK;
-}
-
 Error CTimer::start(Arguments& args) {
-    timer_t timer;
-    if (timer_create(CLOCK_THREAD_CPUTIME_ID, NULL, &timer) < 0) {
-        return Error("Failed to create CPU timer");
-    }
-    timer_delete(timer);
-
     if (!setupThreadHook()) {
         return Error("Could not set pthread hook");
     }

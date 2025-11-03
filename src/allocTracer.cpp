@@ -70,11 +70,6 @@ void AllocTracer::recordAllocation(void* ucontext, EventType event_type, uintptr
     Profiler::instance()->recordSample(ucontext, total_size, event_type, &event);
 }
 
-Error AllocTracer::check(Arguments& args) {
-    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
-    return Error::OK;
-}
-
 Error AllocTracer::start(Arguments& args) {
     if (args._live && !args._all) {
         // This engine is only going to be selected in Profiler::selectAllocEngine

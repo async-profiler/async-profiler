@@ -744,11 +744,6 @@ const char* PerfEvents::units() {
     return _event_type == NULL || strcmp(_event_type->name, "cpu-clock") == 0 ? "ns" : "total";
 }
 
-Error PerfEvents::check(Arguments& args) {
-    Log::warn("DEPRECATED: The 'check' command is deprecated and will be removed in the next release.");
-    return Error::OK;
-}
-
 Error PerfEvents::start(Arguments& args) {
     _event_type = PerfEventType::forName(args._event);
     if (_event_type == NULL) {
