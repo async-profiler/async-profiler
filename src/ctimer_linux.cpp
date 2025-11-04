@@ -73,20 +73,6 @@ void CTimer::destroyForThread(int tid) {
     }
 }
 
-Error CTimer::check(Arguments& args) {
-    if (!setupThreadHook()) {
-        return Error("Could not set pthread hook");
-    }
-
-    timer_t timer;
-    if (timer_create(CLOCK_THREAD_CPUTIME_ID, NULL, &timer) < 0) {
-        return Error("Failed to create CPU timer");
-    }
-    timer_delete(timer);
-
-    return Error::OK;
-}
-
 Error CTimer::start(Arguments& args) {
     if (!setupThreadHook()) {
         return Error("Could not set pthread hook");

@@ -44,7 +44,6 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     resume                  - start or resume profiling without resetting collected data
 //     stop                    - stop profiling
 //     dump                    - dump collected data without stopping profiling session
-//     check                   - check if the specified profiling event is available
 //     status                  - print profiling status (inactive / running for X seconds)
 //     metrics                 - print profiler metrics in Prometheus format
 //     list                    - show the list of available profiling events

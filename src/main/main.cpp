@@ -35,7 +35,6 @@ static const char USAGE_STRING[] =
     "  resume              resume profiling without resetting collected data\n"
     "  stop                stop profiling\n"
     "  dump                dump collected data without stopping profiling session\n"
-    "  check               check if the specified profiling event is available\n"
     "  status              print profiling status\n"
     "  metrics             print profiler metrics in Prometheus format\n"
     "  list                list profiling events supported by the target JVM\n"

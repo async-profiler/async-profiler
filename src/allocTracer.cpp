@@ -18,6 +18,33 @@ u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
 
 
+Error AllocTracer::initialize() {
+    if (_in_new_tlab.entry() == 0 || _outside_tlab.entry() == 0) {
+        CodeCache* libjvm = VMStructs::libjvm();
+        const void* ne;
+        const void* oe;
+
+        if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer27send_allocation_in_new_tlab")) != NULL &&
+            (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer28send_allocation_outside_tlab")) != NULL) {
+            _trap_kind = 1;  // JDK 10+
+        } else if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandleP8HeapWord")) != NULL &&
+                   (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer34send_allocation_outside_tlab_eventE11KlassHandleP8HeapWord")) != NULL) {
+            _trap_kind = 1;  // JDK 8u262+
+        } else if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer33send_allocation_in_new_tlab_event")) != NULL &&
+                   (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer34send_allocation_outside_tlab_event")) != NULL) {
+            _trap_kind = 2;  // JDK 7-9
+        } else {
+            return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
+        }
+
+        _in_new_tlab.assign(ne);
+        _outside_tlab.assign(oe);
+        _in_new_tlab.pair(_outside_tlab);
+    }
+
+    return Error::OK;
+}
+
 // Called whenever our breakpoint trap is hit
 void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
@@ -69,46 +96,15 @@ void AllocTracer::recordAllocation(void* ucontext, EventType event_type, uintptr
     Profiler::instance()->recordSample(ucontext, total_size, event_type, &event);
 }
 
-Error AllocTracer::check(Arguments& args) {
+Error AllocTracer::start(Arguments& args) {
     if (args._live && !args._all) {
         // This engine is only going to be selected in Profiler::selectAllocEngine
         // when can_generate_sampled_object_alloc_events is not available, i.e. JDK<11.
         return Error("'live' option is supported on OpenJDK 11+");
     }
 
-    if (_in_new_tlab.entry() != 0 && _outside_tlab.entry() != 0) {
-        return Error::OK;
-    }
-
-    CodeCache* libjvm = VMStructs::libjvm();
-    const void* ne;
-    const void* oe;
-
-    if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer27send_allocation_in_new_tlab")) != NULL &&
-        (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer28send_allocation_outside_tlab")) != NULL) {
-        _trap_kind = 1;  // JDK 10+
-    } else if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandleP8HeapWord")) != NULL &&
-               (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer34send_allocation_outside_tlab_eventE11KlassHandleP8HeapWord")) != NULL) {
-        _trap_kind = 1;  // JDK 8u262+
-    } else if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer33send_allocation_in_new_tlab_event")) != NULL &&
-               (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer34send_allocation_outside_tlab_event")) != NULL) {
-        _trap_kind = 2;  // JDK 7-9
-    } else {
-        return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
-    }
-
-    _in_new_tlab.assign(ne);
-    _outside_tlab.assign(oe);
-    _in_new_tlab.pair(_outside_tlab);
-
-    return Error::OK;
-}
-
-Error AllocTracer::start(Arguments& args) {
-    Error error = check(args);
-    if (error) {
-        return error;
-    }
+    Error error = initialize();
+    if (error) return error;
 
     _interval = args._alloc > 0 ? args._alloc : 0;
     _allocated_bytes = 0;
