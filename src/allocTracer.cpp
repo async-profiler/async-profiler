@@ -15,7 +15,6 @@ int AllocTracer::_trap_kind;
 Trap AllocTracer::_in_new_tlab(0);
 Trap AllocTracer::_outside_tlab(1);
 
-bool AllocTracer::_initialized = false;
 u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
 
@@ -105,13 +104,8 @@ Error AllocTracer::start(Arguments& args) {
         return Error("'live' option is supported on OpenJDK 11+");
     }
 
-    if (!_initialized) {
-        Error error = initialize();
-        if (error) {
-            return error;
-        }
-        _initialized = true;
-    }
+    Error error = initialize();
+    if (error) return error;
 
     _interval = args._alloc > 0 ? args._alloc : 0;
     _allocated_bytes = 0;

@@ -15,7 +15,6 @@
 
 class AllocTracer : public Engine {
   private:
-    static bool _initialized;
     static int _trap_kind;
     static Trap _in_new_tlab;
     static Trap _outside_tlab;

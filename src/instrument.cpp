@@ -1059,8 +1059,8 @@ Latency Instrument::_interval;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
-Error Instrument::start(Arguments& args) {
-    if (!_instrument_class_loaded) {
+Error Instrument::initialize() {
+   if (!_instrument_class_loaded) {
         if (!VM::loaded()) {
             return Error("Profiling event is not supported with non-Java processes");
         }
@@ -1079,7 +1079,11 @@ Error Instrument::start(Arguments& args) {
         _instrument_class_loaded = true;
     }
 
-    Error error = setupTargetClassAndMethod(args);
+    return Error::OK;
+}
+
+Error Instrument::start(Arguments& args) {
+    Error error = initialize() || setupTargetClassAndMethod(args);
     if (error) return error;
 
     bool no_cpu_profiling = (args._event == NULL) ^ args._trace.empty();
