@@ -4,7 +4,6 @@
  */
 
 #include "engine.h"
-#include "log.h"
 
 
 volatile bool Engine::_enabled = false;

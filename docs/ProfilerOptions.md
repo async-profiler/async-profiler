@@ -18,7 +18,6 @@ The below options are `action`s for async-profiler and common for both `asprof` 
 | `resume`  | Start or resume earlier profiling session that has been stopped. All the collected data remains valid. The profiling options are not preserved between sessions, and should be specified again. |
 | `stop`    | Stop profiling and print the report.                                                                                                                                                            |
 | `dump`    | Dump collected data without stopping profiling session.                                                                                                                                         |
-| `check`   | Check if the specified profiling event is available.                                                                                                                                            |
 | `status`  | Print profiling status: whether profiler is active and for how long.                                                                                                                            |
 | `meminfo` | Print used memory statistics.                                                                                                                                                                   |
 | `list`    | Show the list of profiling events available for the target process specified with PID.                                                                                                          |
