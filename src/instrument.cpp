@@ -1083,7 +1083,10 @@ Error Instrument::initialize() {
 }
 
 Error Instrument::start(Arguments& args) {
-    Error error = initialize() || setupTargetClassAndMethod(args);
+    Error error = initialize();
+    if (error) return error;
+    
+    error = setupTargetClassAndMethod(args);
     if (error) return error;
 
     bool no_cpu_profiling = (args._event == NULL) ^ args._trace.empty();
