@@ -43,7 +43,7 @@ Error AllocTracer::initialize() {
         _outside_tlab.assign(oe);
         _in_new_tlab.pair(_outside_tlab);
     }
-    
+
     return Error::OK;
 }
 
