@@ -1060,7 +1060,7 @@ volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
 Error Instrument::initialize() {
-   if (!_instrument_class_loaded) {
+    if (!_instrument_class_loaded) {
         if (!VM::loaded()) {
             return Error("Profiling event is not supported with non-Java processes");
         }
