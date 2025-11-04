@@ -4,7 +4,6 @@
  */
 
 #include "allocTracer.h"
-#include "log.h"
 #include "profiler.h"
 #include "stackFrame.h"
 #include "tsc.h"
