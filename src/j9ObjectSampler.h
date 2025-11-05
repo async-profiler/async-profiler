@@ -15,7 +15,6 @@ class J9ObjectSampler : public ObjectSampler {
         return "j9_object_sampler";
     }
 
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 

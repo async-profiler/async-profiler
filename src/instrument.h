@@ -45,7 +45,6 @@ class Instrument : public Engine {
         return "calls";
     }
 
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 

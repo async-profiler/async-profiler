@@ -34,7 +34,6 @@ class PerfEvents : public CpuEngine {
     void destroyForThread(int tid);
 
   public:
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 
