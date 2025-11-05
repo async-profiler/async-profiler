@@ -75,6 +75,8 @@ TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
 CPP_TEST_INCLUDES := -Isrc -Itest/native
+CPP_TEST_LIB_SOURCES := test/native/testRunner.cpp $(shell find test/native/libs \( -name "*.c" -o -name "*.cpp" \))
+CPP_TEST_BIN_SOURCES := test/native/testRunner.cpp $(shell find test/test \( -name "*.c" -o -name "*.cpp" \))
 
 ifeq ($(JAVA_HOME),)
   JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -132,8 +134,22 @@ ifneq (,$(STATIC_BINARY))
   CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
 endif
 
+# Default is to run cpp unit tests
+RUN_CPP_TESTS :=
 
-.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
+# Determine if the target should run unit tests (test-cpp is explicitly invoked, or test is invoked and TESTS is empty)
+ifeq ($(filter test-cpp,$(MAKECMDGOALS)),test-cpp)
+  RUN_CPP_TESTS := 1
+endif
+
+ifeq ($(filter test,$(MAKECMDGOALS)),test)
+  ifeq ($(strip $(TESTS)),)
+    RUN_CPP_TESTS := 1
+  endif
+endif
+
+
+.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
@@ -211,20 +227,22 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 
 build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 	mkdir -p build/test
+ifneq ($(RUN_CPP_TESTS),)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ -xc++ - $(LIBS)
 else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
 endif
+endif
 
-build-test-java: all build/$(TEST_JAR) build-test-libs build-test-bins
+build-test-java: all build/$(TEST_JAR) build/test/build-test-libs build/test/build-test-bins
 
-build-test-cpp: build/test/cpptests build-test-libs
+build-test-cpp: build/test/cpptests build/test/build-test-libs
 
 build-test: build-test-cpp build-test-java
 
-build-test-libs:
+build/test/build-test-libs: $(CPP_TEST_LIB_SOURCES)
 	@mkdir -p $(TEST_LIB_DIR)
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libcallsmalloc.$(SOEXT) test/native/libs/callsmalloc.c
@@ -243,8 +261,9 @@ ifeq ($(OS_TAG),linux)
 	$(AS) -o $(TEST_LIB_DIR)/twiceatzero.o test/native/libs/twiceatzero.s
 	$(LD) -shared -o $(TEST_LIB_DIR)/libtwiceatzero.$(SOEXT) $(TEST_LIB_DIR)/twiceatzero.o --section-start=.seg1=0x4000 -z max-page-size=0x1000
 endif
+	@touch $@
 
-build-test-bins:
+build/test/build-test-bins: $(CPP_TEST_BIN_SOURCES)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CC) -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
 	$(CC) -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
@@ -253,10 +272,13 @@ build-test-bins:
 	$(CC) -o $(TEST_BIN_DIR)/preload_malloc -Isrc test/test/nativemem/preload_malloc.c -ldl
 	$(CC) -o $(TEST_BIN_DIR)/nativemem_known_lib_crash -Isrc test/test/nativemem/nativemem_known_lib_crash.c -ldl
 	$(CXX) -o $(TEST_BIN_DIR)/non_java_app -std=c++11 $(INCLUDES) $(CPP_TEST_INCLUDES) test/test/nonjava/non_java_app.cpp $(LIBS)
+	@touch $@
 
 test-cpp: build-test-cpp
-	echo "Running cpp tests..."
+ifneq ($(RUN_CPP_TESTS),)
+	@echo "Running cpp tests..."
 	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" DYLD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
+endif
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
