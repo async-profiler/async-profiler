@@ -15,7 +15,6 @@ class ITimer : public CpuEngine {
         return "itimer";
     }
 
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 };
