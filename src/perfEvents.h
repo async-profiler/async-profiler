@@ -57,10 +57,6 @@ class StackContext;
 
 class PerfEvents : public CpuEngine {
   public:
-    Error check(Arguments& args) {
-        return Error("PerfEvents are not supported on this platform");
-    }
-
     Error start(Arguments& args) {
         return Error("PerfEvents are not supported on this platform");
     }
