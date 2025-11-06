@@ -75,8 +75,8 @@ TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
 CPP_TEST_INCLUDES := -Isrc -Itest/native
-CPP_TEST_LIB_SOURCES := test/native/testRunner.cpp $(shell find test/native/libs \( -name "*.c" -o -name "*.cpp" \))
-CPP_TEST_BIN_SOURCES := test/native/testRunner.cpp $(shell find test/test \( -name "*.c" -o -name "*.cpp" \))
+TEST_LIB_SOURCES := $(wildcard test/native/libs/*)
+TEST_BIN_SOURCES := $(shell find test/test \( -name "*.c" -o -name "*.cpp" \))
 
 ifeq ($(JAVA_HOME),)
   JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -225,7 +225,7 @@ build-test-cpp: build/test/cpptests build/test/build-test-libs
 
 build-test: build-test-cpp build-test-java
 
-build/test/build-test-libs: $(CPP_TEST_LIB_SOURCES)
+build/test/build-test-libs: $(TEST_LIB_SOURCES)
 	@mkdir -p $(TEST_LIB_DIR)
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libcallsmalloc.$(SOEXT) test/native/libs/callsmalloc.c
@@ -246,7 +246,7 @@ ifeq ($(OS_TAG),linux)
 endif
 	@touch $@
 
-build/test/build-test-bins: $(CPP_TEST_BIN_SOURCES)
+build/test/build-test-bins: $(TEST_BIN_SOURCES)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CC) -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
 	$(CC) -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
@@ -258,7 +258,7 @@ build/test/build-test-bins: $(CPP_TEST_BIN_SOURCES)
 	@touch $@
 
 test-cpp: build-test-cpp
-	@echo "Running cpp tests..."
+	echo "Running cpp tests..."
 	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" DYLD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
 
 test-java: build-test-java
