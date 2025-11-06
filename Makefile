@@ -76,7 +76,7 @@ CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*
 CPP_TEST_HEADER := test/native/testRunner.hpp
 CPP_TEST_INCLUDES := -Isrc -Itest/native
 TEST_LIB_SOURCES := $(wildcard test/native/libs/*)
-TEST_BIN_SOURCES := $(shell find test/test \( -name "*.c" -o -name "*.cpp" \))
+TEST_BIN_SOURCES := $(shell find test/test -name "*.c*")
 
 ifeq ($(JAVA_HOME),)
   JAVA_HOME:=$(shell java -cp . JavaHome)
