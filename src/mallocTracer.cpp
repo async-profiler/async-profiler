@@ -247,7 +247,7 @@ Error MallocTracer::start(Arguments& args) {
     return Error::OK;
 }
 
-void MallocTracer::stop() {
+void MallocTracer::stop(bool restart) {
     // Ideally, we should reset original malloc entries, but it's not currently safe
     // in the view of library unloading. Consider using dl_iterate_phdr.
     _running = false;

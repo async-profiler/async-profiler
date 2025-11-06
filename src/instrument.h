@@ -47,7 +47,7 @@ class Instrument : public Engine {
 
     Error check(Arguments& args);
     Error start(Arguments& args);
-    void stop();
+    void stop(bool restart = false);
 
     Error setupTargetClassAndMethod(const Arguments& args);
 

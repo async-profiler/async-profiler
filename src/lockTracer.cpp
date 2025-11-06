@@ -64,7 +64,7 @@ Error LockTracer::start(Arguments& args) {
     return Error::OK;
 }
 
-void LockTracer::stop() {
+void LockTracer::stop(bool restart) {
     jvmtiEnv* jvmti = VM::jvmti();
     JNIEnv* env = VM::jni();
 

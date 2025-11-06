@@ -17,7 +17,7 @@ class J9ObjectSampler : public ObjectSampler {
 
     Error check(Arguments& args);
     Error start(Arguments& args);
-    void stop();
+    void stop(bool restart = false);
 
     static void JNICALL JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                         jobject object, jclass object_klass, jlong size);

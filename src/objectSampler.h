@@ -38,7 +38,7 @@ class ObjectSampler : public Engine {
     }
 
     Error start(Arguments& args);
-    void stop();
+    void stop(bool restart = false);
 
     static void JNICALL SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                            jobject object, jclass object_klass, jlong size);
