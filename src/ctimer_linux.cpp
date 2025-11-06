@@ -116,7 +116,7 @@ Error CTimer::start(Arguments& args) {
     return Error::OK;
 }
 
-void CTimer::stop() {
+void CTimer::stop(bool restart) {
     disableThreadHook();
     for (int i = 0; i < _max_timers; i++) {
         destroyForThread(i);
