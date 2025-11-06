@@ -134,21 +134,6 @@ ifneq (,$(STATIC_BINARY))
   CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
 endif
 
-# Default is to run cpp unit tests
-RUN_CPP_TESTS :=
-
-# Determine if the target should run unit tests (test-cpp is explicitly invoked, or test is invoked and TESTS is empty)
-ifeq ($(filter test-cpp,$(MAKECMDGOALS)),test-cpp)
-  RUN_CPP_TESTS := 1
-endif
-
-ifeq ($(filter test,$(MAKECMDGOALS)),test)
-  ifeq ($(strip $(TESTS)),)
-    RUN_CPP_TESTS := 1
-  endif
-endif
-
-
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
@@ -227,13 +212,11 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 
 build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 	mkdir -p build/test
-ifneq ($(RUN_CPP_TESTS),)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ -xc++ - $(LIBS)
 else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
-endif
 endif
 
 build-test-java: all build/$(TEST_JAR) build/test/build-test-libs build/test/build-test-bins
@@ -275,10 +258,8 @@ build/test/build-test-bins: $(CPP_TEST_BIN_SOURCES)
 	@touch $@
 
 test-cpp: build-test-cpp
-ifneq ($(RUN_CPP_TESTS),)
 	@echo "Running cpp tests..."
 	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" DYLD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
-endif
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
@@ -291,7 +272,12 @@ coverage: clean-coverage
 	cd build/test/ && gcovr -r ../.. --html-details --gcov-executable "$(GCOV)" -o coverage/index.html
 	rm -rf -- -.gc*
 
-test: test-cpp test-java
+# unit tests shouldn't run if the user selects an integration test target
+ifeq ($(TESTS),)
+  TEST_CPP := test-cpp
+endif
+
+test: $(TEST_CPP) test-java
 
 $(TEST_DEPS_DIR):
 	mkdir -p $@
