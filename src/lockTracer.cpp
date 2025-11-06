@@ -72,8 +72,10 @@ void LockTracer::stop(bool restart) {
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
 
-    // Reset Unsafe.park() trap
-    setUnsafeParkEntry(env, _orig_unsafe_park);
+    if (restart) {
+        // Reset Unsafe.park() trap
+        setUnsafeParkEntry(env, _orig_unsafe_park);
+    }
 }
 
 Error LockTracer::initialize(jvmtiEnv* jvmti, JNIEnv* env) {
