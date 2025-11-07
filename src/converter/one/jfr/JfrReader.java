@@ -166,6 +166,10 @@ public class JfrReader implements Closeable {
             int size = getVarint();
             int type = getVarint();
 
+            if (size <= 0) {
+                throw new IOException("Corrupted JFR recording: invalid event size");
+            }
+
             if (type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
                 if (state != STATE_NEW_CHUNK && stopAtNewChunk) {
                     buf.position(pos);
