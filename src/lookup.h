@@ -50,15 +50,13 @@ class Lookup {
         _method_map(),
         _classes(Profiler::instance()->classMap()),
         _packages(1),
-        _symbols(1),
-        _jni(VM::jni()) {
+        _symbols(1) {
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame);
     u32 getPackage(const char* class_name);
 
   private:
-    JNIEnv* _jni;
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name);
     bool fillJavaMethodInfo(MethodInfo* mi, jmethodID method);
