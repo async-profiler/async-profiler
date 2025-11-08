@@ -1062,8 +1062,20 @@
 		hour: '2-digit',
 		minute: '2-digit',
 		second: '2-digit',
-		hourCycle: 'h23'
+		hourCycle: 'h23',
+		timeZoneName: 'short'
 	};
+
+	let currentTimezone = localStorage.getItem('heatmap-timezone') || 'Local';
+
+	function formatTime(ms, options) {
+		const date = new Date(ms);
+		if (currentTimezone === 'UTC') {
+			return date.toLocaleTimeString(undefined, {...options, timeZone: 'UTC'});
+		} else {
+			return date.toLocaleTimeString(undefined, options);
+		}
+	}
 
 	function getCount(counts, i) {
 		if (i < 0 || counts.length === 0) {
@@ -3661,7 +3673,7 @@
 			let ms = origin + markIndex * oneMarkMs;
 			let markOffset = markIndex * markPixels - dx;
 
-			let title = new Date(ms).toLocaleTimeString(undefined, timeOptionsTiny);
+			let title = formatTime(ms, timeOptionsTiny);
 			let x = markOffset + 4;
 			heatC.fillText(title, x, canvasTimeHeight - 1, markPixels);
 
@@ -4036,7 +4048,7 @@
 			status.style.display = 'none';
 		}
 		const ms = Math.floor(startMs / currentHeatmap.currentTimeSquareMs()) * currentHeatmap.currentTimeSquareMs() + currentHeatmap.minimalTimeSquare * index;
-		heatCanvas.title = new Date(ms).toLocaleTimeString(undefined, timeOptionsShort);
+		heatCanvas.title = formatTime(ms, timeOptionsShort);
 	}
 
 	function callActiveRedraw(sample, shiftPressed, ctrlPressed) {
@@ -4241,6 +4253,14 @@
 			let sample = x * currentHeatmap.timeSquareRowsCount + y;
 
 			callActiveRedraw(sample, true, event.ctrlKey);
+		}
+	};
+
+	heatCanvas.onclick = function (event) {
+		if (event.offsetY < canvasTimeHeightPx && !moved) {
+			currentTimezone = currentTimezone === 'Local' ? 'UTC' : 'Local';
+			localStorage.setItem('heatmap-timezone', currentTimezone);
+			redrawHeatMap();
 		}
 	};
 
