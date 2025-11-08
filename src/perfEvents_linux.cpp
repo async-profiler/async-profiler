@@ -816,7 +816,7 @@ Error PerfEvents::start(Arguments& args) {
     return Error::OK;
 }
 
-void PerfEvents::stop() {
+void PerfEvents::stop(bool restart) {
     disableThreadHook();
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);

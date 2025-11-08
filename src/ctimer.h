@@ -24,7 +24,7 @@ class CTimer : public CpuEngine {
     }
 
     Error start(Arguments& args);
-    void stop();
+    void stop(bool restart = false);
 
     static bool supported() {
         return true;

@@ -176,7 +176,7 @@ Error WallClock::start(Arguments& args) {
     return Error::OK;
 }
 
-void WallClock::stop() {
+void WallClock::stop(bool restart) {
     _running = false;
     pthread_kill(_thread, WAKEUP_SIGNAL);
     pthread_join(_thread, NULL);

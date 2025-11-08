@@ -39,7 +39,7 @@ class NativeLockTracer : public Engine {
     }
 
     Error start(Arguments& args);
-    void stop();
+    void stop(bool restart = false);
 
     static inline bool running() {
         return _running;

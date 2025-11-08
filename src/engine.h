@@ -47,7 +47,7 @@ class Engine {
     }
 
     virtual Error start(Arguments& args);
-    virtual void stop();
+    virtual void stop(bool restart = false);
 
     void enableEvents(bool enabled) {
         _enabled = enabled;

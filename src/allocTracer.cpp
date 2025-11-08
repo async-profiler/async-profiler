@@ -116,7 +116,7 @@ Error AllocTracer::start(Arguments& args) {
     return Error::OK;
 }
 
-void AllocTracer::stop() {
+void AllocTracer::stop(bool restart) {
     _in_new_tlab.uninstall();
     _outside_tlab.uninstall();
 }

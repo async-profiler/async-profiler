@@ -55,7 +55,7 @@ class WallClock : public Engine {
     }
 
     Error start(Arguments& args);
-    void stop();
+    void stop(bool restart = false);
 };
 
 #endif // _WALLCLOCK_H
