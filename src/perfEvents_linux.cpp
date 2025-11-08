@@ -535,6 +535,7 @@ PerfEventType* PerfEvents::_event_type = NULL;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
 bool PerfEvents::_use_perf_mmap;
+bool PerfEvents::_autodisable;
 bool PerfEvents::_record_cpu;
 int PerfEvents::_target_cpu;
 
@@ -642,7 +643,8 @@ int PerfEvents::createForThread(int tid) {
     if (fcntl(fd, F_SETFL, O_ASYNC) < 0 || fcntl(fd, F_SETSIG, _signal) < 0 || fcntl(fd, F_SETOWN_EX, &ex) < 0) {
         err = errno;
         Log::warn("perf_event fcntl failed: %s", strerror(err));
-    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 || ioctl(fd, PERF_EVENT_IOC_REFRESH, 1) < 0) {
+    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 ||
+               ioctl(fd, _autodisable ? PERF_EVENT_IOC_REFRESH : PERF_EVENT_IOC_ENABLE, 1) < 0) {
         err = errno;
         Log::warn("perf_event ioctl failed: %s", strerror(err));
     } else {
@@ -707,7 +709,9 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    if (_autodisable) {
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    }
 }
 
 void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -727,7 +731,9 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    if (_autodisable) {
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    }
 }
 
 const char* PerfEvents::title() {
@@ -778,6 +784,10 @@ Error PerfEvents::start(Arguments& args) {
         _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
     }
     _use_perf_mmap = _kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _record_cpu;
+
+    // Workaround for the Linux kernel bug: do not use perf_event autodisable feature for cpu-clock.
+    // See https://github.com/async-profiler/async-profiler/issues/1578
+    _autodisable = strcmp(_event_type->name, "cpu-clock") != 0;
 
     adjustFDLimit();
 

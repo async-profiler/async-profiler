@@ -23,6 +23,7 @@ class PerfEvents : public CpuEngine {
     static bool _alluser;
     static bool _kernel_stack;
     static bool _use_perf_mmap;
+    static bool _autodisable;
     static bool _record_cpu;
     static int _target_cpu;
 
