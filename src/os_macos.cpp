@@ -247,14 +247,16 @@ SigAction OS::replaceCrashHandler(SigAction action) {
 
     sigaction(SIGBUS, NULL, &sa);
     orig_sigbus_handler = sa.sa_handler == SIG_DFL ? restoreSignalHandler : sa.sa_sigaction;
+    sigemptyset(&sa.sa_mask);
     sa.sa_sigaction = action;
-    sa.sa_flags |= SA_SIGINFO | SA_RESTART;
+    sa.sa_flags |= SA_SIGINFO | SA_RESTART | SA_NODEFER;
     sigaction(SIGBUS, &sa, NULL);
 
     sigaction(SIGSEGV, NULL, &sa);
     orig_sigsegv_handler = sa.sa_handler == SIG_DFL ? restoreSignalHandler : sa.sa_sigaction;
+    sigemptyset(&sa.sa_mask);
     sa.sa_sigaction = action;
-    sa.sa_flags |= SA_SIGINFO | SA_RESTART;
+    sa.sa_flags |= SA_SIGINFO | SA_RESTART| SA_NODEFER;
     sigaction(SIGSEGV, &sa, NULL);
 
     // Return an action that dispatches to one of the original handlers depending on signo,
