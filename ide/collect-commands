@@ -1,0 +1,21 @@
+#!/bin/bash
+# Collect compiler commands into compile_commands.jsonl
+# Usage: collect-commands <real-compiler> [compiler-args...]
+
+REAL_CC="$1"
+shift
+
+OUTFILE="${OUTFILE:-compile_commands.tmp}"
+
+for arg in "$@"; do
+    # Check if arg looks like a source file and actually exists
+    if [[ "$arg" == *.c || "$arg" == *.cpp ]]; then
+        jq -n \
+            --arg dir "$(pwd)" \
+            --arg file "$(realpath "$arg")" \
+            --arg cmd "$REAL_CC $*" \
+            '{directory: $dir, file: $file, command: $cmd}' >> "$OUTFILE"
+    fi
+done
+
+exec "$REAL_CC" "$@"

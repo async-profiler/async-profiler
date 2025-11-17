@@ -1,0 +1,31 @@
+{
+  "folders": [
+    { "name": "Sources", "path": "__PROJECT_PATH__" },
+    { "name": "Build artifacts", "path": "__PROJECT_PATH__/build" }
+  ],
+  "settings": {
+    "C_Cpp.default.compileCommands": "__PROJECT_PATH__/build/ide/compile_commands.json",
+    "C_Cpp.default.cppStandard": "c++11",
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.default.intelliSenseMode": "__INTELLISENSE_MODE__",
+    "files.exclude": {
+      "**/.git": true,
+      "**/target": true,
+      "**/*.class": true
+    },
+    "files.associations": {
+      "*.cpp": "cpp",
+      "*.h": "cpp",
+      "*.c": "c",
+      "*.s": "asm",
+      "*.S": "asm"
+    },
+    "search.exclude": {
+      "**/target": true,
+      "**/build/test": true
+    }
+  },
+  "extensions": {
+    "recommendations": [ "ms-vscode.cpptools" ]
+  }
+}
