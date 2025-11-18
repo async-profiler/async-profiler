@@ -153,6 +153,17 @@ static void adjustFDLimit() {
     }
 }
 
+// Workaround for the kernel bug: PERF_EVENT_IOC_REFRESH can hang
+// the entire system on Linux 6.16.x and 6.17.x.
+// See https://github.com/async-profiler/async-profiler/issues/1578
+static int canAutodisablePerfEvent() {
+    static struct utsname u{};
+    if (u.release[0] == 0 && uname(&u) != 0) {
+        return true;
+    }
+    return strncmp(u.release, "6.16.", 5) != 0 && strncmp(u.release, "6.17.", 5) != 0;
+}
+
 struct FunctionWithCounter {
     const char* name;
     int counter_arg;
@@ -532,10 +543,10 @@ class PerfEvent : public SpinLock {
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
+int PerfEvents::_ioc_enable;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
 bool PerfEvents::_use_perf_mmap;
-bool PerfEvents::_autodisable;
 bool PerfEvents::_record_cpu;
 int PerfEvents::_target_cpu;
 
@@ -643,8 +654,7 @@ int PerfEvents::createForThread(int tid) {
     if (fcntl(fd, F_SETFL, O_ASYNC) < 0 || fcntl(fd, F_SETSIG, _signal) < 0 || fcntl(fd, F_SETOWN_EX, &ex) < 0) {
         err = errno;
         Log::warn("perf_event fcntl failed: %s", strerror(err));
-    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 ||
-               ioctl(fd, _autodisable ? PERF_EVENT_IOC_REFRESH : PERF_EVENT_IOC_ENABLE, 1) < 0) {
+    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 || ioctl(fd, _ioc_enable, 1) < 0) {
         err = errno;
         Log::warn("perf_event ioctl failed: %s", strerror(err));
     } else {
@@ -700,6 +710,10 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
+    if (_ioc_enable == PERF_EVENT_IOC_ENABLE) {
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_DISABLE, 0);
+    }
+
     if (_enabled) {
         ExecutionEvent event(TSC::ticks());
         u64 counter = readCounter(siginfo, ucontext);
@@ -709,15 +723,17 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-    if (_autodisable) {
-        ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
-    }
+    ioctl(siginfo->si_fd, _ioc_enable, 1);
 }
 
 void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (siginfo->si_code <= 0) {
         // Looks like an external signal; don't treat as a profiling event
         return;
+    }
+
+    if (_ioc_enable == PERF_EVENT_IOC_ENABLE) {
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_DISABLE, 0);
     }
 
     if (_enabled) {
@@ -731,9 +747,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-    if (_autodisable) {
-        ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
-    }
+    ioctl(siginfo->si_fd, _ioc_enable, 1);
 }
 
 const char* PerfEvents::title() {
@@ -785,9 +799,12 @@ Error PerfEvents::start(Arguments& args) {
     }
     _use_perf_mmap = _kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _record_cpu;
 
-    // Workaround for the Linux kernel bug: do not use perf_event autodisable feature for cpu-clock.
-    // See https://github.com/async-profiler/async-profiler/issues/1578
-    _autodisable = strcmp(_event_type->name, "cpu-clock") != 0;
+    if (strcmp(_event_type->name, "cpu-clock") == 0 && canAutodisablePerfEvent()) {
+        _ioc_enable = PERF_EVENT_IOC_REFRESH;  // autodisable perf_event on counter overflow
+    } else {
+        _ioc_enable = PERF_EVENT_IOC_ENABLE;   // opt-in for manual enable/disable
+        Log::debug("Enable workaround for PERF_EVENT_IOC_REFRESH bug");
+    }
 
     adjustFDLimit();
 

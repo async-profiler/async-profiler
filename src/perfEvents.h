@@ -20,10 +20,10 @@ class PerfEvents : public CpuEngine {
     static int _max_events;
     static PerfEvent* _events;
     static PerfEventType* _event_type;
+    static int _ioc_enable;
     static bool _alluser;
     static bool _kernel_stack;
     static bool _use_perf_mmap;
-    static bool _autodisable;
     static bool _record_cpu;
     static int _target_cpu;
 
