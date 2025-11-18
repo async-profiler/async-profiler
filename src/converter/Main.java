@@ -115,6 +115,8 @@ public class Main {
                 "     --leak             Only include memory leaks in nativemem\n" +
                 "     --tail RATIO       Ignore tail allocations for leak profiling (10% by default)\n" +
                 "     --lock             Lock contention profile\n" +
+                "     --nativelock       Native (pthread) lock contention profile\n" +
+                "     --trace            Method traces / latency profile\n" +
                 "  -t --threads          Split stack traces by threads\n" +
                 "  -s --state LIST       Filter thread states: runnable, sleeping\n" +
                 "     --classify         Classify samples into predefined categories\n" +
