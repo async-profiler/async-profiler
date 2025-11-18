@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.1] - Maintenance Release
+
+### Bug fixes
+
+ - #1599: Workaround for the kernel PERF_EVENT_IOC_REFRESH bug
+ - #1596: Do not block any signals during execution of a custom crash handler
+
 ## [4.2] - 2025-10-20
 
 ### Features
