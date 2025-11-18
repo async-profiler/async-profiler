@@ -19,6 +19,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/utsname.h>
 #include <linux/perf_event.h>
 #include "arch.h"
 #include "fdtransferClient.h"
