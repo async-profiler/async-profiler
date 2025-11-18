@@ -157,12 +157,12 @@ static void adjustFDLimit() {
 // Workaround for the kernel bug: PERF_EVENT_IOC_REFRESH can hang
 // the entire system on Linux 6.16.x and 6.17.x.
 // See https://github.com/async-profiler/async-profiler/issues/1578
-static int canAutodisablePerfEvent() {
+static bool hasPerfEventRefreshBug() {
     static struct utsname u{};
     if (u.release[0] == 0 && uname(&u) != 0) {
-        return true;
+        return false;
     }
-    return strncmp(u.release, "6.16.", 5) != 0 && strncmp(u.release, "6.17.", 5) != 0;
+    return strncmp(u.release, "6.16.", 5) == 0 || strncmp(u.release, "6.17.", 5) == 0;
 }
 
 struct FunctionWithCounter {
@@ -851,11 +851,11 @@ Error PerfEvents::start(Arguments& args) {
         _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
     }
 
-    if (strcmp(_event_type->name, "cpu-clock") == 0 && canAutodisablePerfEvent()) {
-        _ioc_enable = PERF_EVENT_IOC_REFRESH;  // autodisable perf_event on counter overflow
-    } else {
-        _ioc_enable = PERF_EVENT_IOC_ENABLE;   // opt-in for manual enable/disable
+    if (strcmp(_event_type->name, "cpu-clock") == 0 && hasPerfEventRefreshBug()) {
         Log::debug("Enable workaround for PERF_EVENT_IOC_REFRESH bug");
+        _ioc_enable = PERF_EVENT_IOC_ENABLE;   // opt-in for manual enable/disable
+    } else {
+        _ioc_enable = PERF_EVENT_IOC_REFRESH;  // autodisable perf_event on counter overflow
     }
 
     adjustFDLimit();
