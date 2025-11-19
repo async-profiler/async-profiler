@@ -1062,6 +1062,13 @@
 		hour: '2-digit',
 		minute: '2-digit',
 		second: '2-digit',
+		hourCycle: 'h23'
+	};
+
+	const timeOptionsTinyWithTZ = {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
 		hourCycle: 'h23',
 		timeZoneName: 'short'
 	};
@@ -3673,7 +3680,8 @@
 			let ms = origin + markIndex * oneMarkMs;
 			let markOffset = markIndex * markPixels - dx;
 
-			let title = formatTime(ms, timeOptionsTiny);
+			let options = currentTimezone === 'UTC' ? timeOptionsTinyWithTZ : timeOptionsTiny;
+			let title = formatTime(ms, options);
 			let x = markOffset + 4;
 			heatC.fillText(title, x, canvasTimeHeight - 1, markPixels);
 
@@ -4219,6 +4227,12 @@
 
 	let moved = false;
 	heatCanvas.onmousemove = function (event) {
+		if (event.offsetY < canvasTimeHeightPx) {
+			heatCanvas.style.cursor = 'pointer';
+		} else {
+			heatCanvas.style.cursor = 'default';
+		}
+
 		let x = Math.floor((event.offsetX + heatCanvasContainer.scrollLeft - canvasScrollPadding) / sqPx);
 		let y = Math.floor(Math.max(0, event.offsetY - canvasTimeHeightPx) / sqPx);
 		if (y >= currentHeatmap.timeSquareRowsCount) {
@@ -4238,6 +4252,11 @@
 	};
 
 	heatCanvas.onmousedown = function (event) {
+		if (event.offsetY < canvasTimeHeightPx) {
+			moved = false;
+			return;
+		}
+
 		let x = Math.floor((event.offsetX + heatCanvasContainer.scrollLeft - canvasScrollPadding) / sqPx);
 		let y = Math.floor(Math.max(0, event.offsetY - canvasTimeHeightPx) / sqPx);
 		let sample = x * currentHeatmap.timeSquareRowsCount + y;
