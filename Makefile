@@ -52,6 +52,7 @@ JAR=$(JAVA_HOME)/bin/jar
 JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
+TEST_JAVA ?= $(JAVA_HOME)/bin/java
 
 TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
@@ -263,7 +264,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(TEST_JAVA) $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
