@@ -134,7 +134,7 @@ ifneq (,$(STATIC_BINARY))
   CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
 endif
 
-.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md
+.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md vscode-project
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
@@ -174,7 +174,7 @@ endif
 build/%:
 	mkdir -p $@
 
-build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
+build/$(ASPROF): build/bin src/main/* src/jattach/* src/fdtransfer.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
 	$(STRIP) $@
 
@@ -183,7 +183,7 @@ build/$(JFRCONV): src/launcher/launcher.sh build/$(CONVERTER_JAR)
 	chmod +x $@
 	cat build/$(CONVERTER_JAR) >> $@
 
-build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
+build/$(LIB_PROFILER): build/lib $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
@@ -258,11 +258,11 @@ build/test/build-test-bins: $(TEST_BIN_SOURCES)
 	@touch $@
 
 test-cpp: build-test-cpp
-	echo "Running cpp tests..."
+	@echo "Running cpp tests..."
 	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" DYLD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
 
 test-java: build-test-java
-	echo "Running tests against $(LIB_PROFILER)"
+	@echo "Running tests against $(LIB_PROFILER)"
 	$(JAVA) $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
@@ -332,3 +332,21 @@ clean-coverage:
 
 clean:
 	$(RM) -r build
+
+ifeq ($(OS_TAG),macos)
+  INTELLISENSE_MODE := macos-clang-$(ARCH_TAG)
+else
+  INTELLISENSE_MODE := $(OS_TAG)-gcc-$(ARCH_TAG)
+endif
+CMDS_TMP := $(CURDIR)/build/ide/compile_commands.tmp
+CMDS := $(CURDIR)/build/ide/compile_commands.json
+vscode-project: clean build/ide
+	OUTFILE="$(CMDS_TMP)" $(MAKE) build/$(LIB_PROFILER) build/$(ASPROF) build/test/build-test-libs build/test/build-test-bins \
+		MERGE=false CC="$(CURDIR)/ide/collect-commands $(CC)" CXX="$(CURDIR)/ide/collect-commands $(CXX)"
+	jq -s . "$(CMDS_TMP)" > "$(CMDS)"
+	$(RM) "$(CMDS_TMP)"
+	sed -e 's|__INTELLISENSE_MODE__|$(INTELLISENSE_MODE)|g' \
+	    -e 's|__PROJECT_PATH__|$(CURDIR)|g' \
+	    ide/async-profiler.code-workspace.template > build/ide/async-profiler.code-workspace
+	@echo Visual Studio Code workspace created, open with:
+	@echo code "$(CURDIR)"/build/ide/async-profiler.code-workspace
