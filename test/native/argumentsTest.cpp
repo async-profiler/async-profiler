@@ -55,10 +55,10 @@ TEST_CASE(Parse_all_mode_event_and_threshold_override) {
 
 TEST_CASE(Parse_override_before_all_mode) {
     Arguments args;
-    char argument[] = "start,event=ref-cycles,nativemem=10,lock=100,alloc=1000,proc=10,nativelock=1000,all,file=%f.jfr";
+    char argument[] = "start,event=cycles,nativemem=10,lock=100,alloc=1000,proc=10,nativelock=1000,all,file=%f.jfr";
     Error error = args.parse(argument);
     ASSERT_EQ(args._all, true);
-    ASSERT_EQ(args._event, "ref-cycles");
+    ASSERT_EQ(args._event, "cycles");
     ASSERT_EQ(args._wall, 0);
     ASSERT_EQ(args._alloc, 1000);
     ASSERT_EQ(args._nativemem, 10);
