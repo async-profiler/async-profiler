@@ -181,7 +181,7 @@ struct PerfEventType {
 
     enum {
         IDX_CPU = 0,
-        IDX_PREDEFINED = 12,
+        IDX_PREDEFINED = 13,
         IDX_RAW,
         IDX_PMU,
         IDX_BREAKPOINT,
@@ -472,6 +472,7 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"branch-instructions",   1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
     {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
     {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
+    {"ref-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU_CYCLES},
 
     {"L1-dcache-load-misses", 1000000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D)},
     {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
