@@ -27,6 +27,7 @@ class Instrument : public Engine {
     static volatile u64 _calls;
     static volatile bool _running;
 
+    static Error initialize();
     static bool shouldRecordSample() {
         return _interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0;
     }
@@ -44,7 +45,6 @@ class Instrument : public Engine {
         return "calls";
     }
 
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 

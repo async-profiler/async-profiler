@@ -68,6 +68,14 @@ public class Main {
         }
     }
 
+    public static FlameGraph parseFlameGraph(String input, Arguments args) throws IOException {
+        if (isJfr(input)) {
+            return JfrToFlame.parse(input, args);
+        } else {
+            return FlameGraph.parse(input, args);
+        }
+    }
+
     private static String getFileName(String fileName) {
         return fileName.substring(fileName.lastIndexOf(File.separatorChar) + 1);
     }
@@ -107,6 +115,8 @@ public class Main {
                 "     --leak             Only include memory leaks in nativemem\n" +
                 "     --tail RATIO       Ignore tail allocations for leak profiling (10% by default)\n" +
                 "     --lock             Lock contention profile\n" +
+                "     --nativelock       Native (pthread) lock contention profile\n" +
+                "     --trace            Method traces / latency profile\n" +
                 "  -t --threads          Split stack traces by threads\n" +
                 "  -s --state LIST       Filter thread states: runnable, sleeping\n" +
                 "     --classify         Classify samples into predefined categories\n" +

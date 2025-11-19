@@ -23,7 +23,6 @@ class CTimer : public CpuEngine {
         return "ctimer";
     }
 
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 
@@ -36,10 +35,6 @@ class CTimer : public CpuEngine {
 
 class CTimer : public CpuEngine {
   public:
-    Error check(Arguments& args) {
-        return Error("CTimer is not supported on this platform");
-    }
-
     Error start(Arguments& args) {
         return Error("CTimer is not supported on this platform");
     }

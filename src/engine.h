@@ -46,7 +46,6 @@ class Engine {
         return "total";
     }
 
-    virtual Error check(Arguments& args);
     virtual Error start(Arguments& args);
     virtual void stop();
 

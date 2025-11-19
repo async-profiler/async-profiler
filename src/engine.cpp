@@ -8,10 +8,6 @@
 
 volatile bool Engine::_enabled = false;
 
-Error Engine::check(Arguments& args) {
-    return Error::OK;
-}
-
 Error Engine::start(Arguments& args) {
     return Error::OK;
 }

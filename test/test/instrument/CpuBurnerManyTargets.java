@@ -9,7 +9,7 @@ import java.time.Duration;
 import java.util.Random;
 
 public class CpuBurnerManyTargets {
-    
+
     static void burn1(Duration duration) {
         CpuBurner.burn(duration);
     }

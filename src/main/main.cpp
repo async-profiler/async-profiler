@@ -35,9 +35,8 @@ static const char USAGE_STRING[] =
     "  resume              resume profiling without resetting collected data\n"
     "  stop                stop profiling\n"
     "  dump                dump collected data without stopping profiling session\n"
-    "  check               check if the specified profiling event is available\n"
     "  status              print profiling status\n"
-    "  meminfo             print profiler memory stats\n"
+    "  metrics             print profiler metrics in Prometheus format\n"
     "  list                list profiling events supported by the target JVM\n"
     "  load                load agent library (jattach action)\n"
     "  jcmd                run JVM diagnostic command (jattach action)\n"
@@ -74,7 +73,8 @@ static const char USAGE_STRING[] =
     "  --nativemem bytes   native allocation profiling interval in bytes\n"
     "  --nofree            do not collect free calls in native allocation profiling\n"
     "  --trace method      Method to be instrumented with optional latency threshold\n"
-    "  --lock duration     lock profiling threshold in nanoseconds\n"
+    "  --lock time         lock profiling threshold in nanoseconds\n"
+    "  --nativelock time   pthread mutex/rwlock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
     "  --proc interval     process sampling interval (default: 30s)\n"
     "  --all               shorthand for enabling cpu, wall, alloc, live,\n"
@@ -413,7 +413,7 @@ int main(int argc, const char** argv) {
         String arg = args.next();
 
         if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" || arg == "check" ||
-            arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect") {
+            arg == "status" || arg == "metrics" || arg == "list" || arg == "collect") {
             action = arg;
 
         } else if (arg == "load" || arg == "jcmd" || arg == "threaddump" || arg == "dumpheap" || arg == "inspectheap") {
@@ -504,8 +504,8 @@ int main(int argc, const char** argv) {
                    arg == "--sched" || arg == "--live" || arg == "--nofree" || arg == "--record-cpu") {
             format << "," << (arg.str() + 2);
 
-        } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
-                   arg == "--trace" || arg == "--chunksize" || arg == "--chunktime" ||
+        } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||
+                   arg == "--wall" || arg == "--trace" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
                    arg == "--target-cpu" || arg == "--proc") {
             params << "," << (arg.str() + 2) << "=" << args.next();

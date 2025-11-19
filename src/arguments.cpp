@@ -44,9 +44,8 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     resume                  - start or resume profiling without resetting collected data
 //     stop                    - stop profiling
 //     dump                    - dump collected data without stopping profiling session
-//     check                   - check if the specified profiling event is available
 //     status                  - print profiling status (inactive / running for X seconds)
-//     meminfo                 - print profiler memory stats
+//     metrics                 - print profiler metrics in Prometheus format
 //     list                    - show the list of available profiling events
 //     version                 - display the agent version
 //     event=EVENT             - which event to trace (cpu, wall, cache-misses, etc.)
@@ -55,7 +54,8 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     nativemem[=BYTES]       - profile native allocations with BYTES interval
 //     nofree                  - do not collect free calls in native allocation profiling
 //     trace=METHOD[:DURATION] - method to be traced with optional latency threshold
-//     lock[=DURATION]         - profile contended locks overflowing the DURATION ns bucket (default: 10us)
+//     lock[=DURATION]         - profile contended locks overflowing the DURATION bucket (default: 10us)
+//     nativelock[=DURATION]   - profile contended pthread locks overflowing the DURATION bucket (default: 10us)
 //     wall[=NS]               - run wall clock profiling together with CPU profiling
 //     nobatch                 - legacy wall clock sampling without batch events
 //     proc[=S]                - collect process stats (default: 30s)
@@ -154,8 +154,8 @@ Error Arguments::parse(const char* args) {
             CASE("status")
                 _action = ACTION_STATUS;
 
-            CASE("meminfo")
-                _action = ACTION_MEMINFO;
+            CASE("metrics")
+                _action = ACTION_METRICS;
 
             CASE("list")
                 _action = ACTION_LIST;
@@ -228,6 +228,8 @@ Error Arguments::parse(const char* args) {
                     if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
+                } else if (strcmp(value, EVENT_NATIVELOCK) == 0) {
+                    if (_nativelock < 0) _nativelock = DEFAULT_LOCK_INTERVAL;
                 } else if (_event != NULL && !_all) {
                     msg = "Duplicate event argument";
                 } else {
@@ -260,6 +262,9 @@ Error Arguments::parse(const char* args) {
             CASE("lock")
                 _lock = value == NULL ? DEFAULT_LOCK_INTERVAL : parseUnits(value, NANOS);
 
+            CASE("nativelock")
+                _nativelock = value == NULL ? DEFAULT_LOCK_INTERVAL : parseUnits(value, NANOS);
+
             CASE("wall")
                 _wall = value == NULL ? 0 : parseUnits(value, NANOS);
 
@@ -284,6 +289,9 @@ Error Arguments::parse(const char* args) {
                 }
                 if (_lock < 0) {
                     _lock = DEFAULT_LOCK_INTERVAL;
+                }
+                if (_nativelock < 0) {
+                    _nativelock = DEFAULT_LOCK_INTERVAL;
                 }
                 if (_nativemem < 0) {
                     _nativemem = DEFAULT_ALLOC_INTERVAL;
@@ -490,7 +498,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _trace.empty()) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _nativelock < 0 && _trace.empty()) {
         _event = EVENT_CPU;
     }
 

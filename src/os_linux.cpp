@@ -279,8 +279,9 @@ SigAction OS::replaceCrashHandler(SigAction action) {
     struct sigaction sa;
     sigaction(SIGSEGV, NULL, &sa);
     SigAction old_action = sa.sa_handler == SIG_DFL ? restoreSignalHandler : sa.sa_sigaction;
+    sigemptyset(&sa.sa_mask);
     sa.sa_sigaction = action;
-    sa.sa_flags |= SA_SIGINFO | SA_RESTART;
+    sa.sa_flags |= SA_SIGINFO | SA_RESTART | SA_NODEFER;
     sigaction(SIGSEGV, &sa, NULL);
     return old_action;
 }

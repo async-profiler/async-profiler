@@ -10,20 +10,6 @@
 #include "vmEntry.h"
 
 
-Error ITimer::check(Arguments& args) {
-    OS::installSignalHandler(SIGPROF, NULL, SIG_IGN);
-
-    struct itimerval tv_on = {{1, 0}, {1, 0}};
-    if (setitimer(ITIMER_PROF, &tv_on, NULL) != 0) {
-        return Error("ITIMER_PROF is not supported on this system");
-    }
-
-    struct itimerval tv_off = {{0, 0}, {0, 0}};
-    setitimer(ITIMER_PROF, &tv_off, NULL);
-
-    return Error::OK;
-}
-
 Error ITimer::start(Arguments& args) {
     if (args._interval < 0) {
         return Error("interval must be positive");

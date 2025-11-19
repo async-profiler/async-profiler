@@ -73,7 +73,7 @@ public class TestProcess implements Closeable {
         this.inputs = test.inputs();
 
         List<String> cmd = buildCommandLine(test);
-        log.log(Level.FINE, "Running " + cmd);
+        log.log(Level.FINE, "Running " + String.join(" ", cmd));
 
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
         if (test.output()) {
@@ -140,7 +140,8 @@ public class TestProcess implements Closeable {
                 cmd.add("-XX:+UnlockDiagnosticVMOptions");
                 cmd.add("-XX:+DebugNonSafepoints");
             }
-            cmd.add("-Djava.library.path=" + System.getProperty("java.library.path"));
+            cmd.add("-Done.profiler.libraryPath=" + System.getProperty("one.profiler.libraryPath", profilerLibPath()));
+            cmd.add("-Djava.library.path=" + testLibPath());
             cmd.add("-ea");
             addArgs(cmd, test.jvmArgs());
             if (!test.agentArgs().isEmpty()) {

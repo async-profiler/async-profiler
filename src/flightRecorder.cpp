@@ -665,6 +665,9 @@ class Recording {
         if (args._nativemem >= 0) {
             writeIntSetting(buf, T_MALLOC, "nativemem", args._nativemem);
         }
+        if (args._nativelock >= 0) {
+            writeIntSetting(buf, T_NATIVE_LOCK, "nativelock", args._nativelock);
+        }
 
         writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
         writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
@@ -1201,6 +1204,17 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordNativeLockSample(Buffer* buf, int tid, u32 call_trace_id, NativeLockEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_NATIVE_LOCK);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_end_time - event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar64(event->_address);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordWindow(Buffer* buf, int tid, ProfilingWindow* event) {
         int start = buf->skip(1);
         buf->put8(T_WINDOW);
@@ -1440,6 +1454,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case PARK_SAMPLE:
                 _rec->recordThreadPark(buf, tid, call_trace_id, (LockEvent*)event);
+                break;
+            case NATIVE_LOCK_SAMPLE:
+                _rec->recordNativeLockSample(buf, tid, call_trace_id, (NativeLockEvent*)event);
                 break;
             case PROFILING_WINDOW:
                 _rec->recordWindow(buf, tid, (ProfilingWindow*)event);

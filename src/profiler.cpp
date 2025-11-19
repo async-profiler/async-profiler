@@ -20,6 +20,7 @@
 #include "allocTracer.h"
 #include "mallocTracer.h"
 #include "lockTracer.h"
+#include "nativeLockTracer.h"
 #include "wallClock.h"
 #include "j9ObjectSampler.h"
 #include "j9StackTraces.h"
@@ -56,6 +57,7 @@ static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
 static MallocTracer malloc_tracer;
 static LockTracer lock_tracer;
+static NativeLockTracer native_lock_tracer;
 static ObjectSampler object_sampler;
 static J9ObjectSampler j9_object_sampler;
 static WallClock wall_clock;
@@ -86,11 +88,12 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 
 static inline int hasNativeStack(EventType event_type) {
     const int events_with_native_stack =
-        (1 << PERF_SAMPLE)       |
-        (1 << EXECUTION_SAMPLE)  |
-        (1 << WALL_CLOCK_SAMPLE) |
-        (1 << MALLOC_SAMPLE)     |
-        (1 << ALLOC_SAMPLE)      |
+        (1 << PERF_SAMPLE)        |
+        (1 << EXECUTION_SAMPLE)   |
+        (1 << WALL_CLOCK_SAMPLE)  |
+        (1 << NATIVE_LOCK_SAMPLE) |
+        (1 << MALLOC_SAMPLE)      |
+        (1 << ALLOC_SAMPLE)       |
         (1 << ALLOC_OUTSIDE_TLAB);
     return (1 << event_type) & events_with_native_stack;
 }
@@ -340,7 +343,7 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
                 // Skip all internal frames above VM runtime entry for allocation samples
                 depth = 0;
                 continue;
-            } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
+            } else if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
                 // Skip all internal frames above the *_hook functions. Include the hook function itself.
                 depth = 0;
             } else if (mark == MARK_INTERPRETER) {
@@ -784,6 +787,7 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
     if (result != NULL) {
         instance()->updateSymbols(false);
         MallocTracer::installHooks();
+        NativeLockTracer::installHooks();
     }
     return result;
 }
@@ -1032,6 +1036,8 @@ Engine* Profiler::activeEngine() {
             return &wall_clock;
         case EM_NATIVEMEM:
             return &malloc_tracer;
+        case EM_NATIVELOCK:
+            return &native_lock_tracer;
         case EM_METHOD_TRACE:
             return &instrument;
         default:
@@ -1191,6 +1197,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    if (_cstack != CSTACK_VM && _features.mixed) {
+        return Error("mixed feature is only allowed with VMStructs stack walking");
+    }
+
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_engine == &perf_events && !args._alluser);
 
@@ -1239,10 +1249,16 @@ Error Profiler::start(Arguments& args, bool reset) {
             goto error5;
         }
     }
+    if (_event_mask & EM_NATIVELOCK) {
+        error = native_lock_tracer.start(args);
+        if (error) {
+            goto error6;
+        }
+    }
     if (_event_mask & EM_METHOD_TRACE) {
         error = instrument.start(args);
         if (error) {
-            goto error6;
+            goto error7;
         }
     }
 
@@ -1259,8 +1275,11 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     return Error::OK;
 
-error6:
+error7:
     if (_event_mask & EM_METHOD_TRACE) instrument.stop();
+
+error6:
+    if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
 
 error5:
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
@@ -1298,6 +1317,7 @@ Error Profiler::stop(bool restart) {
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
+    if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
     if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
     _engine->stop();
@@ -1327,46 +1347,8 @@ Error Profiler::stop(bool restart) {
 }
 
 Error Profiler::check(Arguments& args) {
-    MutexLocker ml(_state_lock);
-    if (_state > IDLE) {
-        return Error("Profiler already started");
-    }
-
-    Error error = checkJvmCapabilities();
-
-    if (!error && args._event != NULL) {
-        _engine = selectEngine(args._event);
-        error = _engine->check(args);
-    }
-    if (!error && args._alloc >= 0) {
-        _alloc_engine = selectAllocEngine(args._alloc, args._live);
-        error = _alloc_engine->check(args);
-    }
-    if (!error && args._nativemem >= 0) {
-        error = malloc_tracer.check(args);
-    }
-    if (!error && args._lock >= 0) {
-        error = lock_tracer.check(args);
-    }
-    if (!error && !args._trace.empty()) {
-        error = instrument.check(args);
-    }
-
-    if (!error) {
-        if (args._wall >= 0 && _engine == &wall_clock) {
-            return Error("Cannot start wall clock with the selected event");
-        }
-
-        if (args._cstack == CSTACK_DWARF && !DWARF_SUPPORTED) {
-            return Error("DWARF unwinding is not supported on this platform");
-        } else if (args._cstack == CSTACK_LBR && _engine != &perf_events) {
-            return Error("Branch stack is supported only with PMU events");
-        } else if (args._cstack == CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
-            return Error("VMStructs stack walking is not supported on this JVM/platform");
-        }
-    }
-
-    return error;
+    Log::warn("The 'check' command is deprecated and will be removed in the next release");
+    return Error::OK;
 }
 
 Error Profiler::flushJfr() {
@@ -1426,30 +1408,24 @@ Error Profiler::dump(Writer& out, Arguments& args) {
     return Error::OK;
 }
 
-void Profiler::printUsedMemory(Writer& out) {
-    size_t call_trace_storage = _call_trace_storage.usedMemory();
-    size_t flight_recording = _jfr.usedMemory();
-    size_t dictionaries = _class_map.usedMemory() + _thread_filter.usedMemory();
+void Profiler::writeMetrics(Writer& out) {
+    constexpr size_t KB = 1024;
+    out << "mem_calltracestorage_kb " << (u64) _call_trace_storage.usedMemory() / KB << '\n';
+    out << "mem_flightrecorder_kb " << (u64) _jfr.usedMemory() / KB << '\n';
+    out << "mem_classmap_kb " << (u64) _class_map.usedMemory() / KB << '\n';
+    out << "mem_threadfilter_kb " << (u64) _thread_filter.usedMemory() / KB << '\n';
+    out << "mem_runtimestubs_kb " << (u64) _runtime_stubs.usedMemory() / KB << '\n';
+    out << "mem_nativelibs_kb " << (u64) _native_libs.usedMemory() / KB << '\n';
 
-    size_t code_cache = _runtime_stubs.usedMemory();
-    int native_lib_count = _native_libs.count();
-    for (int i = 0; i < native_lib_count; i++) {
-        code_cache += _native_libs[i]->usedMemory();
+    out << "samples_total " << _total_samples << '\n';
+    out << "samples_skipped_total " << _failures[-ticks_skipped] << '\n';
+    out << "calltracestorage_overflows_total " << _call_trace_storage.overflow() << '\n';
+
+    if (_total_stack_walk_time != 0) {
+        out << "stackwalk_ns_total " << _total_stack_walk_time << '\n';
+        u64 stacks = _total_samples - _failures[-ticks_skipped];
+        out << "stackwalk_ns_avg " << (_total_stack_walk_time / stacks) << '\n';
     }
-    code_cache += native_lib_count * sizeof(CodeCache);
-
-    char buf[1024];
-    const size_t KB = 1024;
-    snprintf(buf, sizeof(buf) - 1,
-             "Call trace storage: %7zu KB\n"
-             "  Flight recording: %7zu KB\n"
-             "      Dictionaries: %7zu KB\n"
-             "        Code cache: %7zu KB\n"
-             "------------------------------\n"
-             "             Total: %7zu KB\n",
-             call_trace_storage / KB, flight_recording / KB, dictionaries / KB, code_cache / KB,
-             (call_trace_storage + flight_recording + dictionaries + code_cache) / KB);
-    out << buf;
 }
 
 void Profiler::logStats() {
@@ -1964,9 +1940,9 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             }
             break;
         }
-        case ACTION_MEMINFO: {
+        case ACTION_METRICS: {
             MutexLocker ml(_state_lock);
-            printUsedMemory(out);
+            writeMetrics(out);
             break;
         }
         case ACTION_LIST: {
@@ -1975,6 +1951,7 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             out << "  " << EVENT_ALLOC << "\n";
             out << "  " << EVENT_NATIVEMEM << "\n";
             out << "  " << EVENT_LOCK << "\n";
+            out << "  " << EVENT_NATIVELOCK << "\n";
             out << "  " << EVENT_WALL << "\n";
             out << "  " << EVENT_ITIMER << "\n";
             if (CTimer::supported()) {

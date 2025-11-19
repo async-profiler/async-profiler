@@ -64,7 +64,7 @@ public class StackwalkerTests {
                 "jni_CallStaticVoidMethod;" +
                 "jni_invoke_static;" +
                 "JavaCalls::call_helper;" +
-                "call_stub;" +
+                FRAME +
                 "test/stackwalker/StackGenerator.main_\\[0\\];" +
                 "test/stackwalker/StackGenerator.leafFrame_\\[0\\];" +
                 "Java_test_stackwalker_StackGenerator_leafFrame;" +
