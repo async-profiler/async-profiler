@@ -1314,13 +1314,13 @@ Error Profiler::stop(bool restart) {
     uninstallTraps();
 
     if (_event_mask & EM_WALL) wall_clock.stop();
-    if (_event_mask & EM_LOCK) lock_tracer.stop();
+    if (_event_mask & EM_LOCK) lock_tracer.stop(restart);
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
     if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
     if (_event_mask & EM_METHOD_TRACE) instrument.stop();
 
-    _engine->stop();
+    _engine->stop(restart);
 
     switchLibraryTrap(false);
     switchThreadEvents(JVMTI_DISABLE);

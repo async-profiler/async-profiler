@@ -1101,7 +1101,7 @@ Error Instrument::start(Arguments& args) {
     return Error::OK;
 }
 
-void Instrument::stop() {
+void Instrument::stop(bool restart) {
     if (!_running) return;
     _running = false;
     if (VM::isTerminating()) return;

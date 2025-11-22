@@ -42,7 +42,7 @@ Error J9ObjectSampler::start(Arguments& args) {
     return Error::OK;
 }
 
-void J9ObjectSampler::stop() {
+void J9ObjectSampler::stop(bool restart) {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, NULL);

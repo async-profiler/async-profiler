@@ -36,7 +36,7 @@ class PerfEvents : public CpuEngine {
 
   public:
     Error start(Arguments& args);
-    void stop();
+    void stop(bool restart = false);
 
     const char* type() {
         return "perf_events";
