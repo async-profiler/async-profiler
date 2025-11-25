@@ -117,6 +117,10 @@ class Profiler {
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     void fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod);
+
+    int getJavaTrace(void *ucontext, ASGCT_CallFrame *frames, jvmtiFrameInfo *jvmti_frames, EventType event_type,
+                      int num_frames, StackContext java_ctx);
+
     void setThreadInfo(int tid, const char* name, jlong java_thread_id);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
