@@ -314,8 +314,8 @@ jmethodID Profiler::getCurrentCompileTask() {
 }
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx) {
+    const void* callchain[MAX_NATIVE_FRAMES]; // we can read one frame past when trying to figure out whether the result is truncated
     int max_depth = std::min(_max_stack_depth, MAX_NATIVE_FRAMES);
-    const void** callchain = new const void*[max_depth + 1]; // we can read one frame past when trying to figure out whether the result is truncated
     int native_frames;
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
@@ -329,9 +329,7 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
         native_frames = StackWalker::walkFP(ucontext, callchain, max_depth, java_ctx);
     }
 
-    native_frames = convertNativeTrace(native_frames, callchain, frames, event_type);
-    delete[] callchain;
-    return native_frames;
+    return convertNativeTrace(native_frames, callchain, frames, event_type);
 }
 
 int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type) {
@@ -607,6 +605,39 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
     }
 }
 
+int Profiler::getJavaTrace(void *ucontext, ASGCT_CallFrame *frames, jvmtiFrameInfo *jvmti_frames, EventType event_type, int num_frames, StackContext java_ctx) {
+    int max_remaining = _max_stack_depth - num_frames;
+    int java_frames = 0;
+    if (_features.mixed) {
+        java_frames = StackWalker::walkVM(ucontext, frames + num_frames, max_remaining, _features, event_type);
+    } else if (event_type <= MALLOC_SAMPLE) {
+        if (_cstack == CSTACK_VM) {
+            java_frames = StackWalker::walkVM(ucontext, frames + num_frames, max_remaining, _features, event_type);
+        } else {
+            java_frames = getJavaTraceAsync(ucontext, frames + num_frames, max_remaining, &java_ctx);
+            if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
+                NMethod* nmethod = CodeHeap::findNMethod(java_ctx.pc);
+                if (nmethod != NULL) {
+                    fillFrameTypes(frames + num_frames, java_frames, nmethod);
+                }
+            }
+        }
+    } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
+        VMThread* vm_thread;
+        if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
+            java_frames = StackWalker::walkVM(ucontext, frames + num_frames, max_remaining, vm_thread->anchor(), event_type);
+        } else {
+            java_frames = getJavaTraceAsync(ucontext, frames + num_frames, max_remaining, &java_ctx);
+        }
+    } else {
+        // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
+        // Skip Instrument.recordSample() method
+        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : event_type == METHOD_TRACE ? 2 : 0;
+        java_frames = getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, max_remaining);
+    }
+    return java_frames;
+}
+
 u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Event* event) {
     atomicInc(_total_samples);
 
@@ -652,35 +683,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     if (num_frames < _max_stack_depth) {
-        int max_remaining = _max_stack_depth - num_frames;
-        if (_features.mixed) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, max_remaining, _features, event_type);
-        } else if (event_type <= MALLOC_SAMPLE) {
-            if (_cstack == CSTACK_VM) {
-                num_frames += StackWalker::walkVM(ucontext, frames + num_frames, max_remaining, _features, event_type);
-            } else {
-                int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, max_remaining, &java_ctx);
-                if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
-                    NMethod* nmethod = CodeHeap::findNMethod(java_ctx.pc);
-                    if (nmethod != NULL) {
-                        fillFrameTypes(frames + num_frames, java_frames, nmethod);
-                    }
-                }
-                num_frames += java_frames;
-            }
-        } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
-            VMThread* vm_thread;
-            if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
-                num_frames += StackWalker::walkVM(ucontext, frames + num_frames, max_remaining, vm_thread->anchor(), event_type);
-            } else {
-                num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_remaining, &java_ctx);
-            }
-        } else {
-            // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
-            // Skip Instrument.recordSample() method
-            int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : event_type == METHOD_TRACE ? 2 : 0;
-            num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, max_remaining);
-        }
+        num_frames += getJavaTrace(ucontext, frames, jvmti_frames, event_type, num_frames, java_ctx);
     }
 
     if (num_frames == 0) {
