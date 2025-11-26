@@ -20,7 +20,7 @@ public class VtableTests {
 
     @Test(mainClass = Suppliers.class, jvm = Jvm.HOTSPOT, graal = false)
     public void itableStubs(TestProcess p) throws Exception {
-        Output out = p.profile("-d 3 -e cpu -i 1ms -F vtable -o collapsed --cstack vm");
+        Output out = p.profile("-d 3 -e cpu -i 1ms -F comptask,vtable -o collapsed");
         assert out.contains("Suppliers.loop;itable stub;test.recovery.Suppliers[^_]+_\\[i]");
     }
 }

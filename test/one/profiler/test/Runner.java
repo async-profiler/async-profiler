@@ -98,8 +98,7 @@ public class Runner {
     }
 
     private static boolean detectGraal() {
-        File nativeImageBin = new File(System.getProperty("java.home"), "bin/native-image");
-        return nativeImageBin.exists();
+        return new File(System.getProperty("java.home"), "bin/native-image").exists();
     }
 
     private static boolean applicable(Test test) {
