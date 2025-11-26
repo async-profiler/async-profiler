@@ -20,6 +20,7 @@ public class Runner {
     private static final Arch currentArch = detectArch();
     private static final Jvm currentJvm = detectJvm();
     private static final int currentJvmVersion = detectJvmVersion();
+    private static final boolean currentGraal = detectGraal();
 
     private static final String logDir = System.getProperty("logDir", "");
 
@@ -96,14 +97,22 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
+    private static boolean detectGraal() {
+        File nativeImageBin = new File(System.getProperty("java.home"), "bin/native-image");
+        return nativeImageBin.exists();
+    }
+
     private static boolean applicable(Test test) {
         Os[] os = test.os();
         Arch[] arch = test.arch();
         Jvm[] jvm = test.jvm();
         int[] jvmVer = test.jvmVer();
+        boolean[] graal = test.graal();
+
         return (os.length == 0 || Arrays.asList(os).contains(currentOs)) &&
                 (arch.length == 0 || Arrays.asList(arch).contains(currentArch)) &&
                 (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm)) &&
+                (graal.length == 0 || graal[0] == currentGraal) &&
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
@@ -118,7 +127,7 @@ public class Runner {
         log.log(Level.INFO, "Running " + rt.testInfo() + "...");
 
         String testLogDir = logDir.isEmpty() ? null : logDir + '/' + rt.testName();
-        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir)) {
+        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir, currentGraal)) {
             Object holder = (rt.method().getModifiers() & Modifier.STATIC) == 0 ?
                     rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
             rt.method().invoke(holder, p);

@@ -45,7 +45,7 @@ public class RecoveryTests {
     @Test(mainClass = Numbers.class, debugNonSafepoints = true)
     public void numbers(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        Assert.isGreater(out.ratio("vtable stub"), 0.01);
+        if (!p.isGraal()) Assert.isGreater(out.ratio("vtable stub"), 0.01);
         Assert.isGreater(out.ratio("Numbers.loop"), 0.8);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
@@ -57,7 +57,7 @@ public class RecoveryTests {
     @Test(mainClass = Suppliers.class, debugNonSafepoints = true)
     public void suppliers(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        Assert.isGreater(out.ratio("itable stub"), 0.01);
+        if (!p.isGraal()) Assert.isGreater(out.ratio("itable stub"), 0.01);
         Assert.isGreater(out.ratio("Suppliers.loop"), 0.5);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
