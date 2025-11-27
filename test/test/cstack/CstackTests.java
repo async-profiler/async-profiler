@@ -26,7 +26,7 @@ public class CstackTests {
         assert out.contains("LongInitializer.main_\\[j]");
     }
 
-    @Test(mainClass = LongInitializer.class, jvm = Jvm.HOTSPOT, os = Os.LINUX)
+    @Test(mainClass = LongInitializer.class, jvm = {Jvm.HOTSPOT, Jvm.GRAALVM}, os = Os.LINUX)
     public void vmStructs(TestProcess p) throws Exception {
         Output out = p.profile(PROFILE_COMMAND + "--cstack vm");
         assert out.contains(";readBytes");
@@ -43,7 +43,7 @@ public class CstackTests {
         assert out.contains("JavaMain");
     }
 
-    @Test(mainClass = Cpu.class, jvm = Jvm.HOTSPOT, agentArgs = "start,event=cpu,interval=1ms")
+    @Test(mainClass = Cpu.class, jvm = {Jvm.HOTSPOT, Jvm.GRAALVM}, agentArgs = "start,event=cpu,interval=1ms")
     public void saneNativeStack(TestProcess p) throws Exception {
         Thread.sleep(2000);
         Output out = p.profile("stop -o flamegraph").convertFlameToCollapsed();

@@ -20,7 +20,6 @@ public class Runner {
     private static final Arch currentArch = detectArch();
     private static final Jvm currentJvm = detectJvm();
     private static final int currentJvmVersion = detectJvmVersion();
-    private static final boolean currentGraal = detectGraal();
 
     private static final String logDir = System.getProperty("logDir", "");
 
@@ -60,6 +59,10 @@ public class Runner {
         // Example javaHome: /usr/lib/jvm/amazon-corretto-17.0.8.7.1-linux-x64
         File javaHome = new File(System.getProperty("java.home"));
 
+        if (new File(javaHome, "bin/native-image").exists()) {
+            return Jvm.GRAALVM;
+        }
+
         // Look for OpenJ9-specific file
         File[] files = new File(javaHome, "lib").listFiles();
         if (files != null) {
@@ -97,21 +100,15 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    private static boolean detectGraal() {
-        return new File(System.getProperty("java.home"), "bin/native-image").exists();
-    }
-
     private static boolean applicable(Test test) {
         Os[] os = test.os();
         Arch[] arch = test.arch();
         Jvm[] jvm = test.jvm();
         int[] jvmVer = test.jvmVer();
-        boolean[] graal = test.graal();
 
         return (os.length == 0 || Arrays.asList(os).contains(currentOs)) &&
                 (arch.length == 0 || Arrays.asList(arch).contains(currentArch)) &&
                 (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm)) &&
-                (graal.length == 0 || graal[0] == currentGraal) &&
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
@@ -126,7 +123,7 @@ public class Runner {
         log.log(Level.INFO, "Running " + rt.testInfo() + "...");
 
         String testLogDir = logDir.isEmpty() ? null : logDir + '/' + rt.testName();
-        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir, currentGraal)) {
+        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir, currentJvm)) {
             Object holder = (rt.method().getModifiers() & Modifier.STATIC) == 0 ?
                     rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
             rt.method().invoke(holder, p);

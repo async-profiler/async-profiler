@@ -8,5 +8,6 @@ package one.profiler.test;
 public enum Jvm {
     HOTSPOT,
     ZING,
-    OPENJ9
+    OPENJ9,
+    GRAALVM
 }

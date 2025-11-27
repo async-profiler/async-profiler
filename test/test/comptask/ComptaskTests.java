@@ -12,8 +12,7 @@ public class ComptaskTests {
         mainClass = Main.class,
         agentArgs = "start,features=comptask,collapsed,interval=1ms,file=%f",
         jvmArgs = "-Xcomp",
-        jvm = Jvm.HOTSPOT,
-        graal = false
+        jvm = Jvm.HOTSPOT
     )
     public void testCompTask(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");

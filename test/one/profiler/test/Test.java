@@ -48,6 +48,4 @@ public @interface Test {
     String[] inputs() default {};
 
     String nameSuffix() default "";
-
-    boolean[] graal() default {};
 }
