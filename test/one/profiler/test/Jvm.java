@@ -9,5 +9,5 @@ public enum Jvm {
     HOTSPOT,
     ZING,
     OPENJ9,
-    GRAALVM
+    HOTSPOT_C2
 }

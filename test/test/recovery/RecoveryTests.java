@@ -14,13 +14,7 @@ import one.profiler.test.Arch;
 
 public class RecoveryTests {
 
-    @Test(
-        mainClass = StringBuilderTest.class,
-        jvmArgs = "-XX:UseAVX=2",
-        arch = {Arch.X64, Arch.X86},
-        jvm = {Jvm.HOTSPOT, Jvm.GRAALVM},
-        debugNonSafepoints = true
-    )
+    @Test(mainClass = StringBuilderTest.class, jvmArgs = "-XX:UseAVX=2", arch = {Arch.X64, Arch.X86}, debugNonSafepoints = true)
     public void stringBuilder(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
         Assert.isGreater(out.ratio("StringBuilder.delete;"), 0.8);
@@ -36,7 +30,7 @@ public class RecoveryTests {
         mainClass = StringBuilderTest.class,
         debugNonSafepoints = true,
         arch = {Arch.ARM64, Arch.ARM32},
-        jvm = {Jvm.HOTSPOT, Jvm.GRAALVM},
+        jvm = Jvm.HOTSPOT,
         // C2 often loses PcDesc mapping from arraycopy intrinsic to the original bytecode
         // For now the test is disabled until a solution is found, JDK-8368867
         jvmVer = {8, 17}
@@ -50,10 +44,10 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
-    @Test(mainClass = Numbers.class, jvm = {Jvm.HOTSPOT, Jvm.GRAALVM}, debugNonSafepoints = true)
+    @Test(mainClass = Numbers.class, jvm = Jvm.HOTSPOT, debugNonSafepoints = true)
     public void numbers(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        if (p.currentJvm() == Jvm.HOTSPOT) Assert.isGreater(out.ratio("vtable stub"), 0.01);
+        if (p.currentJvm() == Jvm.HOTSPOT_C2) Assert.isGreater(out.ratio("vtable stub"), 0.01);
         Assert.isGreater(out.ratio("Numbers.loop"), 0.8);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
@@ -62,10 +56,10 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
-    @Test(mainClass = Suppliers.class, jvm = {Jvm.HOTSPOT, Jvm.GRAALVM}, debugNonSafepoints = true)
+    @Test(mainClass = Suppliers.class, jvm = Jvm.HOTSPOT, debugNonSafepoints = true)
     public void suppliers(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        if (p.currentJvm() == Jvm.HOTSPOT) Assert.isGreater(out.ratio("itable stub"), 0.01);
+        if (p.currentJvm() == Jvm.HOTSPOT_C2) Assert.isGreater(out.ratio("itable stub"), 0.01);
         Assert.isGreater(out.ratio("Suppliers.loop"), 0.5);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
@@ -73,12 +67,7 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
-    @Test(
-        mainClass = CodingIntrinsics.class,
-        arch = {Arch.ARM64, Arch.X64},
-        jvm = {Jvm.HOTSPOT, Jvm.GRAALVM},
-        debugNonSafepoints = true
-    )
+    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64})
     public void intrinsics(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -i 1ms -o collapsed");
         Assert.isLess(out.ratio("^\\[unknown"), 0.01, "No more than 1% of unknown frames");

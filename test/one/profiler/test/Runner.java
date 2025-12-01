@@ -8,6 +8,8 @@ package one.profiler.test;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -18,8 +20,8 @@ public class Runner {
 
     private static final Os currentOs = detectOs();
     private static final Arch currentArch = detectArch();
-    private static final Jvm currentJvm = detectJvm();
     private static final int currentJvmVersion = detectJvmVersion();
+    private static final Jvm currentJvm = detectJvm();
 
     private static final String logDir = System.getProperty("logDir", "");
 
@@ -59,10 +61,6 @@ public class Runner {
         // Example javaHome: /usr/lib/jvm/amazon-corretto-17.0.8.7.1-linux-x64
         File javaHome = new File(System.getProperty("java.home"));
 
-        if (new File(javaHome, "bin/native-image").exists()) {
-            return Jvm.GRAALVM;
-        }
-
         // Look for OpenJ9-specific file
         File[] files = new File(javaHome, "lib").listFiles();
         if (files != null) {
@@ -88,7 +86,10 @@ public class Runner {
             return Jvm.ZING;
         }
 
-        // Otherwise it's some variation of HotSpot
+        if (!new File(javaHome, "lib/" + System.mapLibraryName("jvmcicompiler")).exists()) {
+            return Jvm.HOTSPOT_C2;
+        }
+
         return Jvm.HOTSPOT;
     }
 
@@ -105,10 +106,11 @@ public class Runner {
         Arch[] arch = test.arch();
         Jvm[] jvm = test.jvm();
         int[] jvmVer = test.jvmVer();
+        Jvm additionalJvm = currentJvm == Jvm.HOTSPOT_C2 ? Jvm.HOTSPOT : null;
 
         return (os.length == 0 || Arrays.asList(os).contains(currentOs)) &&
                 (arch.length == 0 || Arrays.asList(arch).contains(currentArch)) &&
-                (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm)) &&
+                (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm) || Arrays.asList(jvm).contains(additionalJvm)) &&
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 

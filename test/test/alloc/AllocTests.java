@@ -18,7 +18,7 @@ import java.util.List;
 
 public class AllocTests {
 
-    @Test(mainClass = MapReader.class, jvmArgs = "-XX:+UseG1GC -Xmx1g -Xms1g", jvm = {Jvm.HOTSPOT, Jvm.GRAALVM})
+    @Test(mainClass = MapReader.class, jvmArgs = "-XX:+UseG1GC -Xmx1g -Xms1g", jvm = Jvm.HOTSPOT)
     public void alloc(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed");
         assert out.contains("G1RemSet::");
@@ -30,7 +30,7 @@ public class AllocTests {
         assert out.contains("java\\.lang\\.String\\[]");
     }
 
-    @Test(mainClass = MapReaderOpt.class, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", jvm = {Jvm.HOTSPOT, Jvm.GRAALVM, Jvm.ZING})
+    @Test(mainClass = MapReaderOpt.class, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", jvm = {Jvm.HOTSPOT, Jvm.ZING})
     public void allocTotal(TestProcess p) throws Exception {
         Output out = p.profile("-e alloc -d 3 -o collapsed --total");
         assert out.samples("java.util.HashMap\\$Node\\[]") > 1_000_000;
