@@ -84,7 +84,7 @@ public class Runner {
             return Jvm.ZING;
         }
 
-        if (!new File(javaHome, "lib/" + System.mapLibraryName("jvmcicompiler")).exists()) {
+        if (!new File(System.getProperty("java.home"), "lib/" + System.mapLibraryName("jvmcicompiler")).exists()) {
             return Jvm.HOTSPOT_C2;
         }
 
