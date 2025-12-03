@@ -604,6 +604,8 @@ int main(int argc, const char** argv) {
         // Running jattach in that case will cause the asprof to incorrectly conclude with non 0 exit code
         if (kill(pid, 0) == 0) {
             run_jattach(pid, String("stop,file=") << file << "," << output << format << ",log=" << logfile);
+        } else if (use_tmp_file) {
+            print_file(file, STDOUT_FILENO);
         }
     } else {
         if (action == "start" || action == "resume") run_fdtransfer(pid, fdtransfer);
