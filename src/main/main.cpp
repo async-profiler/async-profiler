@@ -588,25 +588,20 @@ int main(int argc, const char** argv) {
         signal(SIGTERM, sigint_handler);
 
         while (time_micros() < end_time) {
+            sleep(1);
+
             if (kill(pid, 0) != 0) {
                 fprintf(stderr, "Process exited\n");
                 if (use_tmp_file) print_file(file, STDOUT_FILENO);
                 return 0;
             }
-            sleep(1);
         }
 
         fprintf(stderr, end_time != 0 ? "Done\n" : "Interrupted\n");
         signal(SIGINT, SIG_DFL);
         // Do not reset SIGTERM handler to allow graceful shutdown
 
-        // It's possible for java process to die during the last `sleep` call in the waiting loop
-        // Running jattach in that case will cause the asprof to incorrectly conclude with non 0 exit code
-        if (kill(pid, 0) == 0) {
-            run_jattach(pid, String("stop,file=") << file << "," << output << format << ",log=" << logfile);
-        } else if (use_tmp_file) {
-            print_file(file, STDOUT_FILENO);
-        }
+        run_jattach(pid, String("stop,file=") << file << "," << output << format << ",log=" << logfile);
     } else {
         if (action == "start" || action == "resume") run_fdtransfer(pid, fdtransfer);
         run_jattach(pid, String(action) << ",file=" << file << "," << output << format << params << ",log=" << logfile);
