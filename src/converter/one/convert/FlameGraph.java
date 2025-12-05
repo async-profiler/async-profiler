@@ -20,6 +20,7 @@ public class FlameGraph implements Comparator<Frame> {
     private static final String[] FRAME_SUFFIX = {"_[0]", "_[j]", "_[i]", "", "", "_[k]", "_[1]"};
     private static final byte HAS_SUFFIX = (byte) 0x80;
     private static final int FLUSH_THRESHOLD = 15000;
+    private static final long NEW_FRAME_DIFF = Long.MIN_VALUE;
     private static final Pattern TID_FRAME_PATTERN = Pattern.compile("\\[(.* )?tid=\\d+]");
 
     private final Arguments args;
@@ -29,11 +30,14 @@ public class FlameGraph implements Comparator<Frame> {
 
     private String title = "Flame Graph";
     private int[] order;
+    private int[] cpoolMap;
     private int depth;
     private int lastLevel;
     private long lastX;
     private long lastTotal;
+    private long lastDiff;
     private long mintotal;
+    private long maxdiff = -1;
 
     public FlameGraph(Arguments args) {
         this.args = args;
@@ -90,6 +94,8 @@ public class FlameGraph implements Comparator<Frame> {
             while (!br.readLine().isEmpty()) ;
 
             for (String line; !(line = br.readLine()).isEmpty(); ) {
+                if (line.startsWith("d=")) continue;  // artifact of a differential flame graph
+
                 StringTokenizer st = new StringTokenizer(line.substring(2, line.length() - 1), ",");
                 int nameAndType = Integer.parseInt(st.nextToken());
 
@@ -177,6 +183,26 @@ public class FlameGraph implements Comparator<Frame> {
         depth = Math.max(depth, stack.size);
     }
 
+    public void diff(FlameGraph base) {
+        // Build a map that translates this cpool keys to the base flamegraph's cpool keys
+        cpoolMap = Arrays.stream(cpool.keys()).mapToInt(title -> base.cpool.getOrDefault(title, -1)).toArray();
+        diff(base.root, root);
+    }
+
+    private void diff(Frame base, Frame current) {
+        current.diff = base == null ? NEW_FRAME_DIFF : current.self - base.self;
+        maxdiff = Math.max(maxdiff, Math.abs(current.diff));
+
+        for (Frame child : current.values()) {
+            Frame baseChild = base == null ? null : base.get(translateKey(child.key));
+            diff(baseChild, child);
+        }
+    }
+
+    private int translateKey(int key) {
+        return cpoolMap[key & TITLE_MASK] | (key & ~TITLE_MASK);
+    }
+
     public void dump(OutputStream out) throws IOException {
         try (PrintStream ps = new PrintStream(out, false, "UTF-8")) {
             dump(ps);
@@ -204,6 +230,9 @@ public class FlameGraph implements Comparator<Frame> {
         // and for default stacktraces from flamegraphs to icicle.
         tail = printTill(out, tail, "/*inverted:*/false");
         out.print(args.reverse ^ args.inverted);
+
+        tail = printTill(out, tail, "/*maxdiff:*/-1");
+        out.print(maxdiff);
 
         tail = printTill(out, tail, "/*depth:*/0");
         out.print(depth);
@@ -239,6 +268,15 @@ public class FlameGraph implements Comparator<Frame> {
     }
 
     private void printFrame(PrintStream out, Frame frame, int level, long x) {
+        StringBuilder sb = outbuf;
+        if (frame.diff != lastDiff) {
+            if (frame.diff == NEW_FRAME_DIFF) {
+                sb.append("d=U\n");
+            } else {
+                sb.append("d=").append(frame.diff).append('\n');
+            }
+        }
+
         int nameAndType = order[frame.getTitleIndex()] << 3 | frame.getType();
         boolean hasExtraTypes = (frame.inlined | frame.c1 | frame.interpreted) != 0 &&
                 frame.inlined < frame.total && frame.interpreted < frame.total;
@@ -250,7 +288,7 @@ public class FlameGraph implements Comparator<Frame> {
             func = 'n';
         }
 
-        StringBuilder sb = outbuf.append(func).append('(').append(nameAndType);
+        sb.append(func).append('(').append(nameAndType);
         if (func == 'f') {
             sb.append(',').append(level).append(',').append(x - lastX);
         }
@@ -270,6 +308,7 @@ public class FlameGraph implements Comparator<Frame> {
         lastLevel = level;
         lastX = x;
         lastTotal = frame.total;
+        lastDiff = frame.diff;
 
         Frame[] children = frame.values().toArray(EMPTY_FRAME_ARRAY);
         Arrays.sort(children, this);
@@ -291,6 +330,9 @@ public class FlameGraph implements Comparator<Frame> {
             sb.append(strings[frame.getTitleIndex()]).append(FRAME_SUFFIX[frame.getType()]);
             if (frame.self > 0) {
                 int tmpLength = sb.length();
+                if (maxdiff >= 0) {
+                    sb.append(' ').append(frame.self - frame.diff);
+                }
                 out.print(sb.append(' ').append(frame.self).append('\n'));
                 sb.setLength(tmpLength);
             }
