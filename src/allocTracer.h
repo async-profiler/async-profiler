@@ -40,7 +40,7 @@ class AllocTracer : public Engine {
     }
 
     Error start(Arguments& args);
-    void stop();
+    void stop(bool restart = false);
 
     static void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
 };

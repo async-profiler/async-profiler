@@ -147,6 +147,6 @@ Error NativeLockTracer::start(Arguments& args) {
     return Error::OK;
 }
 
-void NativeLockTracer::stop() {
+void NativeLockTracer::stop(bool restart) {
     _running = false;
 }

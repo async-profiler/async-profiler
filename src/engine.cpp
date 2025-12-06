@@ -12,5 +12,5 @@ Error Engine::start(Arguments& args) {
     return Error::OK;
 }
 
-void Engine::stop() {
+void Engine::stop(bool restart) {
 }

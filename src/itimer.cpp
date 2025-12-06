@@ -40,7 +40,7 @@ Error ITimer::start(Arguments& args) {
     return Error::OK;
 }
 
-void ITimer::stop() {
+void ITimer::stop(bool restart) {
     struct itimerval tv = {{0, 0}, {0, 0}};
     setitimer(ITIMER_PROF, &tv, NULL);
 
