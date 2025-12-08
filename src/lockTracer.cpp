@@ -70,6 +70,8 @@ void LockTracer::stop() {
     // Disable Java Monitor events
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
+
+    // We don't reset the Unsafe::park hook due to JDK-8369219
 }
 
 Error LockTracer::initialize(jvmtiEnv* jvmti, JNIEnv* env) {
