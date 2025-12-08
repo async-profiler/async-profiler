@@ -66,14 +66,10 @@ Error LockTracer::start(Arguments& args) {
 
 void LockTracer::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
-    JNIEnv* env = VM::jni();
 
     // Disable Java Monitor events
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
-
-    // Reset Unsafe.park() trap
-    setUnsafeParkEntry(env, _orig_unsafe_park);
 }
 
 Error LockTracer::initialize(jvmtiEnv* jvmti, JNIEnv* env) {
