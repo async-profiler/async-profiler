@@ -68,6 +68,7 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
+static volatile bool _in_jfrsync = false;
 
 struct MethodSample {
     u64 samples;
@@ -1211,7 +1212,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     switchLibraryTrap(true);
 
     if (args._output == OUTPUT_JFR) {
+        _in_jfrsync = args._jfr_sync != NULL;
         error = _jfr.start(args, reset);
+        _in_jfrsync = false;
         if (error) {
             uninstallTraps();
             switchLibraryTrap(false);
@@ -2024,7 +2027,32 @@ Error Profiler::restart(Arguments& args) {
 }
 
 void Profiler::shutdown(Arguments& args) {
-    MutexLocker ml(_state_lock);
+    // Potential deadlock may happen between current thread & profiling thread due to usage of jfrsync
+    // To avoid that we use `tryLock` rather than `lock`
+    if (!_state_lock.tryLock()) {
+        volatile bool sleep = true;
+        bool lock_acquired = false;
+
+        // peek lock until acquired or _in_jfrsync is set
+        while (!lock_acquired && !_in_jfrsync) {
+            OS::uninterruptibleSleep(10000000, &sleep); // 10ms
+            lock_acquired = _state_lock.tryLock();
+        }
+
+        // retry to confirm if real deadlock
+        for (int i = 0; i < 10 && !lock_acquired && _in_jfrsync; i++) {
+            OS::uninterruptibleSleep(10000000, &sleep); // 10ms
+            lock_acquired = _state_lock.tryLock();
+        }
+
+        // deadlock detected, skip stopping the profiler.
+        if (!lock_acquired && _in_jfrsync) {
+            Log::warn("%s", "async-profiler deadlock detected during process shutdown, skipping the shutdown hooks");
+            return;
+        } else if (!lock_acquired) {
+            _state_lock.lock(); // wait for lock to be acquired
+        }
+    }
 
     // The last chance to dump profile before VM terminates
     if (_state == RUNNING) {
@@ -2036,4 +2064,6 @@ void Profiler::shutdown(Arguments& args) {
     }
 
     _state = TERMINATED;
+
+    _state_lock.unlock();
 }

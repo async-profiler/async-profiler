@@ -13,6 +13,10 @@ Mutex::Mutex() {
     pthread_mutex_init(&_mutex, &attr);
 }
 
+bool Mutex::tryLock() {
+    return pthread_mutex_trylock(&_mutex) == 0;
+}
+
 void Mutex::lock() {
     pthread_mutex_lock(&_mutex);
 }
