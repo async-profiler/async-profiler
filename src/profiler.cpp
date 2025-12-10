@@ -68,8 +68,6 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-static volatile bool _in_jfrsync = false;
-
 struct MethodSample {
     u64 samples;
     u64 counter;
@@ -1212,9 +1210,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     switchLibraryTrap(true);
 
     if (args._output == OUTPUT_JFR) {
-        _in_jfrsync = args._jfr_sync != NULL;
         error = _jfr.start(args, reset);
-        _in_jfrsync = false;
         if (error) {
             uninstallTraps();
             switchLibraryTrap(false);
@@ -2032,25 +2028,19 @@ void Profiler::shutdown(Arguments& args) {
     if (!_state_lock.tryLock()) {
         volatile bool sleep = true;
         bool lock_acquired = false;
+        // Shutdown hook shouldn't be blocked for more than 2 seconds
+        u64 max_time = OS::nanotime() + 2000000000ULL;
 
-        // peek lock until acquired or _in_jfrsync is set
-        while (!lock_acquired && !_in_jfrsync) {
+        // peek lock until acquired or timeout is reached
+        do {
             OS::uninterruptibleSleep(10000000, &sleep); // 10ms
             lock_acquired = _state_lock.tryLock();
-        }
+        } while (!lock_acquired && OS::nanotime() < max_time);
 
-        // retry to confirm if real deadlock
-        for (int i = 0; i < 10 && !lock_acquired && _in_jfrsync; i++) {
-            OS::uninterruptibleSleep(10000000, &sleep); // 10ms
-            lock_acquired = _state_lock.tryLock();
-        }
-
-        // deadlock detected, skip stopping the profiler.
-        if (!lock_acquired && _in_jfrsync) {
-            Log::warn("%s", "async-profiler deadlock detected during process shutdown, skipping the shutdown hooks");
+        // lock not acquired, skip stopping the profiler.
+        if (!lock_acquired) {
+            Log::warn("%s", "Unable to acquire lock for shutdown hook, hook is being skipped");
             return;
-        } else if (!lock_acquired) {
-            _state_lock.lock(); // wait for lock to be acquired
         }
     }
 
