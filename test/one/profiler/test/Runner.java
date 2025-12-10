@@ -18,8 +18,8 @@ public class Runner {
 
     private static final Os currentOs = detectOs();
     private static final Arch currentArch = detectArch();
-    private static final Jvm currentJvm = detectJvm();
     private static final int currentJvmVersion = detectJvmVersion();
+    private static final Jvm currentJvm = detectJvm();
 
     private static final String logDir = System.getProperty("logDir", "");
 
@@ -84,7 +84,10 @@ public class Runner {
             return Jvm.ZING;
         }
 
-        // Otherwise it's some variation of HotSpot
+        if (!new File(System.getProperty("java.home"), "lib/" + System.mapLibraryName("jvmcicompiler")).exists()) {
+            return Jvm.HOTSPOT_C2;
+        }
+
         return Jvm.HOTSPOT;
     }
 
@@ -103,7 +106,7 @@ public class Runner {
         int[] jvmVer = test.jvmVer();
         return (os.length == 0 || Arrays.asList(os).contains(currentOs)) &&
                 (arch.length == 0 || Arrays.asList(arch).contains(currentArch)) &&
-                (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm)) &&
+                (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm) || (currentJvm == Jvm.HOTSPOT_C2 && Arrays.asList(jvm).contains(Jvm.HOTSPOT))) &&
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
@@ -118,7 +121,7 @@ public class Runner {
         log.log(Level.INFO, "Running " + rt.testInfo() + "...");
 
         String testLogDir = logDir.isEmpty() ? null : logDir + '/' + rt.testName();
-        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir)) {
+        try (TestProcess p = new TestProcess(rt.test(), currentOs, currentJvm, testLogDir)) {
             Object holder = (rt.method().getModifiers() & Modifier.STATIC) == 0 ?
                     rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
             rt.method().invoke(holder, p);
