@@ -7,7 +7,7 @@ package one.profiler.test;
 
 public enum Jvm {
     HOTSPOT,
+    HOTSPOT_C2,
     ZING,
-    OPENJ9,
-    HOTSPOT_C2
+    OPENJ9
 }
