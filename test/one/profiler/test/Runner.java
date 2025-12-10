@@ -104,11 +104,9 @@ public class Runner {
         Arch[] arch = test.arch();
         Jvm[] jvm = test.jvm();
         int[] jvmVer = test.jvmVer();
-        Jvm additionalJvm = currentJvm == Jvm.HOTSPOT_C2 ? Jvm.HOTSPOT : null;
-
         return (os.length == 0 || Arrays.asList(os).contains(currentOs)) &&
                 (arch.length == 0 || Arrays.asList(arch).contains(currentArch)) &&
-                (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm) || Arrays.asList(jvm).contains(additionalJvm)) &&
+                (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm) || (currentJvm == Jvm.HOTSPOT_C2 && Arrays.asList(jvm).contains(Jvm.HOTSPOT))) &&
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
