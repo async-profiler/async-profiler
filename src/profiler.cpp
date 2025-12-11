@@ -2024,24 +2024,15 @@ Error Profiler::restart(Arguments& args) {
 
 void Profiler::shutdown(Arguments& args) {
     // Potential deadlock may happen between current thread & profiling thread due to usage of jfrsync
-    // To avoid that we use `tryLock` rather than `lock`
-    if (!_state_lock.tryLock()) {
-        volatile bool sleep = true;
-        bool lock_acquired = false;
-        // Shutdown hook shouldn't be blocked for more than 2 seconds
-        u64 max_time = OS::nanotime() + 2000000000ULL;
-
-        // peek lock until acquired or timeout is reached
-        do {
-            OS::uninterruptibleSleep(10000000, &sleep); // 10ms
-            lock_acquired = _state_lock.tryLock();
-        } while (!lock_acquired && OS::nanotime() < max_time);
-
-        // lock not acquired, skip stopping the profiler.
-        if (!lock_acquired) {
-            Log::warn("%s", "Unable to acquire lock for shutdown hook, hook is being skipped");
+    // To avoid that we use `tryLock` rather than `lock`, we keep trying to acquire the lock until either:
+    //     - lock is acquired
+    //     - _in_jfr_sync is set which indicates a risky state & a potential deadlock JDK-8373439
+    while (!_state_lock.tryLock()) {
+        if (FlightRecorder::inJfrSync()) {
+            Log::warn("Unable to acquire lock for shutdown hook, hook is being skipped");
             return;
         }
+        OS::sleep(10000000); // 10ms
     }
 
     // The last chance to dump profile before VM terminates

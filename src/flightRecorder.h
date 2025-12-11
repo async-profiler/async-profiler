@@ -40,6 +40,8 @@ class FlightRecorder {
                      EventType event_type, Event* event);
 
     void recordLog(LogLevel level, const char* message, size_t len);
+
+    static bool inJfrSync();
 };
 
 #endif // _FLIGHTRECORDER_H

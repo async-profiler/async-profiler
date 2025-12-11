@@ -46,6 +46,8 @@ const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 
+static volatile bool _in_jfr_sync = false;
+
 enum GCWhen {
     BEFORE_GC,
     AFTER_GC
@@ -1401,7 +1403,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     int event_mask = args.eventMask() |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
 
+    _in_jfr_sync = true;
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
+    _in_jfr_sync = false;
 
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -1489,4 +1493,8 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
     _rec->flush(buf);
 
     _rec_lock.unlockShared();
+}
+
+bool FlightRecorder::inJfrSync() {
+    return _in_jfr_sync;
 }
