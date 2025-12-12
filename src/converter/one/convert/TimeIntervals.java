@@ -18,9 +18,9 @@ public final class TimeIntervals {
             throw new IllegalArgumentException("'startInstant' should not be after 'endInstant'");
         }
 
-        // Are there shorter intervals which are part of this new interval?
+        // Are there shorter intervals which overlap with the new interval?
         NavigableMap<Long, Long> view = timeIntervals.subMap(startInstant, true /* inclusive */, endInstant, true /* inclusive */);
-        Map.Entry<Long, Long> last = view.firstEntry();
+        Map.Entry<Long, Long> last = view.lastEntry();
         if (last != null) {
             endInstant = Long.max(last.getValue(), endInstant);
         }
@@ -28,6 +28,7 @@ public final class TimeIntervals {
             timeIntervals.remove(key);
         }
 
+        // Perhaps the end of the interval before 'view' ends after startInstant?
         Map.Entry<Long, Long> floor = timeIntervals.floorEntry(startInstant);
         if (floor != null) {
             long floorEnd = floor.getValue();
