@@ -41,7 +41,7 @@ public abstract class JfrConverter extends Classifier {
             jfr.stopAtNewChunk = false;
 
             TimeIntervals intervals = new TimeIntervals();
-            long minLatencyTicks = toTicks(args.latency);
+            long minLatencyTicks = args.latency * jfr.ticksPerSec / 1000;
             collectEvents(MethodTrace.class, timePredicate, methodTrace -> {
                 if (methodTrace.duration >= minLatencyTicks) {
                     intervals.add(methodTrace.time, methodTrace.time + methodTrace.duration);
