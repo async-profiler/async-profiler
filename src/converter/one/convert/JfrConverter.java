@@ -21,6 +21,8 @@ import java.util.function.Predicate;
 import static one.convert.Frame.*;
 
 public abstract class JfrConverter extends Classifier {
+    private static final Predicate<Event> TRUE = event -> true;
+
     protected final JfrReader jfr;
     protected final Arguments args;
     protected final EventCollector collector;
@@ -51,7 +53,7 @@ public abstract class JfrConverter extends Classifier {
 
             jfr.clear();
         } else {
-            latencyPredicate = event -> true;
+            latencyPredicate = TRUE;
         }
 
         Predicate<Event> threadStatesPredicate = makeThreadStatesPredicate();
@@ -119,7 +121,7 @@ public abstract class JfrConverter extends Classifier {
         }
 
         if (threadStates == null) {
-            return event -> true;
+            return TRUE;
         }
 
         final BitSet finalThreadStates = threadStates;
