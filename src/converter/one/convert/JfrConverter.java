@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static one.convert.Frame.*;
 
@@ -33,14 +35,32 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public void convert() throws IOException {
-        jfr.stopAtNewChunk = true;
+        Predicate<Event> timePredicate = makeTimePredicate();
+        Predicate<Event> latencyPredicate;
+        if (args.latency > -1) {
+            jfr.stopAtNewChunk = false;
 
+            TimeIntervals intervals = new TimeIntervals();
+            collectEvents(MethodTrace.class, timePredicate, methodTrace -> {
+                if (methodTrace.duration >= args.latency) {
+                    intervals.add(methodTrace.time, methodTrace.time + methodTrace.duration);
+                }
+            });
+            latencyPredicate = event -> intervals.belongs(event.time);
+
+            jfr.clear();
+        } else {
+            latencyPredicate = event -> true;
+        }
+
+        Predicate<Event> threadStatesPredicate = makeThreadStatesPredicate();
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
 
             collector.beforeChunk();
-            collectEvents();
+            collectEvents(event -> timePredicate.test(event) && threadStatesPredicate.test(event) &&
+                                   latencyPredicate.test(event));
             collector.afterChunk();
 
             convertChunk();
@@ -55,7 +75,7 @@ public abstract class JfrConverter extends Classifier {
         return new EventAggregator(args.threads, args.grain);
     }
 
-    protected void collectEvents() throws IOException {
+    protected void collectEvents(Predicate<Event> eventPredicate) throws IOException {
         Class<? extends Event> eventClass = args.nativelock ? NativeLockEvent.class
                 : args.nativemem ? MallocEvent.class
                 : args.live ? LiveObject.class
@@ -64,6 +84,24 @@ public abstract class JfrConverter extends Classifier {
                 : args.trace ? MethodTrace.class
                 : ExecutionSample.class;
 
+        collectEvents(eventClass, eventPredicate, collector::collect);
+    }
+
+    private <E extends Event> void collectEvents(Class<E> eventClass, Predicate<Event> eventPredicate, Consumer<E> eventConsumer) throws IOException {
+        for (E event; (event = jfr.readEvent(eventClass)) != null; ) {
+            if (eventPredicate.test(event)) {
+                eventConsumer.accept(event);
+            }
+        }
+    }
+
+    private Predicate<Event> makeTimePredicate() {
+        long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
+        long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
+        return event -> event.time >= startTicks && event.time <= endTicks;
+    }
+
+    private Predicate<Event> makeThreadStatesPredicate() {
         BitSet threadStates = null;
         if (args.state != null) {
             threadStates = new BitSet();
@@ -79,16 +117,12 @@ public abstract class JfrConverter extends Classifier {
             threadStates.set(ExecutionSample.CPU_TIME_SAMPLE);
         }
 
-        long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
-        long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
-
-        for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
-            if (event.time >= startTicks && event.time <= endTicks) {
-                if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    collector.collect(event);
-                }
-            }
+        if (threadStates == null) {
+            return event -> true;
         }
+
+        final BitSet finalThreadStates = threadStates;
+        return event -> finalThreadStates.get(((ExecutionSample) event).threadState);
     }
 
     protected void convertChunk() {

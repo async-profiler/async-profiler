@@ -718,6 +718,10 @@ public class JfrReader implements Closeable {
         }
     }
 
+    public void clear() throws IOException {
+        seek(0);
+    }
+
     private boolean ensureBytes(int needed) throws IOException {
         if (buf.remaining() >= needed) {
             return true;
