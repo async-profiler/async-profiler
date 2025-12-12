@@ -68,7 +68,6 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-
 struct MethodSample {
     u64 samples;
     u64 counter;
@@ -2024,7 +2023,15 @@ Error Profiler::restart(Arguments& args) {
 }
 
 void Profiler::shutdown(Arguments& args) {
-    MutexLocker ml(_state_lock);
+    // Workaround for JDK-8373439: starting JFR during VM shutdown may hang forever,
+    // so avoid acquiring _state_lock in this case.
+    while (!_state_lock.tryLock()) {
+        if (FlightRecorder::isJfrStarting()) {
+            Log::debug("Skipping shutdown hook due to JFR start");
+            return;
+        }
+        OS::sleep(10000000); // 10ms
+    }
 
     // The last chance to dump profile before VM terminates
     if (_state == RUNNING) {
@@ -2036,4 +2043,6 @@ void Profiler::shutdown(Arguments& args) {
     }
 
     _state = TERMINATED;
+
+    _state_lock.unlock();
 }
