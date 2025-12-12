@@ -20,13 +20,11 @@ public final class TimeIntervals {
 
         // Are there shorter intervals which overlap with the new interval?
         NavigableMap<Long, Long> view = timeIntervals.subMap(startInstant, true /* inclusive */, endInstant, true /* inclusive */);
-        Map.Entry<Long, Long> last = view.lastEntry();
+        Map.Entry<Long, Long> last = view.pollLastEntry();
         if (last != null) {
             endInstant = Long.max(last.getValue(), endInstant);
         }
-        for (Long key : view.keySet()) {
-            timeIntervals.remove(key);
-        }
+        view.clear();
 
         // Perhaps the end of the interval before 'view' ends after startInstant?
         Map.Entry<Long, Long> floor = timeIntervals.floorEntry(startInstant);
