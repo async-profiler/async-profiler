@@ -10,7 +10,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 public final class TimeIntervals {
-    // Invariant: no overlapping intervals
+    // No overlapping intervals
     private final TreeMap<Long, Long> timeIntervals = new TreeMap<>();
 
     public void add(long startInstant, long endInstant) {
