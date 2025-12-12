@@ -1,0 +1,51 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package one.convert;
+
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
+
+public final class TimeIntervals {
+    // Invariant: no overlapping intervals
+    private final TreeMap<Long, Long> timeIntervals = new TreeMap<>();
+
+    public void add(long startInstant, long endInstant) {
+        if (startInstant > endInstant) {
+            throw new IllegalArgumentException("'startInstant' should not be after 'endInstant'");
+        }
+
+        // Are there shorter intervals which are part of this new interval?
+        NavigableMap<Long, Long> view = timeIntervals.subMap(startInstant, true /* inclusive */, endInstant, true /* inclusive */);
+        Map.Entry<Long, Long> last = view.firstEntry();
+        if (last != null) {
+            endInstant = Long.max(last.getValue(), endInstant);
+        }
+        for (Long key : view.keySet()) {
+            timeIntervals.remove(key);
+        }
+
+        Map.Entry<Long, Long> floor = timeIntervals.floorEntry(startInstant);
+        if (floor != null) {
+            long floorEnd = floor.getValue();
+            if (floorEnd >= startInstant) {
+                timeIntervals.remove(floor.getKey());
+                startInstant = floor.getKey();
+                endInstant = Long.max(endInstant, floorEnd);
+            }
+        }
+
+        timeIntervals.put(startInstant, endInstant);
+    }
+
+    public boolean belongs(long instant) {
+        Map.Entry<Long, Long> entry = timeIntervals.floorEntry(instant);
+        if (entry == null) {
+            return false;
+        }
+        return instant <= entry.getValue();
+    }
+}
