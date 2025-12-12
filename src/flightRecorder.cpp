@@ -46,7 +46,7 @@ const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 
-static volatile bool _in_jfr_sync = false;
+static bool _in_jfr_sync = false;
 
 enum GCWhen {
     BEFORE_GC,
