@@ -2026,8 +2026,8 @@ void Profiler::shutdown(Arguments& args) {
     // Workaround for JDK-8373439: starting JFR during VM shutdown may hang forever,
     // so avoid acquiring _state_lock in this case.
     while (!_state_lock.tryLock()) {
-        if (FlightRecorder::inJfrSync()) {
-            Log::debug("Unable to acquire lock for shutdown hook, hook is being skipped");
+        if (FlightRecorder::isJfrStarting()) {
+            Log::debug("Skipping shutdown hook due to JFR start");
             return;
         }
         OS::sleep(10000000); // 10ms

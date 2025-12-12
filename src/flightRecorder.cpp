@@ -46,8 +46,6 @@ const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 
-static bool _in_jfr_sync = false;
-
 enum GCWhen {
     BEFORE_GC,
     AFTER_GC
@@ -60,6 +58,7 @@ static jclass _jfr_sync_class = NULL;
 static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
+static bool _jfr_starting = false;
 
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
 
@@ -1403,9 +1402,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     int event_mask = args.eventMask() |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
 
-    __atomic_store_n(&_in_jfr_sync, true, __ATOMIC_RELEASE);
+    __atomic_store_n(&_jfr_starting, true, __ATOMIC_RELEASE);
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
-    __atomic_store_n(&_in_jfr_sync, false, __ATOMIC_RELEASE);
+    __atomic_store_n(&_jfr_starting, false, __ATOMIC_RELEASE);
 
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -1495,6 +1494,6 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
     _rec_lock.unlockShared();
 }
 
-bool FlightRecorder::inJfrSync() {
-    return __atomic_load_n(&_in_jfr_sync, __ATOMIC_ACQUIRE);
+bool FlightRecorder::isJfrStarting() {
+    return __atomic_load_n(&_jfr_starting, __ATOMIC_ACQUIRE);
 }

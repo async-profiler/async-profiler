@@ -41,7 +41,7 @@ class FlightRecorder {
 
     void recordLog(LogLevel level, const char* message, size_t len);
 
-    static bool inJfrSync();
+    static bool isJfrStarting();
 };
 
 #endif // _FLIGHTRECORDER_H
