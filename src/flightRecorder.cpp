@@ -1403,9 +1403,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     int event_mask = args.eventMask() |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
 
-    _in_jfr_sync = true;
+    __atomic_store_n(&_in_jfr_sync, true, __ATOMIC_RELEASE);
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
-    _in_jfr_sync = false;
+    __atomic_store_n(&_in_jfr_sync, false, __ATOMIC_RELEASE);
 
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -1496,5 +1496,5 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
 }
 
 bool FlightRecorder::inJfrSync() {
-    return _in_jfr_sync;
+    return __atomic_load_n(&_in_jfr_sync, __ATOMIC_ACQUIRE);
 }

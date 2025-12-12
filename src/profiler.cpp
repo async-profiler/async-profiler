@@ -2023,13 +2023,11 @@ Error Profiler::restart(Arguments& args) {
 }
 
 void Profiler::shutdown(Arguments& args) {
-    // Potential deadlock may happen between current thread & profiling thread due to usage of jfrsync
-    // To avoid that we use `tryLock` rather than `lock`, we keep trying to acquire the lock until either:
-    //     - lock is acquired
-    //     - _in_jfr_sync is set which indicates a risky state & a potential deadlock JDK-8373439
+    // Workaround for JDK-8373439: starting JFR during VM shutdown may hang forever,
+    // so avoid acquiring _state_lock in this case.
     while (!_state_lock.tryLock()) {
         if (FlightRecorder::inJfrSync()) {
-            Log::warn("Unable to acquire lock for shutdown hook, hook is being skipped");
+            Log::debug("Unable to acquire lock for shutdown hook, hook is being skipped");
             return;
         }
         OS::sleep(10000000); // 10ms
