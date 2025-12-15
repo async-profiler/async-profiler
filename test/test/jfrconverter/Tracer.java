@@ -30,7 +30,7 @@ final class Tracer {
 
     public static void main(String[] args) throws InterruptedException {
         CountDownLatch latch1 = new CountDownLatch(1);
-        long start = System.currentTimeMillis();
+        long startNanos = System.nanoTime();
         Thread t1 = new Thread(() -> {
             try {
                 traceMethod(latch1);
@@ -43,9 +43,9 @@ final class Tracer {
         showcase1();
         showcase2();
 
-        long elapsed = System.currentTimeMillis() - start;
-        long sleep = TRACE_DURATION_MS - elapsed;
-        if (sleep > 0) Thread.sleep(sleep);
+        while (System.nanoTime() - startNanos < TRACE_DURATION_MS * 1_000_000) {
+            Thread.sleep(50);
+        }
         latch1.countDown();
         t1.join();
 
