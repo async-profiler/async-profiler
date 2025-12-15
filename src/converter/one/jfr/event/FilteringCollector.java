@@ -16,8 +16,8 @@ public final class FilteringCollector implements EventCollector {
 
     private final TimeIntervals timeIntervals;
     private final EventCollector delegate;
-    private final long from;
-    private final long to;
+    private final long fromMillis;
+    private final long toMillis;
     private final BitSet threadStates;
     private final JfrReader jfr;
 
@@ -25,12 +25,12 @@ public final class FilteringCollector implements EventCollector {
     private long fromTicks;
     private long toTicks;
 
-    public FilteringCollector(EventCollector delegate, TimeIntervals timeIntervals, long from, long to,
+    public FilteringCollector(EventCollector delegate, TimeIntervals timeIntervals, long fromMillis, long toMillis,
                               BitSet threadStates, JfrReader jfr) {
         this.delegate = delegate;
         this.timeIntervals = timeIntervals;
-        this.from = from;
-        this.to = to;
+        this.fromMillis = fromMillis;
+        this.toMillis = toMillis;
         this.threadStates = threadStates;
         this.jfr = jfr;
     }
@@ -46,8 +46,8 @@ public final class FilteringCollector implements EventCollector {
 
     @Override
     public void beforeChunk() {
-        fromTicks = from != 0 ? toTicks(from) : Long.MIN_VALUE;
-        toTicks = to != 0 ? toTicks(to) : Long.MAX_VALUE;
+        fromTicks = fromMillis != 0 ? toTicks(fromMillis) : Long.MIN_VALUE;
+        toTicks = toMillis != 0 ? toTicks(toMillis) : Long.MAX_VALUE;
         delegate.beforeChunk();
     }
 
