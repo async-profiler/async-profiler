@@ -40,7 +40,8 @@ public class JfrconverterTests {
 
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             boolean[] foundShowcase = new boolean[3];
-            JfrConverter converter = new JfrConverter(jfr, new Arguments("--wall", "--latency", Tracer.TRACE_DURATION_MS + "")) {
+            long minLatency = Tracer.TRACE_DURATION_MS - 10; // just to be sure
+            JfrConverter converter = new JfrConverter(jfr, new Arguments("--wall", "--latency", minLatency + "")) {
                 protected void convertChunk() {
                     collector.forEach(new EventCollector.Visitor() {
                         public void visit(Event event, long samples, long value) {
