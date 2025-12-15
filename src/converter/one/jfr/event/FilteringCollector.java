@@ -14,25 +14,28 @@ import java.util.BitSet;
 // based on several criteria.
 public final class FilteringCollector implements EventCollector {
 
-    private final TimeIntervals timeIntervals;
     private final EventCollector delegate;
     private final long fromMillis;
     private final long toMillis;
     private final BitSet threadStates;
     private final JfrReader jfr;
 
+    private TimeIntervals timeIntervals;
+
     // Needs to be reset at each chunk start
     private long fromTicks;
     private long toTicks;
 
-    public FilteringCollector(EventCollector delegate, TimeIntervals timeIntervals, long fromMillis, long toMillis,
-                              BitSet threadStates, JfrReader jfr) {
+    public FilteringCollector(EventCollector delegate, long fromMillis, long toMillis, BitSet threadStates, JfrReader jfr) {
         this.delegate = delegate;
-        this.timeIntervals = timeIntervals;
         this.fromMillis = fromMillis;
         this.toMillis = toMillis;
         this.threadStates = threadStates;
         this.jfr = jfr;
+    }
+
+    public void setTimeIntervals(TimeIntervals timeIntervals) {
+        this.timeIntervals = timeIntervals;
     }
 
     @Override

@@ -22,7 +22,7 @@ import static one.convert.Frame.*;
 public abstract class JfrConverter extends Classifier {
     protected final JfrReader jfr;
     protected final Arguments args;
-    protected final EventCollector collector;
+    protected final FilteringCollector collector;
     protected Dictionary<String> methodNames;
 
     public JfrConverter(JfrReader jfr, Arguments args) {
@@ -30,27 +30,28 @@ public abstract class JfrConverter extends Classifier {
         this.args = args;
 
         EventCollector collector = createCollector(args);
-        this.collector = args.nativemem && args.leak ? new MallocLeakAggregator(collector, args.tail) : collector;
+        collector = args.nativemem && args.leak ? new MallocLeakAggregator(collector, args.tail) : collector;
+        this.collector = new FilteringCollector(collector, args.from, args.to, makeThreadStatesBitSet(), jfr);
     }
 
     public void convert() throws IOException {
-        TimeIntervals timeIntervals = args.latency > -1 ? readLatencyTimeIntervals() : null;
-        EventCollector filteringCollector = new FilteringCollector(collector, timeIntervals, args.from, args.to,
-                makeThreadStatesBitSet(), jfr);
+        if (args.latency > -1) {
+            this.collector.setTimeIntervals(readLatencyTimeIntervals());
+        }
 
         jfr.stopAtNewChunk = true;
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
 
-            filteringCollector.beforeChunk();
-            collectEvents(filteringCollector::collect);
-            filteringCollector.afterChunk();
+            collector.beforeChunk();
+            collectEvents(collector::collect);
+            collector.afterChunk();
 
             convertChunk();
         }
 
-        if (filteringCollector.finish()) {
+        if (collector.finish()) {
             convertChunk();
         }
     }
