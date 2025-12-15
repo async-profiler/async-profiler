@@ -16,13 +16,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import static one.convert.Frame.*;
 
 public abstract class JfrConverter extends Classifier {
-    private static final Predicate<Event> TRUE = event -> true;
-
     protected final JfrReader jfr;
     protected final Arguments args;
     protected final EventCollector collector;
@@ -37,33 +34,33 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public void convert() throws IOException {
-        Predicate<Event> timePredicate = makeTimePredicate();
-        Predicate<Event> latencyPredicate;
+        TimeIntervals timeIntervals = null;
         if (args.latency > -1) {
             jfr.stopAtNewChunk = false;
 
             TimeIntervals intervals = new TimeIntervals();
             long minLatencyTicks = args.latency * jfr.ticksPerSec / 1000;
-            collectEvents(MethodTrace.class, timePredicate, methodTrace -> {
+            collectEvents(MethodTrace.class, methodTrace -> {
                 if (methodTrace.duration >= minLatencyTicks) {
                     intervals.add(methodTrace.time, methodTrace.time + methodTrace.duration);
                 }
             });
-            latencyPredicate = event -> intervals.belongs(event.time);
+            timeIntervals = intervals;
 
             jfr.reset();
-        } else {
-            latencyPredicate = TRUE;
         }
 
-        Predicate<Event> threadStatesPredicate = makeThreadStatesPredicate();
+        long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
+        long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
+        EventCollector filteringCollector = new FilteringCollector(collector, timeIntervals, startTicks, endTicks,
+                makeThreadStatesBitSet());
+
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
 
             collector.beforeChunk();
-            collectEvents(event -> timePredicate.test(event) && threadStatesPredicate.test(event) &&
-                                   latencyPredicate.test(event));
+            collectEvents(filteringCollector::collect);
             collector.afterChunk();
 
             convertChunk();
@@ -78,7 +75,7 @@ public abstract class JfrConverter extends Classifier {
         return new EventAggregator(args.threads, args.grain);
     }
 
-    protected void collectEvents(Predicate<Event> eventPredicate) throws IOException {
+    protected void collectEvents(Consumer<Event> eventConsumer) throws IOException {
         Class<? extends Event> eventClass = args.nativelock ? NativeLockEvent.class
                 : args.nativemem ? MallocEvent.class
                 : args.live ? LiveObject.class
@@ -87,24 +84,16 @@ public abstract class JfrConverter extends Classifier {
                 : args.trace ? MethodTrace.class
                 : ExecutionSample.class;
 
-        collectEvents(eventClass, eventPredicate, collector::collect);
+        collectEvents(eventClass, eventConsumer::accept);
     }
 
-    private <E extends Event> void collectEvents(Class<E> eventClass, Predicate<Event> eventPredicate, Consumer<E> eventConsumer) throws IOException {
+    private <E extends Event> void collectEvents(Class<E> eventClass, Consumer<E> eventConsumer) throws IOException {
         for (E event; (event = jfr.readEvent(eventClass)) != null; ) {
-            if (eventPredicate.test(event)) {
-                eventConsumer.accept(event);
-            }
+            eventConsumer.accept(event);
         }
     }
 
-    private Predicate<Event> makeTimePredicate() {
-        long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
-        long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
-        return event -> event.time >= startTicks && event.time <= endTicks;
-    }
-
-    private Predicate<Event> makeThreadStatesPredicate() {
+    private BitSet makeThreadStatesBitSet() {
         BitSet threadStates = null;
         if (args.state != null) {
             threadStates = new BitSet();
@@ -119,13 +108,7 @@ public abstract class JfrConverter extends Classifier {
             threadStates = new BitSet();
             threadStates.set(ExecutionSample.CPU_TIME_SAMPLE);
         }
-
-        if (threadStates == null) {
-            return TRUE;
-        }
-
-        final BitSet finalThreadStates = threadStates;
-        return event -> finalThreadStates.get(((ExecutionSample) event).threadState);
+        return threadStates;
     }
 
     protected void convertChunk() {
