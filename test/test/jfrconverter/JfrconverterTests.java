@@ -39,12 +39,14 @@ public class JfrconverterTests {
         assert p.exitCode() == 0;
 
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
-            boolean[] foundShowcase = new boolean[3];
+            boolean[] found = new boolean[4];
             long minLatency = Tracer.TRACE_DURATION_MS - 10; // just to be sure
             JfrConverter converter = new JfrConverter(jfr, new Arguments("--wall", "--latency", minLatency + "")) {
                 protected void convertChunk() {
                     collector.forEach(new EventCollector.Visitor() {
                         public void visit(Event event, long samples, long value) {
+                            found[0] = true;
+
                             StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
                             if (stackTrace == null) return;
 
@@ -55,7 +57,7 @@ public class JfrconverterTests {
                                 if (!methodName.startsWith("test/jfrconverter/Tracer.showcase")) continue;
 
                                 int idx = Integer.parseInt(methodName.charAt(methodName.length() - 1) + "");
-                                foundShowcase[idx - 1] = true;
+                                found[idx] = true;
                                 break;
                             }
                         }
@@ -64,9 +66,10 @@ public class JfrconverterTests {
             };
             converter.convert();
 
-            assert foundShowcase[0];
-            assert foundShowcase[1];
-            assert !foundShowcase[2];
+            assert found[0] : "No events found!";
+            assert found[1];
+            assert found[2];
+            assert !found[3];
         }
     }
 }
