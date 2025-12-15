@@ -11,7 +11,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -84,7 +83,7 @@ public class JfrReader implements Closeable {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
         this.fileSize = ch.size();
-        clear();
+        reset();
     }
 
     @Override
@@ -702,7 +701,7 @@ public class JfrReader implements Closeable {
         }
     }
 
-    public void clear() throws IOException {
+    public void reset() throws IOException {
         seek(0);
         state = STATE_NEW_CHUNK;
 

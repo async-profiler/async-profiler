@@ -51,7 +51,7 @@ public abstract class JfrConverter extends Classifier {
             });
             latencyPredicate = event -> intervals.belongs(event.time);
 
-            jfr.clear();
+            jfr.reset();
         } else {
             latencyPredicate = TRUE;
         }
