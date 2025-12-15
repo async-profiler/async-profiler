@@ -1368,7 +1368,9 @@ Error Profiler::flushJfr() {
 
 Error Profiler::dump(Writer& out, Arguments& args) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE && _state != RUNNING) {
+    if (args._collect && _state == TERMINATED) {
+        return Error::OK;
+    } else if (_state != IDLE && _state != RUNNING) {
         return Error("Profiler has not started");
     }
 

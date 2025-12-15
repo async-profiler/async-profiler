@@ -601,7 +601,7 @@ int main(int argc, const char** argv) {
         signal(SIGINT, SIG_DFL);
         // Do not reset SIGTERM handler to allow graceful shutdown
 
-        run_jattach(pid, String("stop,file=") << file << "," << output << format << ",log=" << logfile);
+        run_jattach(pid, String("stop,_collect,file=") << file << "," << output << format << ",log=" << logfile);
     } else {
         if (action == "start" || action == "resume") run_fdtransfer(pid, fdtransfer);
         run_jattach(pid, String(action) << ",file=" << file << "," << output << format << params << ",log=" << logfile);

@@ -207,6 +207,7 @@ class Arguments {
     bool _nostop;
     bool _alluser;
     bool _fdtransfer;
+    bool _collect;
     const char* _fdtransfer_path;
     int _target_cpu;
     int _style;
@@ -269,6 +270,7 @@ class Arguments {
         _alluser(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
+        _collect(false),
         _target_cpu(-1),
         _style(0),
         _features{1, 1, 1, 1, 1, 1},

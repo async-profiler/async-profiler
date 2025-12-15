@@ -488,6 +488,9 @@ Error Arguments::parse(const char* args) {
             CASE("inverted")
                 _inverted = true;
 
+            CASE("_collect")
+                _collect = true;
+
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
         }
