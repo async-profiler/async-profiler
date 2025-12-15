@@ -38,7 +38,7 @@ final class Tracer {
         }, "thread1");
         t1.start();
 
-        // While method1 is waiting, we can do some stuff and expect to see it
+        // While traceMethod is waiting, we can do some stuff and expect to see it
         // as part of the trace
         showcase1();
         showcase2();
