@@ -34,41 +34,40 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public void convert() throws IOException {
-        TimeIntervals timeIntervals = null;
-        if (args.latency > -1) {
-            jfr.stopAtNewChunk = false;
+        TimeIntervals timeIntervals = args.latency > -1 ? readLatencyTimeIntervals() : null;
+        EventCollector filteringCollector = new FilteringCollector(collector, timeIntervals, args.from, args.to,
+                makeThreadStatesBitSet(), jfr);
 
-            TimeIntervals intervals = new TimeIntervals();
-            long minLatencyTicks = args.latency * jfr.ticksPerSec / 1000;
-            collectEvents(MethodTrace.class, methodTrace -> {
-                if (methodTrace.duration >= minLatencyTicks) {
-                    intervals.add(methodTrace.time, methodTrace.time + methodTrace.duration);
-                }
-            });
-            timeIntervals = intervals;
-
-            jfr.reset();
-        }
-
-        long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
-        long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
-        EventCollector filteringCollector = new FilteringCollector(collector, timeIntervals, startTicks, endTicks,
-                makeThreadStatesBitSet());
-
+        jfr.stopAtNewChunk = true;
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
 
-            collector.beforeChunk();
+            filteringCollector.beforeChunk();
             collectEvents(filteringCollector::collect);
-            collector.afterChunk();
+            filteringCollector.afterChunk();
 
             convertChunk();
         }
 
-        if (collector.finish()) {
+        if (filteringCollector.finish()) {
             convertChunk();
         }
+    }
+
+    private TimeIntervals readLatencyTimeIntervals() throws IOException {
+        jfr.stopAtNewChunk = true;
+        TimeIntervals intervals = new TimeIntervals();
+        while (jfr.hasMoreChunks()) {
+            long minLatencyTicks = args.latency * jfr.ticksPerSec / 1000;
+            collectEvents(MethodTrace.class, methodTrace -> {
+                if (methodTrace.duration >= minLatencyTicks) {
+                    intervals.add(jfr.eventTimeToNanos(methodTrace.time), jfr.eventTimeToNanos(methodTrace.time + methodTrace.duration));
+                }
+            });
+        }
+        jfr.reset();
+        return intervals;
     }
 
     protected EventCollector createCollector(Arguments args) {
@@ -136,17 +135,6 @@ public abstract class JfrConverter extends Classifier {
             }
         }
         return set;
-    }
-
-    // millis can be an absolute timestamp or an offset from the beginning/end of the recording
-    protected long toTicks(long millis) {
-        long nanos = millis * 1_000_000;
-        if (millis < 0) {
-            nanos += jfr.endNanos;
-        } else if (millis < 1500000000000L) {
-            nanos += jfr.startNanos;
-        }
-        return (long) ((nanos - jfr.chunkStartNanos) * (jfr.ticksPerSec / 1e9)) + jfr.chunkStartTicks;
     }
 
     @Override
