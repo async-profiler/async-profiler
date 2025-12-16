@@ -712,9 +712,6 @@ public class JfrReader implements Closeable {
 
         buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
-        if (!readChunk(0)) {
-            throw new IOException("Incomplete JFR file");
-        }
     }
 
     private boolean ensureBytes(int needed) throws IOException {
