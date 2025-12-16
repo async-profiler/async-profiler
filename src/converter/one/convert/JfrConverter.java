@@ -155,7 +155,7 @@ public abstract class JfrConverter extends Classifier {
         } else if (millis < 1500000000000L) {
             nanos += jfr.startNanos;
         }
-        return (long) ((nanos - jfr.chunkStartNanos) / jfr.nanosecondsPerTick) + jfr.chunkStartTicks;
+        return (long) ((nanos - jfr.chunkStartNanos) * (jfr.ticksPerSec / 1e9)) + jfr.chunkStartTicks;
     }
 
     @Override
