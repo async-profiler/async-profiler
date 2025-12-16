@@ -128,7 +128,7 @@ public class Main {
                 "     --dot              Dotted class names\n" +
                 "     --from TIME        Start time in ms (absolute or relative)\n" +
                 "     --to TIME          End time in ms (absolute or relative)\n" +
-                "     --latency L        Retain only events recorded during a jdk.MethodTrace with duration at least L ms\n" +
+                "     --latency MS       Retain only samples within MethodTraces of at least MS milliseconds\n" +
                 "\n" +
                 "Flame Graph options:\n" +
                 "     --title STRING     Flame Graph title\n" +
