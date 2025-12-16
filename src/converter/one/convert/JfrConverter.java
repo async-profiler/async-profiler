@@ -69,7 +69,7 @@ public abstract class JfrConverter extends Classifier {
                 }
             }
         }
-        jfr.reset();
+        jfr.rewind();
 
         if (!foundMethodTrace) {
             throw new RuntimeException("Found zero jdk.MethodTrace events");

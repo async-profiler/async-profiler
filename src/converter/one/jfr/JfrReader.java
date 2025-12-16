@@ -85,7 +85,10 @@ public class JfrReader implements Closeable {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
         this.fileSize = ch.size();
-        reset();
+        rewind();
+        if (!readChunk(0)) {
+            throw new IOException("Incomplete JFR file");
+        }
     }
 
     @Override
@@ -703,7 +706,7 @@ public class JfrReader implements Closeable {
         }
     }
 
-    public void reset() throws IOException {
+    public void rewind() throws IOException {
         seek(0);
         state = STATE_NEW_CHUNK;
 
