@@ -55,10 +55,10 @@ public abstract class JfrConverter extends Classifier {
     protected final TimeIntervals readLatencyTimeIntervals() throws IOException {
         if (args.latency < 0) return null;
 
-        jfr.stopAtNewChunk = true;
-
         TimeIntervals.Builder intervalsBuilder = new TimeIntervals.Builder();
         boolean foundMethodTrace = false; // We'll throw an exception if none is found
+
+        jfr.stopAtNewChunk = true;
         while (jfr.hasMoreChunks()) {
             long minLatencyTicks = args.latency * jfr.ticksPerSec / 1000;
             MethodTrace event;
@@ -72,7 +72,7 @@ public abstract class JfrConverter extends Classifier {
         jfr.rewind();
 
         if (!foundMethodTrace) {
-            throw new RuntimeException("Found zero jdk.MethodTrace events");
+            throw new RuntimeException("No jdk.MethodTrace events found");
         }
         return intervalsBuilder.build();
     }
