@@ -147,7 +147,6 @@ public class JfrToOtlp extends JfrConverter {
     private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
         private final List<Integer> locationIndices;
         private final double factor = counterFactor();
-        private final double ticksPerNanosecond = jfr.ticksPerSec / 1_000_000_000.0;
 
         // JFR constant pool stacktrace ID to Range
         private final Map<Integer, Range> idToRange = new HashMap<>();
@@ -161,7 +160,7 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public void visit(Event event, long samples, long value) {
-            long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) / ticksPerNanosecond);
+            long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
             long timeNanos = jfr.chunkStartNanos + nanosFromStart;
 
             Range range = idToRange.computeIfAbsent(event.stackTraceId, this::computeLocationRange);
