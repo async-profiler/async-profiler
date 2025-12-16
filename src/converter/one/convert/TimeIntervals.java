@@ -8,6 +8,7 @@ package one.convert;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.Arrays;
 
 public final class TimeIntervals {
     // No overlapping intervals
@@ -40,15 +41,39 @@ public final class TimeIntervals {
         timeIntervals.put(startInstant, endInstant);
     }
 
-    public boolean contains(long instant) {
-        Map.Entry<Long, Long> entry = timeIntervals.floorEntry(instant);
-        if (entry == null) {
-            return false;
+    public TimeIntervalsList asList() {
+        long[] startIntervals = new long[timeIntervals.size()];
+        long[] endIntervals = new long[timeIntervals.size()];
+        int index = 0;
+        for (Map.Entry<Long, Long> entry : timeIntervals.entrySet()) {
+            startIntervals[index] = entry.getKey();
+            endIntervals[index] = entry.getValue();
+            ++index;
         }
-        return instant <= entry.getValue();
+        return new TimeIntervalsList(startIntervals, endIntervals);
     }
 
-    public boolean isEmpty() {
-        return timeIntervals.isEmpty();
+    public static final class TimeIntervalsList {
+        public final long[] startIntervals;
+        public final long[] endIntervals;
+
+        public TimeIntervalsList(long[] startIntervals, long[] endIntervals) {
+            this.startIntervals = startIntervals;
+            this.endIntervals = endIntervals;
+        }
+
+        public boolean contains(long instant) {
+            int searchOut = Arrays.binarySearch(startIntervals, instant);
+            if (searchOut >= 0) {
+                return true;
+            }
+
+            int insertionPoint = -(searchOut + 1); // First element greater than instant
+            if (insertionPoint == 0) {
+                return false; // First interval start is greater than instant
+            }
+            int startIndex = insertionPoint - 1;
+            return instant <= endIntervals[startIndex];
+        }
     }
 }

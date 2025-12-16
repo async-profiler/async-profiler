@@ -10,6 +10,7 @@ import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.event.*;
+import one.convert.TimeIntervals.TimeIntervalsList;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +34,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public void convert() throws IOException {
-        TimeIntervals timeIntervals = readLatencyTimeIntervals();
+        TimeIntervalsList timeIntervals = readLatencyTimeIntervals();
 
         jfr.stopAtNewChunk = true;
         while (jfr.hasMoreChunks()) {
@@ -52,7 +53,7 @@ public abstract class JfrConverter extends Classifier {
         }
     }
 
-    protected final TimeIntervals readLatencyTimeIntervals() throws IOException {
+    protected final TimeIntervalsList readLatencyTimeIntervals() throws IOException {
         if (args.latency < 0) return null;
 
         jfr.stopAtNewChunk = true;
@@ -74,14 +75,14 @@ public abstract class JfrConverter extends Classifier {
         if (!foundMethodTrace) {
             throw new RuntimeException("Found zero jdk.MethodTrace events");
         }
-        return intervals;
+        return intervals.asList();
     }
 
     protected EventCollector createCollector(Arguments args) {
         return new EventAggregator(args.threads, args.grain);
     }
 
-    protected void collectEvents(TimeIntervals timeIntervals) throws IOException {
+    protected void collectEvents(TimeIntervalsList timeIntervals) throws IOException {
         Class<? extends Event> eventClass = args.nativelock ? NativeLockEvent.class
                 : args.nativemem ? MallocEvent.class
                 : args.live ? LiveObject.class
