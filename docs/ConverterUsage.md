@@ -75,6 +75,7 @@ JFR options:
                        # an absolute time in hh:mm:ss or yyyy-MM-dd'T'hh:mm:ss format;
                        # a relative time from the beginning of recording;
                        # a relative time from the end of recording (a negative number).
+    --latency MS       Retain only samples within MethodTraces of at least MS milliseconds
 
 Flame Graph options:
     --title STRING     Convert to Flame Graph with provided title
