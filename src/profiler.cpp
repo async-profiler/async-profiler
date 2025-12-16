@@ -1683,7 +1683,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
-        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
+        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::samples, 1);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
         otlp_buffer.field(Sample::locations_length, trace->num_frames);
 
@@ -1744,7 +1744,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         // For now we keep a dummy default mapping_index for all locations because some parsers
         // would fail otherwise
         otlp_buffer.field(Location::mapping_index, (u64)0);
-        protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line, 1);
+        protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::lines, 1);
         otlp_buffer.field(Line::function_index, function_idx);
         otlp_buffer.commitMessage(line_mark);
         otlp_buffer.commitMessage(location_mark);

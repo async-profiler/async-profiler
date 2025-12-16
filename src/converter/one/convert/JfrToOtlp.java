@@ -107,7 +107,7 @@ public class JfrToOtlp extends JfrConverter {
 
             long lineMark = proto.startField(LOCATION_line, MSG_SMALL);
             proto.field(LINE_function_index, line.functionIdx);
-            proto.field(LINE_line, line.lineNumber);
+            proto.field(LINE_lines, line.lineNumber);
             proto.commitField(lineMark);
 
             proto.commitField(locMark);
@@ -165,7 +165,7 @@ public class JfrToOtlp extends JfrConverter {
 
             Range range = idToRange.computeIfAbsent(event.stackTraceId, this::computeLocationRange);
 
-            long sMark = proto.startField(PROFILE_sample, MSG_SMALL);
+            long sMark = proto.startField(PROFILE_samples, MSG_SMALL);
             proto.field(SAMPLE_locations_start_index, range.start);
             proto.field(SAMPLE_locations_length, range.length);
             proto.field(SAMPLE_timestamps_unix_nano, timeNanos);

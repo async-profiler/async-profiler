@@ -24,7 +24,7 @@ final class OtlpConstants {
 
     static final int
             PROFILE_sample_type = 1,
-            PROFILE_sample = 2,
+            PROFILE_samples = 2,
             PROFILE_location_indices = 3,
             PROFILE_time_nanos = 4,
             PROFILE_duration_nanos = 5;
@@ -47,7 +47,7 @@ final class OtlpConstants {
 
     static final int
             LINE_function_index = 1,
-            LINE_line = 2;
+            LINE_lines = 2;
 
     static final int FUNCTION_name_strindex = 1;
 

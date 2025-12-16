@@ -37,7 +37,7 @@ namespace ScopeProfiles {
 
 namespace Profile {
     const protobuf_index_t sample_type = 1;
-    const protobuf_index_t sample = 2;
+    const protobuf_index_t samples = 2;
     const protobuf_index_t location_indices = 3;
     const protobuf_index_t time_nanos = 4;
     const protobuf_index_t duration_nanos = 5;
@@ -60,7 +60,7 @@ namespace Sample {
 
 namespace Location {
     const protobuf_index_t mapping_index = 1;
-    const protobuf_index_t line = 3;
+    const protobuf_index_t lines = 3;
 }
 
 namespace Function {
