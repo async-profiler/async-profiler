@@ -40,7 +40,7 @@ public final class TimeIntervals {
         timeIntervals.put(startInstant, endInstant);
     }
 
-    public boolean belongs(long instant) {
+    public boolean contains(long instant) {
         Map.Entry<Long, Long> entry = timeIntervals.floorEntry(instant);
         if (entry == null) {
             return false;

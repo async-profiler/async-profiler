@@ -111,7 +111,7 @@ public abstract class JfrConverter extends Classifier {
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    if (timeIntervals == null || timeIntervals.belongs(jfr.eventTimeToNanos(event.time))) {
+                    if (timeIntervals == null || timeIntervals.contains(jfr.eventTimeToNanos(event.time))) {
                         collector.collect(event);
                     }
                 }
