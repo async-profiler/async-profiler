@@ -20,6 +20,7 @@ namespace ProfilesDictionary {
     const protobuf_index_t function_table = 3;
     const protobuf_index_t string_table = 5;
     const protobuf_index_t attribute_table = 6;
+    const protobuf_index_t stack_table = 7;
 }
 
 namespace ProfilesData {
@@ -38,11 +39,8 @@ namespace ScopeProfiles {
 namespace Profile {
     const protobuf_index_t sample_type = 1;
     const protobuf_index_t samples = 2;
-    const protobuf_index_t location_indices = 3;
-    const protobuf_index_t time_nanos = 4;
-    const protobuf_index_t duration_nanos = 5;
-    const protobuf_index_t period_type = 6;
-    const protobuf_index_t period = 7;
+    const protobuf_index_t time_unix_nano = 3;
+    const protobuf_index_t duration_nano = 4;
 }
 
 namespace ValueType {
@@ -52,10 +50,13 @@ namespace ValueType {
 }
 
 namespace Sample {
-    const protobuf_index_t locations_start_index = 1;
-    const protobuf_index_t locations_length = 2;
-    const protobuf_index_t value = 3;
-    const protobuf_index_t attribute_indices = 4;
+    const protobuf_index_t stack_index = 1;
+    const protobuf_index_t values = 2;
+    const protobuf_index_t attribute_indices = 3;
+}
+
+namespace Stack {
+    const protobuf_index_t location_indices = 1;
 }
 
 namespace Location {

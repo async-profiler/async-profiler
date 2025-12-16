@@ -28,6 +28,8 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<String> functionPool = new Index<>(String.class, "");
     private final Index<Line> linePool = new Index<>(Line.class, Line.EMPTY);
     private final Index<KeyValue> attributesPool = new Index<>(KeyValue.class, KeyValue.EMPTY);
+    private final Index<int[]> stacksPool = new Index<>(int[].class, new int[0]);
+    private final int threadNameIndex = stringPool.index(OTLP_THREAD_NAME);
 
     private final Proto proto = new Proto(1024);
 
@@ -52,38 +54,53 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     protected void convertChunk() {
-        long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
+        List<SampleInfo> samplesInfo = new ArrayList<>();
+        collector.forEach(new OtlpEventToSampleVisitor(samplesInfo));
 
-        writeSampleTypes();
-        writeTimingInformation();
+        { // Counter profile
+            long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
-        List<Integer> locationIndices = new ArrayList<>();
-        collector.forEach(new OtlpEventToSampleVisitor(locationIndices));
+            long stsMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
+            proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
+            proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getSampleUnits()));
+            proto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
+            proto.commitField(stsMark);
 
-        long liMark = proto.startField(PROFILE_location_indices, MSG_LARGE);
-        locationIndices.forEach(proto::writeInt);
-        proto.commitField(liMark);
+            proto.field(PROFILE_time_unix_nano, jfr.chunkStartNanos);
+            proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
-        proto.commitField(pMark);
+            writeSamples(samplesInfo, true /* samples */);
+
+            proto.commitField(pMark);
+        }
+
+        { // Total profile
+            long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
+
+            long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
+            proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
+            proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
+            proto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
+            proto.commitField(sttMark);
+
+            proto.field(PROFILE_time_unix_nano, jfr.chunkStartNanos);
+            proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
+
+            writeSamples(samplesInfo, false /* samples */);
+
+            proto.commitField(pMark);
+        }
     }
 
-    private void writeSampleTypes() {
-        long stsMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
-        proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
-        proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getSampleUnits()));
-        proto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
-        proto.commitField(stsMark);
-
-        long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
-        proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
-        proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
-        proto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
-        proto.commitField(sttMark);
-    }
-
-    private void writeTimingInformation() {
-        proto.field(PROFILE_time_nanos, jfr.chunkStartNanos);
-        proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
+    private void writeSamples(List<SampleInfo> samplesInfo, boolean samples) {
+        for (SampleInfo si : samplesInfo) {
+            long sMark = proto.startField(PROFILE_samples, MSG_SMALL);
+            proto.field(SAMPLE_stack_index, si.stackIndex);
+            proto.field(SAMPLE_values, samples ? si.samples : si.value);
+            proto.field(SAMPLE_attribute_indices, si.threadNameAttributeIndex);
+            proto.field(SAMPLE_timestamps_unix_nano, si.timeNanos);
+            proto.commitField(sMark);
+        }
     }
 
     private void writeProfileDictionary() {
@@ -111,6 +128,17 @@ public class JfrToOtlp extends JfrConverter {
             proto.commitField(lineMark);
 
             proto.commitField(locMark);
+        }
+
+        // Write stacks table. Each element is a list of location
+        for (int[] stack : stacksPool.keys()) {
+            long stackMark = proto.startField(PROFILES_DICTIONARY_stack_table, MSG_LARGE);
+            long locationIndicesMark = proto.startField(STACK_location_indices, MSG_LARGE);
+            for (int locationIdx : stack) {
+                proto.writeInt(locationIdx);
+            }
+            proto.commitField(locationIndicesMark);
+            proto.commitField(stackMark);
         }
 
         // Write string table
@@ -144,55 +172,51 @@ public class JfrToOtlp extends JfrConverter {
         }
     }
 
+    private static final class SampleInfo {
+        private final long timeNanos;
+        private final int threadNameAttributeIndex;
+        private final int stackIndex;
+        private final long samples;
+        private final long value;
+
+        public SampleInfo(long timeNanos, int threadNameAttributeIndex, int stackIndex, long samples, long value) {
+            this.timeNanos = timeNanos;
+            this.threadNameAttributeIndex = threadNameAttributeIndex;
+            this.stackIndex = stackIndex;
+            this.samples = samples;
+            this.value = value;
+        }
+    }
+
     private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
-        private final List<Integer> locationIndices;
+        private final List<SampleInfo> samplesInfo;
+        // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
+        private final Map<Integer, Integer> stacksIndexCache = new HashMap<>(); 
         private final double factor = counterFactor();
 
-        // JFR constant pool stacktrace ID to Range
-        private final Map<Integer, Range> idToRange = new HashMap<>();
-
-        // Next index to be used for a location into Profile.location_indices
-        private int nextLocationIdx = 0;
-
-        public OtlpEventToSampleVisitor(List<Integer> locationIndices) {
-            this.locationIndices = locationIndices;
+        public OtlpEventToSampleVisitor(List<SampleInfo> samplesInfo) {
+            this.samplesInfo = samplesInfo;
         }
 
         @Override
         public void visit(Event event, long samples, long value) {
+            String threadName = getThreadName(event.tid);
+            KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
+            int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
             long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
             long timeNanos = jfr.chunkStartNanos + nanosFromStart;
-
-            Range range = idToRange.computeIfAbsent(event.stackTraceId, this::computeLocationRange);
-
-            long sMark = proto.startField(PROFILE_samples, MSG_SMALL);
-            proto.field(SAMPLE_locations_start_index, range.start);
-            proto.field(SAMPLE_locations_length, range.length);
-            proto.field(SAMPLE_timestamps_unix_nano, timeNanos);
-
-            KeyValue threadName = new KeyValue(stringPool.index(OTLP_THREAD_NAME), getThreadName(event.tid));
-            proto.field(SAMPLE_attribute_indices, attributesPool.index(threadName));
-
-            long svMark = proto.startField(SAMPLE_value, MSG_SMALL);
-            proto.writeLong(samples);
-            proto.writeLong(factor == 1.0 ? value : (long) (value * factor));
-            proto.commitField(svMark);
-
-            proto.commitField(sMark);
+            SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, samples, 
+                                            factor == 1.0 ? value : (long) (value * factor));
+            samplesInfo.add(si);
         }
 
-        // Range of values in Profile.location_indices
-        private Range computeLocationRange(int stackTraceId) {
+        private int[] makeStack(int stackTraceId) {
             StackTrace st = jfr.stackTraces.get(stackTraceId);
-            if (st == null) {
-                return new Range(0, 0);
-            }
+            int[] stack = new int[st.methods.length];
             for (int i = 0; i < st.methods.length; ++i) {
-                locationIndices.add(linePool.index(makeLine(st, i)));
+                stack[i] = linePool.index(makeLine(st, i));
             }
-            Range range = new Range(nextLocationIdx, st.methods.length);
-            nextLocationIdx += st.methods.length;
-            return range;
+            return stack;
         }
 
         private Line makeLine(StackTrace stackTrace, int i) {
@@ -200,16 +224,6 @@ public class JfrToOtlp extends JfrConverter {
             int lineNumber = stackTrace.locations[i] >>> 16;
             int functionIdx = functionPool.index(methodName);
             return new Line(functionIdx, lineNumber);
-        }
-    }
-
-    private static final class Range {
-        final int start;
-        final int length;
-
-        public Range(int start, int length) {
-            this.start = start;
-            this.length = length;
         }
     }
 

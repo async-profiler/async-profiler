@@ -1641,13 +1641,85 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const char* type, const char* units) {
+struct SampleTypeStrings {
+    size_t engine_type_strindex;
+    size_t engine_units_strindex;
+    size_t count_strindex;
+};
+
+static void recordSampleType(ProtoBuffer& otlp_buffer, size_t type_strindex, size_t unit_strindex) {
     using namespace Otlp;
     protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type, 1);
-    otlp_buffer.field(ValueType::type_strindex, strings.indexOf(type));
-    otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(units));
-    otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
+    otlp_buffer.field(ValueType::type_strindex, type_strindex);
+    otlp_buffer.field(ValueType::unit_strindex, unit_strindex);
     otlp_buffer.commitMessage(sample_type_mark);
+}
+
+struct SampleInfo {
+    size_t thread_name_index;
+    u64 samples;
+    u64 counter;
+};
+
+std::vector<SampleInfo> Profiler::recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, Index& thread_names, Index& functions, const std::vector<CallTraceSample*>& call_trace_samples) {
+    using namespace Otlp;
+
+    std::vector<SampleInfo> samples_info;
+
+    for (const auto& cts : call_trace_samples) {
+        samples_info.push_back(SampleInfo{0, 0, 0});
+
+        CallTrace* trace = cts->acquireTrace();
+        if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
+
+        SampleInfo& si = samples_info.back();
+        si.samples = cts->samples;
+        si.counter = cts->counter;
+
+        protobuf_mark_t stack_mark = otlp_buffer.startMessage(ProfilesDictionary::stack_table);
+        protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Stack::location_indices);
+        for (int j = 0; j < trace->num_frames; j++) {
+            if (trace->frames[j].bci == BCI_THREAD_ID) {
+                int tid = (int)(uintptr_t) trace->frames[j].method_id;
+                MutexLocker ml(_thread_names_lock);
+                ThreadMap::iterator it = _thread_names.find(tid);
+                if (it != _thread_names.end()) {
+                    si.thread_name_index = thread_names.indexOf(it->second);
+                }
+                continue;
+            }
+
+            size_t location_idx = functions.indexOf(fn.name(trace->frames[j]));
+            otlp_buffer.putVarInt(location_idx);
+        }
+        otlp_buffer.commitMessage(location_indices_mark);
+        otlp_buffer.commitMessage(stack_mark);
+    }
+
+    return samples_info;
+}
+
+void Profiler::recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, const SampleTypeStrings& st_strings, u64 duration_nanos, bool count) {
+    using namespace Otlp;
+    protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
+
+    otlp_buffer.field(Profile::time_unix_nano, _start_time * 1000ULL);
+    otlp_buffer.field(Profile::duration_nano, duration_nanos);
+
+    recordSampleType(otlp_buffer, st_strings.engine_type_strindex, count ? st_strings.count_strindex : st_strings.engine_units_strindex);
+
+    for (size_t i = 0; i < samples_info.size(); ++i) {
+        const SampleInfo& si = samples_info[i];
+        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::samples, 1);
+        otlp_buffer.field(Sample::stack_index, i);
+        if (si.thread_name_index != 0) {
+            otlp_buffer.field(Sample::attribute_indices, si.thread_name_index);
+        }
+        otlp_buffer.field(Sample::values, count ? si.samples : si.counter);
+        otlp_buffer.commitMessage(sample_mark);
+    }
+
+    otlp_buffer.commitMessage(profile_mark);
 }
 
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
@@ -1658,73 +1730,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Eventually this is going to be Index<Attribute>, for now we keep it simple
     Index thread_names;
 
-    protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
-    protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
-    protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
-
-    u64 time_nanos = _start_time * 1000ULL;
-    u64 duration_nanos = (OS::micros() - _start_time) * 1000ULL;
-
-    otlp_buffer.field(Profile::time_nanos, time_nanos);
-    otlp_buffer.field(Profile::duration_nanos, duration_nanos);
-
-    recordSampleType(otlp_buffer, strings, _engine->type(), "count");
-    recordSampleType(otlp_buffer, strings, _engine->type(), _engine->units());
-
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
-
-    std::vector<size_t> location_indices;
-    location_indices.reserve(call_trace_samples.size());
-
+    u64 duration_nanos = (OS::micros() - _start_time) * 1000ULL;
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
-    size_t frames_seen = 0;
-    for (const auto& cts : call_trace_samples) {
-        CallTrace* trace = cts->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
-
-        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::samples, 1);
-        otlp_buffer.field(Sample::locations_start_index, frames_seen);
-        otlp_buffer.field(Sample::locations_length, trace->num_frames);
-
-        u32 thread_name_idx = 0;
-        for (int j = 0; j < trace->num_frames; j++) {
-            if (trace->frames[j].bci == BCI_THREAD_ID) {
-                int tid = (int)(uintptr_t) trace->frames[j].method_id;
-                MutexLocker ml(_thread_names_lock);
-                ThreadMap::iterator it = _thread_names.find(tid);
-                if (it != _thread_names.end()) {
-                    thread_name_idx = thread_names.indexOf(it->second);
-                }
-                continue;
-            }
-
-            // To be written below in Profile.location_indices
-            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
-            ++frames_seen;
-        }
-        if (thread_name_idx != 0) {
-            otlp_buffer.field(Sample::attribute_indices, thread_name_idx);
-        }
-
-        protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
-        otlp_buffer.putVarInt(cts->samples);
-        otlp_buffer.putVarInt(cts->counter);
-        otlp_buffer.commitMessage(sample_value_mark);
-        otlp_buffer.commitMessage(sample_mark);
-    }
-
-    protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
-    for (size_t i : location_indices) {
-        otlp_buffer.putVarInt(i);
-    }
-    otlp_buffer.commitMessage(location_indices_mark);
-
-    otlp_buffer.commitMessage(profile_mark);
-    otlp_buffer.commitMessage(scope_profiles_mark);
-    otlp_buffer.commitMessage(resource_profiles_mark);
+    const SampleTypeStrings sts{strings.indexOf(_engine->type()), strings.indexOf(_engine->units()), strings.indexOf("count")};
 
     protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
+
+    std::vector<SampleInfo> samples_info = recordStacks(otlp_buffer, fn, thread_names, functions, call_trace_samples);
 
     // Write mapping_table. Not currently used, but required by some parsers
     protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
@@ -1769,6 +1783,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     });
 
     otlp_buffer.commitMessage(dictionary_mark);
+
+    protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
+    protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
+
+    recordOtlpProfile(otlp_buffer, samples_info, sts, duration_nanos, true  /* count */);
+    recordOtlpProfile(otlp_buffer, samples_info, sts, duration_nanos, false /* count */);
+
+    otlp_buffer.commitMessage(scope_profiles_mark);
+    otlp_buffer.commitMessage(resource_profiles_mark);
 
     out.write((const char*) otlp_buffer.data(), otlp_buffer.offset());
 }

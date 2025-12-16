@@ -14,7 +14,8 @@ final class OtlpConstants {
             PROFILES_DICTIONARY_location_table = 2,
             PROFILES_DICTIONARY_function_table = 3,
             PROFILES_DICTIONARY_string_table = 5,
-            PROFILES_DICTIONARY_attribute_table = 6;
+            PROFILES_DICTIONARY_attribute_table = 6,
+            PROFILES_DICTIONARY_stack_table = 7;
 
     static final int
             PROFILES_DATA_resource_profiles = 1,
@@ -27,9 +28,8 @@ final class OtlpConstants {
     static final int
             PROFILE_sample_type = 1,
             PROFILE_samples = 2,
-            PROFILE_location_indices = 3,
-            PROFILE_time_nanos = 4,
-            PROFILE_duration_nanos = 5;
+            PROFILE_time_unix_nano = 3,
+            PROFILE_duration_nanos = 4;
 
     static final int
             VALUE_TYPE_type_strindex = 1,
@@ -37,11 +37,13 @@ final class OtlpConstants {
             VALUE_TYPE_aggregation_temporality = 3;
 
     static final int
-            SAMPLE_locations_start_index = 1,
-            SAMPLE_locations_length = 2,
-            SAMPLE_value = 3,
-            SAMPLE_attribute_indices = 4,
-            SAMPLE_timestamps_unix_nano = 6;
+            SAMPLE_stack_index = 1,
+            SAMPLE_values = 2,
+            SAMPLE_attribute_indices = 3,
+            SAMPLE_timestamps_unix_nano = 5;
+
+    static final int
+            STACK_location_indices = 1;
 
     static final int
             LOCATION_mapping_index = 1,

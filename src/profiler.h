@@ -39,6 +39,10 @@ union CallTraceBuffer {
 class FrameName;
 class NMethod;
 class StackContext;
+class ProtoBuffer;
+class Index;
+class SampleInfo;
+class SampleTypeStrings;
 
 enum State {
     NEW,
@@ -127,6 +131,9 @@ class Profiler {
     Engine* selectAllocEngine(long alloc_interval, bool live);
     Engine* activeEngine();
     Error checkJvmCapabilities();
+
+    std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, Index& thread_names, Index& functions, const std::vector<CallTraceSample*>& call_trace_samples);
+    void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, const SampleTypeStrings& st_strings, u64 duration_nanos, bool count);
 
     u64 addTimeout(u64 start_micros, int timeout);
     void startTimer();
