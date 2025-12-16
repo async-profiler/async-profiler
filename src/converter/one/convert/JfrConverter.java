@@ -10,7 +10,6 @@ import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.event.*;
-import one.convert.TimeIntervals.TimeIntervalsList;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -34,7 +33,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public void convert() throws IOException {
-        TimeIntervalsList timeIntervals = readLatencyTimeIntervals();
+        TimeIntervals timeIntervals = readLatencyTimeIntervals();
 
         jfr.stopAtNewChunk = true;
         while (jfr.hasMoreChunks()) {
@@ -53,12 +52,12 @@ public abstract class JfrConverter extends Classifier {
         }
     }
 
-    protected final TimeIntervalsList readLatencyTimeIntervals() throws IOException {
+    protected final TimeIntervals readLatencyTimeIntervals() throws IOException {
         if (args.latency < 0) return null;
 
         jfr.stopAtNewChunk = true;
 
-        TimeIntervals intervals = new TimeIntervals();
+        TimeIntervals.Builder intervalsBuilder = new TimeIntervals.Builder();
         boolean foundMethodTrace = false; // We'll throw an exception if none is found
         while (jfr.hasMoreChunks()) {
             long minLatencyTicks = args.latency * jfr.ticksPerSec / 1000;
@@ -66,7 +65,7 @@ public abstract class JfrConverter extends Classifier {
             while ((event = jfr.readEvent(MethodTrace.class)) != null) {
                 foundMethodTrace = true;
                 if (event.duration >= minLatencyTicks) {
-                    intervals.add(jfr.eventTimeToNanos(event.time), jfr.eventTimeToNanos(event.time + event.duration));
+                    intervalsBuilder.add(jfr.eventTimeToNanos(event.time), jfr.eventTimeToNanos(event.time + event.duration));
                 }
             }
         }
@@ -75,14 +74,14 @@ public abstract class JfrConverter extends Classifier {
         if (!foundMethodTrace) {
             throw new RuntimeException("Found zero jdk.MethodTrace events");
         }
-        return intervals.asList();
+        return intervalsBuilder.build();
     }
 
     protected EventCollector createCollector(Arguments args) {
         return new EventAggregator(args.threads, args.grain);
     }
 
-    protected void collectEvents(TimeIntervalsList timeIntervals) throws IOException {
+    protected void collectEvents(TimeIntervals timeIntervals) throws IOException {
         Class<? extends Event> eventClass = args.nativelock ? NativeLockEvent.class
                 : args.nativemem ? MallocEvent.class
                 : args.live ? LiveObject.class
