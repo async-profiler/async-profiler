@@ -11,6 +11,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -84,7 +85,20 @@ public class JfrReader implements Closeable {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
         this.fileSize = ch.size();
-        rewind();
+
+        buf.flip();
+        ensureBytes(CHUNK_HEADER_SIZE);
+        if (!readChunk(0)) {
+            throw new IOException("Incomplete JFR file");
+        }
+    }
+
+    public JfrReader(ByteBuffer buf) throws IOException {
+        this.ch = null;
+        this.buf = buf;
+        this.fileSize = buf.limit();
+
+        buf.order(ByteOrder.BIG_ENDIAN);
         if (!readChunk(0)) {
             throw new IOException("Incomplete JFR file");
         }
@@ -709,8 +723,6 @@ public class JfrReader implements Closeable {
     public void rewind() throws IOException {
         seek(0);
         state = STATE_NEW_CHUNK;
-
-        buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
     }
 
