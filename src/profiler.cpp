@@ -1750,19 +1750,22 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(location_mark);
     }
 
+    // Write attribute_table (only threads for now)
+    if (!thread_names.empty()) {
+        size_t thread_name_key_strindex = strings.indexOf(OTLP_THREAD_NAME);
+        thread_names.forEachOrdered([&] (size_t idx, const std::string& s) {
+            protobuf_mark_t attr_mark = otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
+            otlp_buffer.field(KeyValueAndUnit::key_strindex, thread_name_key_strindex);
+            protobuf_mark_t value_mark = otlp_buffer.startMessage(KeyValueAndUnit::value);
+            otlp_buffer.field(AnyValue::string_value, s.data(), s.length());
+            otlp_buffer.commitMessage(value_mark);
+            otlp_buffer.commitMessage(attr_mark);
+        });
+    }
+
     // Write string_table
     strings.forEachOrdered([&] (size_t idx, const std::string& s) {
         otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
-    });
-
-    // Write attribute_table (only threads for now)
-    thread_names.forEachOrdered([&] (size_t idx, const std::string& s) {
-        protobuf_mark_t attr_mark = otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
-        otlp_buffer.field(Key::key, OTLP_THREAD_NAME);
-        protobuf_mark_t value_mark = otlp_buffer.startMessage(Key::value);
-        otlp_buffer.field(AnyValue::string_value, s.data(), s.length());
-        otlp_buffer.commitMessage(value_mark);
-        otlp_buffer.commitMessage(attr_mark);
     });
 
     otlp_buffer.commitMessage(dictionary_mark);

@@ -72,19 +72,19 @@ namespace Line {
     const protobuf_index_t function_index = 1;
 }
 
+namespace KeyValueAndUnit {
+    const protobuf_index_t key_strindex = 1;
+    const protobuf_index_t value = 2;
+}
+
+namespace AnyValue {
+    const protobuf_index_t string_value = 1;
+}
+
 namespace AggregationTemporality {
     const u64 unspecified = 0;
     const u64 delta = 1;
     const u64 cumulative = 2;
-}
-
-namespace Key {
-    const u64 key = 1;
-    const u64 value = 2;
-}
-
-namespace AnyValue {
-    const u64 string_value = 1;
 }
 
 }

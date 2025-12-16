@@ -121,9 +121,9 @@ public class JfrToOtlp extends JfrConverter {
         // Write attributes table
         for (KeyValue kv : attributesPool.keys()) {
             long aMark = proto.startField(PROFILES_DICTIONARY_attribute_table, MSG_LARGE);
-            proto.field(KEY_VALUE_key, kv.key);
+            proto.field(KEY_VALUE_AND_UNIT_key_strindex, kv.keyStrindex);
 
-            long vMark = proto.startField(KEY_VALUE_value, MSG_LARGE);
+            long vMark = proto.startField(KEY_VALUE_AND_UNIT_value, MSG_LARGE);
             proto.field(ANY_VALUE_string_value, kv.value);
             proto.commitField(vMark);
 
@@ -170,7 +170,7 @@ public class JfrToOtlp extends JfrConverter {
             proto.field(SAMPLE_locations_length, range.length);
             proto.field(SAMPLE_timestamps_unix_nano, timeNanos);
 
-            KeyValue threadName = new KeyValue("thread.name", getThreadName(event.tid));
+            KeyValue threadName = new KeyValue(stringPool.index(OTLP_THREAD_NAME), getThreadName(event.tid));
             proto.field(SAMPLE_attribute_indices, attributesPool.index(threadName));
 
             long svMark = proto.startField(SAMPLE_value, MSG_SMALL);
@@ -241,14 +241,14 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class KeyValue {
-        static final KeyValue EMPTY = new KeyValue("", "");
+        static final KeyValue EMPTY = new KeyValue(0, "");
 
-        final String key;
+        final int keyStrindex;
         // Only string value is fine for now
         final String value;
 
-        private KeyValue(String key, String value) {
-            this.key = key;
+        private KeyValue(int keyStrindex, String value) {
+            this.keyStrindex = keyStrindex;
             this.value = value;
         }
 
@@ -257,13 +257,13 @@ public class JfrToOtlp extends JfrConverter {
             if (!(o instanceof KeyValue)) return false;
 
             KeyValue other = (KeyValue) o;
-            return key.equals(other.key) && value.equals(other.value);
+            return keyStrindex == other.keyStrindex && value.equals(other.value);
         }
 
         @Override
         public int hashCode() {
             int result = 17;
-            result = 31 * result + key.hashCode();
+            result = 31 * result + keyStrindex;
             return 31 * result + value.hashCode();
         }
     }

@@ -10,7 +10,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import io.opentelemetry.proto.common.v1.AnyValue;
-import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.common.v1.KeyValueAndUnit;
 import one.profiler.test.*;
 import io.opentelemetry.proto.profiles.v1development.*;
 
@@ -125,7 +125,7 @@ public class OtlpTests {
 
     private static Optional<AnyValue> getAttribute(Sample sample, ProfilesDictionary dictionary, String name) {
         for (int index : sample.getAttributeIndicesList()) {
-            KeyValue kv = dictionary.getAttributeTable(index);
+            KeyValueAndUnit kv = dictionary.getAttributeTable(index);
             if (name.equals(kv.getKey())) {
                 return Optional.of(kv.getValue());
             }
