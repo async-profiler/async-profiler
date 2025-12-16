@@ -68,8 +68,6 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-static const char* _start_file = NULL;
-
 struct MethodSample {
     u64 samples;
     u64 counter;
@@ -1274,8 +1272,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         startTimer();
     }
 
-    _start_file = args.rawFile();
-
     return Error::OK;
 
 error7:
@@ -1372,7 +1368,7 @@ Error Profiler::flushJfr() {
 
 Error Profiler::dump(Writer& out, Arguments& args) {
     MutexLocker ml(_state_lock);
-    if (_state == TERMINATED && _start_file != NULL && args.rawFile() != NULL && strcmp(_start_file, args.rawFile()) == 0) {
+    if (_state == TERMINATED && _global_args._file != NULL && args._file != NULL && strcmp(_global_args._file, args._file) == 0) {
         return Error::OK;
     } else if (_state != IDLE && _state != RUNNING) {
         return Error("Profiler has not started");

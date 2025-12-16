@@ -518,10 +518,6 @@ Error Arguments::parse(const char* args) {
     return Error::OK;
 }
 
-const char* Arguments::rawFile() {
-    return _file;
-}
-
 const char* Arguments::file() {
     if (_file != NULL && strchr(_file, '%') != NULL) {
         return expandFilePattern(_file);

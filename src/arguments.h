@@ -296,8 +296,6 @@ class Arguments {
 
     Error parse(const char* args);
 
-    const char* rawFile();
-
     const char* file();
 
     bool hasTemporaryLog() const;
