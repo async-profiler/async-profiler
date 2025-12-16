@@ -47,4 +47,8 @@ public final class TimeIntervals {
         }
         return instant <= entry.getValue();
     }
+
+    public boolean isEmpty() {
+        return timeIntervals.isEmpty();
+    }
 }
