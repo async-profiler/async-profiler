@@ -33,13 +33,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public void convert() throws IOException {
-        TimeIntervals timeIntervals = null;
-        if (args.latency > -1) {
-            timeIntervals = readLatencyTimeIntervals();
-            if (timeIntervals.isEmpty()) {
-                throw new RuntimeException("Found zero jdk.MethodTrace events");
-            }
-        }
+        TimeIntervals timeIntervals = readLatencyTimeIntervals();
 
         jfr.stopAtNewChunk = true;
         while (jfr.hasMoreChunks()) {
@@ -59,18 +53,27 @@ public abstract class JfrConverter extends Classifier {
     }
 
     protected final TimeIntervals readLatencyTimeIntervals() throws IOException {
+        if (args.latency < 0) return null;
+
         jfr.stopAtNewChunk = true;
+
         TimeIntervals intervals = new TimeIntervals();
+        boolean foundMethodTrace = false; // We'll throw an exception if none is found
         while (jfr.hasMoreChunks()) {
             long minLatencyTicks = args.latency * jfr.ticksPerSec / 1000;
             MethodTrace event;
             while ((event = jfr.readEvent(MethodTrace.class)) != null) {
+                foundMethodTrace = true;
                 if (event.duration >= minLatencyTicks) {
                     intervals.add(jfr.eventTimeToNanos(event.time), jfr.eventTimeToNanos(event.time + event.duration));
                 }
             }
         }
         jfr.reset();
+
+        if (!foundMethodTrace) {
+            throw new RuntimeException("Found zero jdk.MethodTrace events");
+        }
         return intervals;
     }
 
