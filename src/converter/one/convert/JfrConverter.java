@@ -311,7 +311,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public double counterFactor() {
-        return (args.lock || args.nativelock) ? jfr.nanosecondsPerTick : 1.0;
+        return (args.lock || args.nativelock) ? jfr.nanosPerTick : 1.0;
     }
 
     // Select sum(samples) or sum(value) depending on the --total option.

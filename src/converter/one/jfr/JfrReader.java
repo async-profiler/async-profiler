@@ -48,7 +48,7 @@ public class JfrReader implements Closeable {
     public long chunkEndNanos;
     public long chunkStartTicks;
     public long ticksPerSec;
-    public double nanosecondsPerTick;
+    public double nanosPerTick;
     public boolean stopAtNewChunk;
 
     public final Dictionary<JfrClass> types = new Dictionary<>();
@@ -349,7 +349,7 @@ public class JfrReader implements Closeable {
         startNanos = Math.min(startNanos, chunkStartNanos);
         endNanos = Math.max(endNanos, chunkEndNanos);
         startTicks = Math.min(startTicks, chunkStartTicks);
-        nanosecondsPerTick = 1e9 / ticksPerSec;
+        nanosPerTick = 1e9 / ticksPerSec;
 
         types.clear();
         typesByName.clear();
@@ -753,7 +753,6 @@ public class JfrReader implements Closeable {
     }
 
     public long eventTimeToNanos(long time) {
-        long nanosSinceChunkStart = (long) ((time - chunkStartTicks) * nanosecondsPerTick);
-        return chunkStartNanos + nanosSinceChunkStart;
+        return chunkStartNanos + (long) ((time - chunkStartTicks) * nanosPerTick);
     }
 }
