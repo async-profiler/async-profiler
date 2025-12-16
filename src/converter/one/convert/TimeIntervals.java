@@ -54,8 +54,8 @@ public final class TimeIntervals {
     }
 
     public static final class TimeIntervalsList {
-        public final long[] startIntervals;
-        public final long[] endIntervals;
+        private final long[] startIntervals;
+        private final long[] endIntervals;
 
         public TimeIntervalsList(long[] startIntervals, long[] endIntervals) {
             this.startIntervals = startIntervals;
