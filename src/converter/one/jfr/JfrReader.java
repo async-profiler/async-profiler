@@ -25,8 +25,6 @@ import java.util.Map;
  * Parses JFR output produced by async-profiler.
  */
 public class JfrReader implements Closeable {
-    private static final long SECONDS_TO_NANOS = 1_000_000_000;
-
     private static final int BUFFER_SIZE = 2 * 1024 * 1024;
     private static final int CHUNK_HEADER_SIZE = 68;
     private static final int CHUNK_SIGNATURE = 0x464c5200;
