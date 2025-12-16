@@ -154,7 +154,7 @@ public abstract class JfrConverter extends Classifier {
         } else if (millis < 1500000000000L) {
             nanos += jfr.startNanos;
         }
-        return (long) ((nanos - jfr.chunkStartNanos) * (jfr.ticksPerSec / 1e9)) + jfr.chunkStartTicks;
+        return (long) ((nanos - jfr.chunkStartNanos) / jfr.nanosecondsPerTick) + jfr.chunkStartTicks;
     }
 
     @Override
@@ -310,7 +310,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public double counterFactor() {
-        return (args.lock || args.nativelock) ? 1e9 / jfr.ticksPerSec : 1.0;
+        return (args.lock || args.nativelock) ? jfr.nanosecondsPerTick : 1.0;
     }
 
     // Select sum(samples) or sum(value) depending on the --total option.
