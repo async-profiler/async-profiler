@@ -5,56 +5,103 @@
 
 package test.otlp;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import one.convert.JfrToOtlp;
+import one.convert.Arguments;
+import one.jfr.JfrReader;
+import one.profiler.test.*;
+
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.profiles.v1development.KeyValueAndUnit;
-import one.profiler.test.*;
 import io.opentelemetry.proto.profiles.v1development.*;
 
 public class OtlpTests {
-    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
-    public void readable(TestProcess p) throws Exception {
-        ProfilesData profilesData = waitAndGetProfilesData(p);
-
-        assert getProfile(profilesData, 0) != null;
-    }
-
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
     public void sampleType(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
+        checkSampleTypes(profilesData);
+    }
 
+    private static void checkSampleTypes(ProfilesData profilesData) {
         ValueType sampleType0 = getProfile(profilesData, 0).getSampleType();
-        assert profilesData.getDictionary().getStringTable(sampleType0.getTypeStrindex()).equals("itimer");
-        assert profilesData.getDictionary().getStringTable(sampleType0.getUnitStrindex()).equals("count");
+        assertString(profilesData.getDictionary().getStringTable(sampleType0.getTypeStrindex()), "itimer");
+        assertString(profilesData.getDictionary().getStringTable(sampleType0.getUnitStrindex()), "count");
 
         ValueType sampleType1 = getProfile(profilesData, 1).getSampleType();
-        assert profilesData.getDictionary().getStringTable(sampleType1.getTypeStrindex()).equals("itimer");
-        assert profilesData.getDictionary().getStringTable(sampleType1.getUnitStrindex()).equals("ns");
+        assertString(profilesData.getDictionary().getStringTable(sampleType1.getTypeStrindex()), "itimer");
+        assertString(profilesData.getDictionary().getStringTable(sampleType1.getUnitStrindex()), "ns");
+    }
+
+    private static void assertString(String actual, String expected) {
+        assert expected.equals(actual) : actual;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,threads,file=%f.pb")
     public void threadName(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
+        // counter
+        checkThreadNames(getProfile(profilesData, 0), profilesData.getDictionary());
+        // total
+        checkThreadNames(getProfile(profilesData, 1), profilesData.getDictionary());
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
+    public void threadNameFromJfr(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        Path otlp = getTempFile();
+        JfrToOtlp.convert(p.getFilePath("%f"), otlp.toString(), new Arguments("--cpu", "--output", "otlp"));
+        ProfilesData profilesData = readFile(otlp);
+
+        // counter
+        checkThreadNames(getProfile(profilesData, 0), profilesData.getDictionary());
+        // total
+        checkThreadNames(getProfile(profilesData, 1), profilesData.getDictionary());
+    }
+
+    private static void checkThreadNames(Profile profile, ProfilesDictionary dictionary) {
         Set<String> threadNames = new HashSet<>();
-        for (Sample sample: getProfile(profilesData, 0).getSamplesList()) {
-            Optional<AnyValue> threadName = getAttribute(sample, profilesData.getDictionary(), "thread.name");
+        for (Sample sample : profile.getSamplesList()) {
+            Optional<AnyValue> threadName = getAttribute(sample, dictionary, "thread.name");
             if (!threadName.isPresent()) continue;
             threadNames.add(threadName.get().getStringValue());
         }
-        assert threadNames.contains("CpuBurnerWorker") : "CpuBurner thread not found: " + threadNames;
+        assert threadNames.stream().anyMatch(name -> name.contains("CpuBurnerWorker")) : "CpuBurner thread not found: " + threadNames;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
     public void samples(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
-        Profile profile = getProfile(profilesData, 0);
-        ProfilesDictionary dictionary = profilesData.getDictionary();
+        // counter
+        checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
+        // total
+        checkSamples(getProfile(profilesData, 1), profilesData.getDictionary());
+    }
 
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
+    public void samplesFromJfr(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        Path otlp = getTempFile();
+        JfrToOtlp.convert(p.getFilePath("%f"), otlp.toString(), new Arguments("--cpu", "--output", "otlp"));
+        ProfilesData profilesData = readFile(otlp);
+
+        // counter
+        checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
+        // total
+        checkSamples(getProfile(profilesData, 1), profilesData.getDictionary());
+    }
+
+    private static void checkSamples(Profile profile, ProfilesDictionary dictionary) {
         Output collapsed = toCollapsed(profile, dictionary);
         assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
     }
@@ -70,8 +117,11 @@ public class OtlpTests {
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
+        return readFile(p.getFile("%f").toPath());
+    }
 
-        byte[] profileBytes = Files.readAllBytes(p.getFile("%f").toPath());
+    private static ProfilesData readFile(Path path) throws IOException {
+        byte[] profileBytes = Files.readAllBytes(path);
         return ProfilesData.parseFrom(profileBytes);
     }
 
@@ -137,5 +187,11 @@ public class OtlpTests {
     // where it's harder to detect.
     private static void classpathCheck() {
         ProfilesData.newBuilder();
+    }
+
+    private static Path getTempFile() throws IOException {
+        Path tempFile = Files.createTempFile("async-profiler-test-out-", ".pb");
+        tempFile.toFile().deleteOnExit();
+        return tempFile;
     }
 }
