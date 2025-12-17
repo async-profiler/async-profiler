@@ -108,14 +108,12 @@ public class JfrToOtlp extends JfrConverter {
         long mMark = proto.startField(PROFILES_DICTIONARY_mapping_table, MSG_SMALL);
         proto.commitField(mMark);
 
-        // Write function table
         for (String name : functionPool.keys()) {
             long fMark = proto.startField(PROFILES_DICTIONARY_function_table, MSG_SMALL);
             proto.field(FUNCTION_name_strindex, stringPool.index(name));
             proto.commitField(fMark);
         }
 
-        // Write location table
         for (Line line : linePool.keys()) {
             long locMark = proto.startField(PROFILES_DICTIONARY_location_table, MSG_SMALL);
             proto.field(LOCATION_mapping_index, 0);
@@ -128,7 +126,6 @@ public class JfrToOtlp extends JfrConverter {
             proto.commitField(locMark);
         }
 
-        // Write stacks table. Each element is a list of location
         for (int[] stack : stacksPool.keys()) {
             long stackMark = proto.startField(PROFILES_DICTIONARY_stack_table, MSG_LARGE);
             long locationIndicesMark = proto.startField(STACK_location_indices, MSG_LARGE);
@@ -139,12 +136,10 @@ public class JfrToOtlp extends JfrConverter {
             proto.commitField(stackMark);
         }
 
-        // Write string table
         for (String s : stringPool.keys()) {
             proto.field(PROFILES_DICTIONARY_string_table, s);
         }
 
-        // Write attributes table
         for (KeyValue kv : attributesPool.keys()) {
             long aMark = proto.startField(PROFILES_DICTIONARY_attribute_table, MSG_LARGE);
             proto.field(KEY_VALUE_AND_UNIT_key_strindex, kv.keyStrindex);
