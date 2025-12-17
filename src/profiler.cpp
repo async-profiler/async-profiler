@@ -1702,7 +1702,7 @@ void Profiler::recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<Sam
     using namespace Otlp;
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    otlp_buffer.field(Profile::time_unix_nano, _start_time * 1000ULL);
+    otlp_buffer.fieldFixed64(Profile::time_unix_nano, _start_time * 1000ULL);
     otlp_buffer.field(Profile::duration_nano, duration_nanos);
 
     recordSampleType(otlp_buffer, st_strings.engine_type_strindex, count ? st_strings.count_strindex : st_strings.engine_units_strindex);
