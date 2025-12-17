@@ -189,7 +189,7 @@ public class JfrToOtlp extends JfrConverter {
     private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
         private final List<SampleInfo> samplesInfo;
         // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
-        private final Map<Integer, Integer> stacksIndexCache = new HashMap<>(); 
+        private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
         private final double factor = counterFactor();
 
         public OtlpEventToSampleVisitor(List<SampleInfo> samplesInfo) {
@@ -203,7 +203,7 @@ public class JfrToOtlp extends JfrConverter {
             int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
             long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
             long timeNanos = jfr.chunkStartNanos + nanosFromStart;
-            SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, samples, 
+            SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, samples,
                                             factor == 1.0 ? value : (long) (value * factor));
             samplesInfo.add(si);
         }
