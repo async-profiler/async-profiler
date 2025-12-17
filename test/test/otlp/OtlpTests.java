@@ -10,7 +10,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import io.opentelemetry.proto.common.v1.AnyValue;
-import io.opentelemetry.proto.common.v1.KeyValueAndUnit;
+import io.opentelemetry.proto.profiles.v1development.KeyValueAndUnit;
 import one.profiler.test.*;
 import io.opentelemetry.proto.profiles.v1development.*;
 
@@ -19,36 +19,28 @@ public class OtlpTests {
     public void readable(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
-        assert getFirstProfile(profilesData) != null;
+        assert getProfile(profilesData, 0) != null;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
     public void sampleType(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
-        Profile profile = getFirstProfile(profilesData);
-        assert profile.getSampleTypeList().size() == 2;
-
-        ValueType sampleType0 = profile.getSampleType(0);
+        ValueType sampleType0 = getProfile(profilesData, 0).getSampleType();
         assert profilesData.getDictionary().getStringTable(sampleType0.getTypeStrindex()).equals("itimer");
         assert profilesData.getDictionary().getStringTable(sampleType0.getUnitStrindex()).equals("count");
-        assert sampleType0.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
 
-        ValueType sampleType1 = profile.getSampleType(1);
+        ValueType sampleType1 = getProfile(profilesData, 1).getSampleType();
         assert profilesData.getDictionary().getStringTable(sampleType1.getTypeStrindex()).equals("itimer");
         assert profilesData.getDictionary().getStringTable(sampleType1.getUnitStrindex()).equals("ns");
-        assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,threads,file=%f.pb")
     public void threadName(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
-        Profile profile = getFirstProfile(profilesData);
-        assert profile.getSampleTypeList().size() == 2;
-
         Set<String> threadNames = new HashSet<>();
-        for (Sample sample: profile.getSampleList()) {
+        for (Sample sample: getProfile(profilesData, 0).getSamplesList()) {
             Optional<AnyValue> threadName = getAttribute(sample, profilesData.getDictionary(), "thread.name");
             if (!threadName.isPresent()) continue;
             threadNames.add(threadName.get().getStringValue());
@@ -60,7 +52,7 @@ public class OtlpTests {
     public void samples(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
-        Profile profile = getFirstProfile(profilesData);
+        Profile profile = getProfile(profilesData, 0);
         ProfilesDictionary dictionary = profilesData.getDictionary();
 
         Output collapsed = toCollapsed(profile, dictionary);
@@ -68,7 +60,7 @@ public class OtlpTests {
     }
 
     @Test(mainClass = OtlpTemporalityTest.class)
-    public void aggregationTemporality(TestProcess p) throws Exception {
+    public void profileTime(TestProcess p) throws Exception {
         classpathCheck();
 
         p.waitForExit();
@@ -89,16 +81,15 @@ public class OtlpTests {
 
     private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary, int valueIdx) {
         Map<String, Long> stackTracesCount = new HashMap<>();
-        for (Sample sample : profile.getSampleList()) {
+        for (Sample sample : profile.getSamplesList()) {
+            List<Integer> locations = dictionary.getStackTable(sample.getStackIndex()).getLocationIndicesList();
             StringBuilder stackTrace = new StringBuilder();
-            for (int i = sample.getLocationsLength() - 1; i > 0; --i) {
-                int locationIndex = profile.getLocationIndices(sample.getLocationsStartIndex() + i);
-                stackTrace.append(getFrameName(locationIndex, dictionary)).append(';');
+            for (int i = locations.size() - 1; i > 0; --i) {
+                stackTrace.append(getFrameName(locations.get(i), dictionary)).append(';');
             }
-            int locationIndex = profile.getLocationIndices(sample.getLocationsStartIndex());
-            stackTrace.append(getFrameName(locationIndex, dictionary));
+            stackTrace.append(getFrameName(locations.get(locations.size() - 1), dictionary));
 
-            stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValue(valueIdx) + (oldValue == null ? 0 : oldValue));
+            stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValues(valueIdx) + (oldValue == null ? 0 : oldValue));
         }
         List<String> lines = stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).collect(Collectors.toList());
         return new Output(lines.toArray(new String[0]));
@@ -106,27 +97,34 @@ public class OtlpTests {
 
     private static String getFrameName(int locationIndex, ProfilesDictionary dictionary) {
         Location location = dictionary.getLocationTable(locationIndex);
-        Line line = location.getLine(location.getLineList().size() - 1);
+        Line line = location.getLines(location.getLinesList().size() - 1);
         Function function = dictionary.getFunctionTable(line.getFunctionIndex());
         return dictionary.getStringTable(function.getNameStrindex());
     }
 
-    private static Profile getFirstProfile(ProfilesData profilesData) {
+    private static Profile getProfile(ProfilesData profilesData, int index) {
         assert profilesData.getResourceProfilesList().size() == 1;
 
         ResourceProfiles resourceProfiles = profilesData.getResourceProfiles(0);
         assert resourceProfiles.getScopeProfilesList().size() == 1;
 
         ScopeProfiles scopeProfiles = resourceProfiles.getScopeProfiles(0);
-        assert scopeProfiles.getProfilesList().size() == 1;
-
-        return scopeProfiles.getProfiles(0);
+        return scopeProfiles.getProfiles(index);
     }
 
     private static Optional<AnyValue> getAttribute(Sample sample, ProfilesDictionary dictionary, String name) {
+        // Find the string table index for 'name'
+        int keyStrindex = 0;
+        for (; keyStrindex < dictionary.getStringTableList().size(); ++keyStrindex) {
+            if (dictionary.getStringTable(keyStrindex).equals(name)) break;
+        }
+        if (keyStrindex == dictionary.getStringTableList().size()) {
+            return Optional.empty();
+        }
+
         for (int index : sample.getAttributeIndicesList()) {
             KeyValueAndUnit kv = dictionary.getAttributeTable(index);
-            if (name.equals(kv.getKey())) {
+            if (keyStrindex == kv.getKeyStrindex()) {
                 return Optional.of(kv.getValue());
             }
         }
