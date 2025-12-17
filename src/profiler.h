@@ -68,6 +68,7 @@ class Profiler {
 
     u64 _start_time;
     u64 _stop_time;
+    u64 _loop_time;
     int _epoch;
     u32 _gc_id;
     WaitableMutex _timer_lock;
