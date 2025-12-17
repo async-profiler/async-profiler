@@ -82,12 +82,6 @@ namespace AnyValue {
     const protobuf_index_t string_value = 1;
 }
 
-namespace AggregationTemporality {
-    const u64 unspecified = 0;
-    const u64 delta = 1;
-    const u64 cumulative = 2;
-}
-
 }
 
 #endif // _OTLP_H

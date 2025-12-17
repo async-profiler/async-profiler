@@ -55,8 +55,6 @@ final class OtlpConstants {
 
     static final int FUNCTION_name_strindex = 1;
 
-    static final int AGGREGATION_TEMPORARALITY_cumulative = 2;
-
     static final int
             KEY_VALUE_AND_UNIT_key_strindex = 1,
             KEY_VALUE_AND_UNIT_value = 2;

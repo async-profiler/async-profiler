@@ -1665,7 +1665,6 @@ std::vector<SampleInfo> Profiler::recordStacks(ProtoBuffer& otlp_buffer, FrameNa
     using namespace Otlp;
 
     std::vector<SampleInfo> samples_info;
-
     for (const auto& cts : call_trace_samples) {
         samples_info.push_back(SampleInfo{0, 0, 0});
 

@@ -63,7 +63,6 @@ public class JfrToOtlp extends JfrConverter {
             long stsMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
             proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
             proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getSampleUnits()));
-            proto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
             proto.commitField(stsMark);
 
             proto.field(PROFILE_time_unix_nano, jfr.chunkStartNanos);
@@ -80,7 +79,6 @@ public class JfrToOtlp extends JfrConverter {
             long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
             proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
             proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
-            proto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
             proto.commitField(sttMark);
 
             proto.field(PROFILE_time_unix_nano, jfr.chunkStartNanos);
