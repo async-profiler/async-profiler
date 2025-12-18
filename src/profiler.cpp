@@ -1850,7 +1850,7 @@ void Profiler::stopTimer() {
 void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
     u64 loop_limit = std::min(_stop_time, _loop_time);
-    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : std::min(_stop_time, loop_limit);
+    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : loop_limit;
 
     while (true) {
         {
@@ -2002,9 +2002,9 @@ Error Profiler::run(Arguments& args) {
 
 Error Profiler::restart(Arguments& args) {
     MutexLocker ml(_state_lock);
-    bool restart = OS::micros() < _stop_time;
+    bool should_restart = OS::micros() < _stop_time;
 
-    Error error = stop(restart);
+    Error error = stop(should_restart);
     if (error) {
         return error;
     }
@@ -2020,7 +2020,7 @@ Error Profiler::restart(Arguments& args) {
         }
     }
 
-    if (restart) {
+    if (should_restart) {
         args._fdtransfer = false;  // keep the previous connection
         args._file_num++;
         return start(args, true);
