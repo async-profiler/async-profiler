@@ -28,7 +28,7 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<String> functionPool = new Index<>(String.class, "");
     private final Index<Line> linePool = new Index<>(Line.class, Line.EMPTY);
     private final Index<KeyValue> attributesPool = new Index<>(KeyValue.class, KeyValue.EMPTY);
-    private final Index<int[]> stacksPool = new Index<>(int[].class, new int[0]);
+    private final Index<IntArrayWrapper> stacksPool = new Index<>(IntArrayWrapper.class, IntArrayWrapper.EMPTY);
     private final int threadNameIndex = stringPool.index(OTLP_THREAD_NAME);
 
     private final Proto proto = new Proto(1024);
@@ -126,10 +126,10 @@ public class JfrToOtlp extends JfrConverter {
             proto.commitField(locMark);
         }
 
-        for (int[] stack : stacksPool.keys()) {
+        for (IntArrayWrapper stack : stacksPool.keys()) {
             long stackMark = proto.startField(PROFILES_DICTIONARY_stack_table, MSG_LARGE);
             long locationIndicesMark = proto.startField(STACK_location_indices, MSG_LARGE);
-            for (int locationIdx : stack) {
+            for (int locationIdx : stack.array) {
                 proto.writeInt(locationIdx);
             }
             proto.commitField(locationIndicesMark);
@@ -203,13 +203,13 @@ public class JfrToOtlp extends JfrConverter {
             samplesInfo.add(si);
         }
 
-        private int[] makeStack(int stackTraceId) {
+        private IntArrayWrapper makeStack(int stackTraceId) {
             StackTrace st = jfr.stackTraces.get(stackTraceId);
             int[] stack = new int[st.methods.length];
             for (int i = 0; i < st.methods.length; ++i) {
                 stack[i] = linePool.index(makeLine(st, i));
             }
-            return stack;
+            return new IntArrayWrapper(stack);
         }
 
         private Line makeLine(StackTrace stackTrace, int i) {
@@ -272,6 +272,28 @@ public class JfrToOtlp extends JfrConverter {
             int result = 17;
             result = 31 * result + keyStrindex;
             return 31 * result + value.hashCode();
+        }
+    }
+
+    private static final class IntArrayWrapper {
+        public static final IntArrayWrapper EMPTY = new IntArrayWrapper(new int[0]);
+
+        private final int[] array;
+        private final int hash;
+
+        public IntArrayWrapper(int[] array) {
+            this.array = array;
+            this.hash = Arrays.hashCode(array);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof int[] && Arrays.equals(array, (int[]) o);
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
         }
     }
 }
