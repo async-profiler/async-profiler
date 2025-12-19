@@ -131,8 +131,6 @@ class Profiler {
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
-    void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, const SampleTypeStrings& st_strings, u64 duration_nanos, bool count);
-
     u64 addTimeout(u64 start_micros, int timeout);
     void startTimer();
     void stopTimer();

@@ -1700,11 +1700,12 @@ std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, In
     return samples_info;
 }
 
-void Profiler::recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, const SampleTypeStrings& st_strings, u64 duration_nanos, bool count) {
+void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, const SampleTypeStrings& st_strings, 
+                       u64 start_nanos, u64 duration_nanos, bool count) {
     using namespace Otlp;
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    otlp_buffer.fieldFixed64(Profile::time_unix_nano, _start_time * 1000ULL);
+    otlp_buffer.fieldFixed64(Profile::time_unix_nano, start_nanos);
     otlp_buffer.field(Profile::duration_nano, duration_nanos);
 
     recordSampleType(otlp_buffer, st_strings.engine_type_strindex, count ? st_strings.count_strindex : st_strings.engine_units_strindex);
@@ -1734,6 +1735,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
     u64 duration_nanos = (OS::micros() - _start_time) * 1000ULL;
+    u64 start_nanos = _start_time * 1000ULL;
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     const SampleTypeStrings sts{strings.indexOf(_engine->type()), strings.indexOf(_engine->units()), strings.indexOf("count")};
 
@@ -1789,8 +1791,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
 
-    recordOtlpProfile(otlp_buffer, samples_info, sts, duration_nanos, true  /* count */);
-    recordOtlpProfile(otlp_buffer, samples_info, sts, duration_nanos, false /* count */);
+    recordOtlpProfile(otlp_buffer, samples_info, sts, start_nanos, duration_nanos, true  /* count */);
+    recordOtlpProfile(otlp_buffer, samples_info, sts, start_nanos, duration_nanos, false /* count */);
 
     otlp_buffer.commitMessage(scope_profiles_mark);
     otlp_buffer.commitMessage(resource_profiles_mark);
