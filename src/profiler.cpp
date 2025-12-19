@@ -966,7 +966,7 @@ void Profiler::updateNativeThreadNames() {
     }
 }
 
-bool Profiler::excludeTrace(FrameName* fn, CallTrace* trace) {
+static bool excludeTrace(FrameName* fn, CallTrace* trace) {
     bool check_include = fn->hasIncludeList();
     bool check_exclude = fn->hasExcludeList();
     if (!(check_include || check_exclude)) {
@@ -1661,7 +1661,9 @@ struct SampleInfo {
     u64 counter;
 };
 
-std::vector<SampleInfo> Profiler::recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, Index& thread_names, Index& functions, const std::vector<CallTraceSample*>& call_trace_samples) {
+std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, Index& thread_names_index, Index& functions, 
+                                     const std::vector<CallTraceSample*>& call_trace_samples, Mutex& thread_names_lock,
+                                     ThreadMap& thread_names) {
     using namespace Otlp;
 
     std::vector<SampleInfo> samples_info;
@@ -1680,10 +1682,10 @@ std::vector<SampleInfo> Profiler::recordStacks(ProtoBuffer& otlp_buffer, FrameNa
         for (int j = 0; j < trace->num_frames; j++) {
             if (trace->frames[j].bci == BCI_THREAD_ID) {
                 int tid = (int)(uintptr_t) trace->frames[j].method_id;
-                MutexLocker ml(_thread_names_lock);
-                ThreadMap::iterator it = _thread_names.find(tid);
-                if (it != _thread_names.end()) {
-                    si.thread_name_index = thread_names.indexOf(it->second);
+                MutexLocker ml(thread_names_lock);
+                ThreadMap::iterator it = thread_names.find(tid);
+                if (it != thread_names.end()) {
+                    si.thread_name_index = thread_names_index.indexOf(it->second);
                 }
                 continue;
             }
@@ -1737,7 +1739,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
 
-    std::vector<SampleInfo> samples_info = recordStacks(otlp_buffer, fn, thread_names, functions, call_trace_samples);
+    std::vector<SampleInfo> samples_info = recordStacks(otlp_buffer, fn, thread_names, functions, call_trace_samples, 
+                                                        _thread_names_lock, _thread_names);
 
     // Write mapping_table. Not currently used, but required by some parsers
     protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
