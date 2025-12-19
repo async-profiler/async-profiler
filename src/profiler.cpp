@@ -1661,7 +1661,7 @@ struct SampleInfo {
     size_t thread_name_index;
 };
 
-std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, Index& thread_names_index, Index& functions, 
+std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, Index& thread_names_index, Index& functions,
                                      const std::vector<CallTraceSample*>& call_trace_samples) {
     using namespace Otlp;
 
@@ -1669,7 +1669,7 @@ std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, In
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
-        
+
         samples_info.push_back(SampleInfo{cts->samples, cts->counter, 0 /* thread_name_index */});
 
         protobuf_mark_t stack_mark = otlp_buffer.startMessage(ProfilesDictionary::stack_table);
@@ -1690,7 +1690,7 @@ std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, In
     return samples_info;
 }
 
-void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, const SampleTypeStrings& st_strings, 
+void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, const SampleTypeStrings& st_strings,
                        u64 start_nanos, u64 duration_nanos, bool count) {
     using namespace Otlp;
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
