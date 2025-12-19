@@ -194,7 +194,7 @@ class Profiler {
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, Writer& out);
-    Error restart(Arguments& args);
+    Error expire(Arguments& args, bool restart);
     void shutdown(Arguments& args);
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);

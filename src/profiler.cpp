@@ -1863,7 +1863,7 @@ void Profiler::timerLoop(void* timer_id) {
         }
 
         if ((current_micros = OS::micros()) >= loop_limit) {
-            restart(_global_args);
+            expire(_global_args, OS::micros() < _stop_time);
             return;
         }
 
@@ -2000,11 +2000,10 @@ Error Profiler::run(Arguments& args) {
     }
 }
 
-Error Profiler::restart(Arguments& args) {
+Error Profiler::expire(Arguments& args, bool restart) {
     MutexLocker ml(_state_lock);
-    bool should_restart = OS::micros() < _stop_time;
 
-    Error error = stop(should_restart);
+    Error error = stop(restart);
     if (error) {
         return error;
     }
@@ -2020,7 +2019,7 @@ Error Profiler::restart(Arguments& args) {
         }
     }
 
-    if (should_restart) {
+    if (restart) {
         args._fdtransfer = false;  // keep the previous connection
         args._file_num++;
         return start(args, true);
