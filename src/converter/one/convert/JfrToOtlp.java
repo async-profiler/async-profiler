@@ -199,7 +199,7 @@ public class JfrToOtlp extends JfrConverter {
             long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
             long timeNanos = jfr.chunkStartNanos + nanosFromStart;
             SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, samples,
-                                            factor == 1.0 ? value : (long) (value * factor));
+                                           factor == 1.0 ? value : (long) (value * factor));
             samplesInfo.add(si);
         }
 
