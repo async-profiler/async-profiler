@@ -1863,7 +1863,7 @@ void Profiler::timerLoop(void* timer_id) {
         }
 
         if ((current_micros = OS::micros()) >= loop_limit) {
-            expire(_global_args, OS::micros() < _stop_time);
+            expire(_global_args, current_micros < _stop_time);
             return;
         }
 
