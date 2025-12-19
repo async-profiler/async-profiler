@@ -1665,6 +1665,12 @@ std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, In
                                      const std::vector<CallTraceSample*>& call_trace_samples) {
     using namespace Otlp;
 
+    {
+        // stack_table[0] must always be zero value (Stack{}) and present.
+        protobuf_mark_t stack_mark = otlp_buffer.startMessage(ProfilesDictionary::stack_table);
+        otlp_buffer.commitMessage(stack_mark);
+    }
+
     std::vector<SampleInfo> samples_info;
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
@@ -1703,7 +1709,8 @@ void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& 
     for (size_t i = 0; i < samples_info.size(); ++i) {
         const SampleInfo& si = samples_info[i];
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::samples, 1);
-        otlp_buffer.field(Sample::stack_index, i);
+        // stack_table[0] is the empty stack
+        otlp_buffer.field(Sample::stack_index, i + 1);
         if (si.thread_name_index != 0) {
             otlp_buffer.field(Sample::attribute_indices, si.thread_name_index);
         }
