@@ -5,7 +5,7 @@
 
 package test.otlp;
 
-import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.*;
@@ -17,7 +17,6 @@ import one.jfr.JfrReader;
 import one.profiler.test.*;
 
 import io.opentelemetry.proto.common.v1.AnyValue;
-import io.opentelemetry.proto.profiles.v1development.KeyValueAndUnit;
 import io.opentelemetry.proto.profiles.v1development.*;
 
 public class OtlpTests {
@@ -56,9 +55,7 @@ public class OtlpTests {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
-        Path otlp = getTempFile();
-        JfrToOtlp.convert(p.getFilePath("%f"), otlp.toString(), new Arguments("--cpu", "--output", "otlp"));
-        ProfilesData profilesData = readFile(otlp);
+        ProfilesData profilesData = profilesDataFromJfr(p.getFile("%f").toPath(), new Arguments("--cpu", "--output", "otlp"));
 
         // counter
         checkThreadNames(getProfile(profilesData, 0), profilesData.getDictionary());
@@ -91,9 +88,7 @@ public class OtlpTests {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
-        Path otlp = getTempFile();
-        JfrToOtlp.convert(p.getFilePath("%f"), otlp.toString(), new Arguments("--cpu", "--output", "otlp"));
-        ProfilesData profilesData = readFile(otlp);
+        ProfilesData profilesData = profilesDataFromJfr(p.getFile("%f").toPath(), new Arguments("--cpu", "--output", "otlp"));
 
         // counter
         checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
@@ -117,12 +112,19 @@ public class OtlpTests {
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
-        return readFile(p.getFile("%f").toPath());
+        byte[] profileBytes = Files.readAllBytes(p.getFile("%f").toPath());
+        return ProfilesData.parseFrom(profileBytes);
     }
 
-    private static ProfilesData readFile(Path path) throws IOException {
-        byte[] profileBytes = Files.readAllBytes(path);
-        return ProfilesData.parseFrom(profileBytes);
+    private static ProfilesData profilesDataFromJfr(Path jfrPath, Arguments args) throws Exception {
+        JfrToOtlp converter;
+        try (JfrReader jfr = new JfrReader(jfrPath.toString())) {
+            converter = new JfrToOtlp(jfr, args);
+            converter.convert();
+        }
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        converter.dump(os);
+        return ProfilesData.parseFrom(os.toByteArray());
     }
 
     private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary) {
@@ -187,11 +189,5 @@ public class OtlpTests {
     // where it's harder to detect.
     private static void classpathCheck() {
         ProfilesData.newBuilder();
-    }
-
-    private static Path getTempFile() throws IOException {
-        Path tempFile = Files.createTempFile("async-profiler-test-out-", ".pb");
-        tempFile.toFile().deleteOnExit();
-        return tempFile;
     }
 }
