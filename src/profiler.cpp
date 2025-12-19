@@ -1641,12 +1641,6 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-struct SampleTypeStrings {
-    size_t engine_type_strindex;
-    size_t engine_units_strindex;
-    size_t count_strindex;
-};
-
 static void recordSampleType(ProtoBuffer& otlp_buffer, size_t type_strindex, size_t unit_strindex) {
     using namespace Otlp;
     protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type, 1);
@@ -1697,7 +1691,7 @@ std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, In
     return samples_info;
 }
 
-void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, const SampleTypeStrings& st_strings,
+void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& samples_info, size_t type_strindex, size_t unit_strindex,
                        u64 start_nanos, u64 duration_nanos, bool count) {
     using namespace Otlp;
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
@@ -1705,7 +1699,7 @@ void recordOtlpProfile(ProtoBuffer& otlp_buffer, const std::vector<SampleInfo>& 
     otlp_buffer.fieldFixed64(Profile::time_unix_nano, start_nanos);
     otlp_buffer.field(Profile::duration_nano, duration_nanos);
 
-    recordSampleType(otlp_buffer, st_strings.engine_type_strindex, count ? st_strings.count_strindex : st_strings.engine_units_strindex);
+    recordSampleType(otlp_buffer, type_strindex, unit_strindex);
 
     for (size_t i = 0; i < samples_info.size(); ++i) {
         const SampleInfo& si = samples_info[i];
@@ -1735,7 +1729,9 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     u64 duration_nanos = (OS::micros() - _start_time) * 1000ULL;
     u64 start_nanos = _start_time * 1000ULL;
     // Record sample type strings for later use
-    const SampleTypeStrings sts{strings.indexOf(_engine->type()), strings.indexOf(_engine->units()), strings.indexOf("count")};
+    size_t engine_type_strindex = strings.indexOf(_engine->type());
+    size_t count_strindex = strings.indexOf("count");
+    size_t engine_unit_strindex = strings.indexOf(_engine->units());
 
     protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
 
@@ -1789,8 +1785,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
 
-    recordOtlpProfile(otlp_buffer, samples_info, sts, start_nanos, duration_nanos, true  /* count */);
-    recordOtlpProfile(otlp_buffer, samples_info, sts, start_nanos, duration_nanos, false /* count */);
+    recordOtlpProfile(otlp_buffer, samples_info, engine_type_strindex, count_strindex, start_nanos, duration_nanos, true  /* count */);
+    recordOtlpProfile(otlp_buffer, samples_info, engine_type_strindex, engine_unit_strindex, start_nanos, duration_nanos, false /* count */);
 
     otlp_buffer.commitMessage(scope_profiles_mark);
     otlp_buffer.commitMessage(resource_profiles_mark);
