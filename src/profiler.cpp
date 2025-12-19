@@ -1676,13 +1676,12 @@ std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, In
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
-        samples_info.push_back(SampleInfo{cts->samples, cts->counter, 0 /* thread_name_index */});
-
         protobuf_mark_t stack_mark = otlp_buffer.startMessage(ProfilesDictionary::stack_table);
         protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Stack::location_indices);
+        size_t thread_name_index_value = 0;
         for (int j = 0; j < trace->num_frames; j++) {
             if (trace->frames[j].bci == BCI_THREAD_ID) {
-                samples_info.back().thread_name_index = thread_names_index.indexOf(fn.name(trace->frames[j]));
+                thread_name_index_value = thread_names_index.indexOf(fn.name(trace->frames[j]));
                 continue;
             }
 
@@ -1691,6 +1690,8 @@ std::vector<SampleInfo> recordStacks(ProtoBuffer& otlp_buffer, FrameName& fn, In
         }
         otlp_buffer.commitMessage(location_indices_mark);
         otlp_buffer.commitMessage(stack_mark);
+
+        samples_info.push_back(SampleInfo{cts->samples, cts->counter, thread_name_index_value});
     }
 
     return samples_info;
