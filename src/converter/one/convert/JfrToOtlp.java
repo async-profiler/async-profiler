@@ -276,19 +276,19 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class IntArrayWrapper {
-        public static final IntArrayWrapper EMPTY = new IntArrayWrapper(new int[0]);
+        static final IntArrayWrapper EMPTY = new IntArrayWrapper(new int[0]);
 
-        private final int[] array;
-        private final int hash;
+        final int[] array;
+        final int hash;
 
-        public IntArrayWrapper(int[] array) {
+        IntArrayWrapper(int[] array) {
             this.array = array;
             this.hash = Arrays.hashCode(array);
         }
 
         @Override
         public boolean equals(Object o) {
-            return o instanceof int[] && Arrays.equals(array, (int[]) o);
+            return o instanceof IntArrayWrapper && Arrays.equals(array, ((IntArrayWrapper) o.array));
         }
 
         @Override
