@@ -288,7 +288,7 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public boolean equals(Object o) {
-            return o instanceof IntArrayWrapper && Arrays.equals(array, ((IntArrayWrapper) o.array));
+            return o instanceof IntArrayWrapper && Arrays.equals(array, ((IntArrayWrapper) o).array);
         }
 
         @Override
