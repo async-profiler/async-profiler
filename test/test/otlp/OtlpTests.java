@@ -55,7 +55,7 @@ public class OtlpTests {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
-        ProfilesData profilesData = profilesDataFromJfr(p.getFile("%f").toPath(), new Arguments("--cpu", "--output", "otlp"));
+        ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
 
         // counter
         checkThreadNames(getProfile(profilesData, 0), profilesData.getDictionary());
@@ -88,7 +88,7 @@ public class OtlpTests {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
-        ProfilesData profilesData = profilesDataFromJfr(p.getFile("%f").toPath(), new Arguments("--cpu", "--output", "otlp"));
+        ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
 
         // counter
         checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
@@ -116,9 +116,9 @@ public class OtlpTests {
         return ProfilesData.parseFrom(profileBytes);
     }
 
-    private static ProfilesData profilesDataFromJfr(Path jfrPath, Arguments args) throws Exception {
+    private static ProfilesData profilesDataFromJfr(String jfrPath, Arguments args) throws Exception {
         JfrToOtlp converter;
-        try (JfrReader jfr = new JfrReader(jfrPath.toString())) {
+        try (JfrReader jfr = new JfrReader(jfrPath)) {
             converter = new JfrToOtlp(jfr, args);
             converter.convert();
         }
