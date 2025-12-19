@@ -39,10 +39,6 @@ union CallTraceBuffer {
 class FrameName;
 class NMethod;
 class StackContext;
-class ProtoBuffer;
-class Index;
-class SampleInfo;
-class SampleTypeStrings;
 
 enum State {
     NEW,
