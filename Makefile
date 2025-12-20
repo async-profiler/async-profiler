@@ -69,8 +69,8 @@ SOURCES := $(sort $(wildcard src/*.cpp))
 HEADERS := $(wildcard src/*.h)
 RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
-API_SOURCE_PATH := src/api/one/profiler
-API_SOURCES := $(wildcard $(API_SOURCE_PATH)/*.java)
+API_SOURCES := $(wildcard src/api/one/profiler/*.java)
+JAR_MANIFEST := src/api/one/profiler/MANIFEST.MF
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java' ! -path 'test/stubs/*')
 TESTS ?=
@@ -197,10 +197,10 @@ build/$(ASPROF_HEADER): src/asprof.h
 	mkdir -p build/include
 	cp -f $< build/include
 
-build/$(API_JAR): $(API_SOURCES)
+build/$(API_JAR): $(API_SOURCES) $(JAR_MANIFEST)
 	mkdir -p build/api
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $(API_SOURCES)
-	$(JAR) cfm $@ $(API_SOURCE_PATH)/MANIFEST.MF -C build/api .
+	$(JAR) cfm $@ $(JAR_MANIFEST) -C build/api .
 	$(RM) -r build/api
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)

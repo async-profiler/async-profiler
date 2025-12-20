@@ -5,19 +5,14 @@
 
 package test.api;
 
-import java.lang.management.ManagementFactory;
-
-import javax.management.AttributeNotFoundException;
-import javax.management.InstanceNotFoundException;
-import javax.management.MBeanException;
-import javax.management.MalformedObjectNameException;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import javax.management.ReflectionException;
-
 import one.profiler.Counter;
 
-public class JavaAgent extends BusyLoops {
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.lang.management.ManagementFactory;
+
+public class JavaAgent {
+
     public static void main(String[] args) throws Exception {
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
         ObjectName obj = new ObjectName("one.profiler:type=AsyncProfiler");
@@ -25,10 +20,10 @@ public class JavaAgent extends BusyLoops {
         String version = (String) mbs.getAttribute(obj, "Version");
         System.out.println(String.format("async-profiler version: %s", version));
 
-        for (int i = 0; i < 5; i++) {
-            method1();
-            method2();
-            method3();
+        for (int i = 0; i < 3; i++) {
+            BusyLoops.method1();
+            BusyLoops.method2();
+            BusyLoops.method3();
         }
 
         String profile = (String) mbs.invoke(

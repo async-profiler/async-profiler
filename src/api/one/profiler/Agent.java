@@ -5,9 +5,8 @@
 
 package one.profiler;
 
-import java.lang.management.ManagementFactory;
-
 import javax.management.ObjectName;
+import java.lang.management.ManagementFactory;
 
 public class Agent {
 
@@ -16,13 +15,12 @@ public class Agent {
     }
 
     public static void agentmain(String args) throws Exception {
-        AsyncProfiler instance = AsyncProfiler.getInstance();
+        AsyncProfiler profiler = AsyncProfiler.getInstance();
         ManagementFactory.getPlatformMBeanServer().registerMBean(
-                instance,
+                profiler,
                 new ObjectName(AsyncProfilerMXBean.OBJECT_NAME));
         if (args != null && !args.isEmpty()) {
-            instance.execute(args);
+            profiler.execute(args);
         }
     }
-
 }
