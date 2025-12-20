@@ -38,4 +38,15 @@ public class ApiTests {
         p.waitForExit();
         assert p.exitCode() == 0;
     }
+
+    @Test(
+        mainClass = JavaAgent.class,
+        output = true,
+        jvmArgs = "-javaagent:build/jar/async-profiler.jar=start,event=cpu,file=%f.collapsed"
+    )
+    public void javaAgent(TestProcess p) throws Exception {
+        Output out = p.waitForExit(TestProcess.STDOUT);
+        assert p.exitCode() == 0;
+        assert out.contains("async-profiler version:");
+    }
 }
