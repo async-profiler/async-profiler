@@ -17,9 +17,9 @@ public class Agent {
 
     public static void agentmain(String args) throws Exception {
         AsyncProfiler instance = AsyncProfiler.getInstance();
-            ManagementFactory.getPlatformMBeanServer().registerMBean(
-                    instance,
-                    new ObjectName(AsyncProfilerMXBean.OBJECT_NAME));
+        ManagementFactory.getPlatformMBeanServer().registerMBean(
+                instance,
+                new ObjectName(AsyncProfilerMXBean.OBJECT_NAME));
         if (args != null && !args.isEmpty()) {
             instance.execute(args);
         }
