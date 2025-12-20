@@ -9,14 +9,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.instrument.Instrumentation;
-import java.lang.management.ManagementFactory;
-
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.MBeanRegistrationException;
-import javax.management.MalformedObjectNameException;
-import javax.management.NotCompliantMBeanException;
-import javax.management.ObjectName;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -28,31 +20,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private static AsyncProfiler instance;
 
     private AsyncProfiler() {
-    }
-
-    public static void premain(String args, Instrumentation instrumentation) {
-        agentmain(args, instrumentation);
-    }
-
-    public static void agentmain(String args, Instrumentation instrumentation) {
-        AsyncProfiler instance = AsyncProfiler.getInstance();
-        try {
-            ManagementFactory.getPlatformMBeanServer().registerMBean(
-                    instance,
-                    new ObjectName(AsyncProfilerMXBean.OBJECT_NAME));
-        } catch (InstanceAlreadyExistsException
-                | MBeanRegistrationException
-                | NotCompliantMBeanException
-                | MalformedObjectNameException e) {
-            throw new IllegalStateException(e);
-        }
-        if (!(args == null || "".equals(args))) {
-            try {
-                instance.execute(args);
-            } catch (IOException e) {
-                throw new IllegalArgumentException(e);
-            }
-        }
     }
 
     public static AsyncProfiler getInstance() {

@@ -1,2 +1,2 @@
-Agent-Class: one.profiler.AsyncProfiler
-Premain-Class: one.profiler.AsyncProfiler
+Agent-Class: one.profiler.Agent
+Premain-Class: one.profiler.Agent
