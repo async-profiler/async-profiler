@@ -15,18 +15,8 @@ import javax.management.ObjectName;
 import javax.management.ReflectionException;
 
 public class JavaAgent {
-
-    public static void main(String[] args) {
-        try {
-            String version = (String) ManagementFactory.getPlatformMBeanServer().getAttribute(new ObjectName("one.profiler:type=AsyncProfiler"), "Version");
-            System.out.println(String.format("async-profiler version: %s", version));
-        } catch (InstanceNotFoundException
-                | AttributeNotFoundException
-                | MalformedObjectNameException
-                | ReflectionException
-                | MBeanException e) {
-            e.printStackTrace();
-        }
+    public static void main(String[] args) throws Exception {
+        String version = (String) ManagementFactory.getPlatformMBeanServer().getAttribute(new ObjectName("one.profiler:type=AsyncProfiler"), "Version");
+        System.out.println(String.format("async-profiler version: %s", version));
     }
-
 }
