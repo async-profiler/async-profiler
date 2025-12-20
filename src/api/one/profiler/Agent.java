@@ -20,7 +20,7 @@ public class Agent {
             ManagementFactory.getPlatformMBeanServer().registerMBean(
                     instance,
                     new ObjectName(AsyncProfilerMXBean.OBJECT_NAME));
-        if (!(args == null || "".equals(args))) {
+        if (args != null && !args.isEmpty()) {
             instance.execute(args);
         }
     }
