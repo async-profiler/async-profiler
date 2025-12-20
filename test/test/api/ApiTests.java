@@ -42,11 +42,15 @@ public class ApiTests {
     @Test(
         mainClass = JavaAgent.class,
         output = true,
-        jvmArgs = "-javaagent:build/jar/async-profiler.jar=start,event=cpu,file=%f.collapsed"
+        jvmArgs = "-javaagent:build/jar/async-profiler.jar=start,event=cpu,interval=1000000,file=%f.collapsed"
     )
     public void javaAgent(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
         assert out.contains("async-profiler version:");
+        Output profile = p.readFile("%f");
+        assert profile.contains("BusyLoops.method1;");
+        assert profile.contains("BusyLoops.method2;");
+        assert profile.contains("BusyLoops.method3;");
     }
 }
