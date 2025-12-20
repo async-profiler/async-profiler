@@ -200,7 +200,7 @@ build/$(ASPROF_HEADER): src/asprof.h
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $(API_SOURCES)
-	$(JAR) cfm $@ $(API_SOURCE_PATH)/manifest.mf -C build/api .
+	$(JAR) cfm $@ $(API_SOURCE_PATH)/MANIFEST.MF -C build/api .
 	$(RM) -r build/api
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
