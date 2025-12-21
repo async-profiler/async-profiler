@@ -648,10 +648,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     if (_features.mixed) {
-        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, _features, event_type);
+        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, _features, event_type);
     } else if (event_type <= MALLOC_SAMPLE) {
         if (_cstack == CSTACK_VM) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, _features, event_type);
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, _features, event_type);
         } else {
             int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
             if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
@@ -663,9 +663,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
             num_frames += java_frames;
         }
     } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
-        VMThread* vm_thread;
-        if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor(), event_type);
+        if (VMStructs::hasStackStructs()) {
+            StackWalkFeatures no_features{};
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, no_features, event_type);
         } else {
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }

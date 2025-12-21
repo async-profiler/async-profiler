@@ -36,8 +36,8 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("test/stackwalker/StackGenerator.main[^;]*;" +
-                "test/stackwalker/StackGenerator.deepFrame[^;]*;" +
+        // Cannot reach stack bottom because of the MAX_WALK_SIZE hard limit
+        assert output.contains("^break_[^;]+;" +
                 "Java_test_stackwalker_StackGenerator_deepFrame;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
