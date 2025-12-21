@@ -492,8 +492,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
 
 void StackWalker::checkFault() {
     // Search for a crash protection context located on the current thread stack.
-    // Since one thread may use multiple contexts due to recursive walkVM calls,
-    // need to walk through all of them and find the nearest one.
+    // Since one thread may use multiple contexts because of simultaneous profiling engines,
+    // we need to walk through all of them and find the nearest one (i.e. the most recent).
     jmp_buf* nearest_ctx = NULL;
     uintptr_t stack_distance = 32768;  // maximum allowed stack distance
     const uintptr_t current_sp = (uintptr_t)&nearest_ctx;
