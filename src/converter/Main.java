@@ -35,6 +35,10 @@ public class Main {
             }
         }
 
+        if (args.leak) {
+            args.nativemem = true;
+        }
+
         for (int i = 0; i < fileCount; i++) {
             String input = args.files.get(i);
             String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
