@@ -29,7 +29,7 @@ public abstract class JfrConverter extends Classifier {
         this.args = args;
 
         EventCollector collector = createCollector(args);
-        this.collector = args.nativemem && args.leak ? new MallocLeakAggregator(collector, args.tail) : collector;
+        this.collector = args.leak ? new MallocLeakAggregator(collector, args.tail) : collector;
     }
 
     public void convert() throws IOException {
