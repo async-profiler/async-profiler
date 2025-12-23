@@ -138,6 +138,20 @@
 		navIndex = -1;
 		document.getElementById('matchval').textContent = matchval = pct(matched, root.width) + '%';
 		document.getElementById('match').style.display = r ? 'inline-block' : 'none';
+
+		// Storing values for render
+        let store_matched_values = [];
+        for (let h = 0; h < levels.length; h++) {
+            for (let i = 0; i < levels[h].length; i++) {
+                let f = levels[h][i];
+                if (pattern && f.title.match(pattern)) {
+                    store_matched_values.push(f);
+                }
+            }
+        }
+        if (store_matched_values.length === 1) {
+            render(store_matched_values[0]);
+        }
 	}
 
 	function render(newRoot, nav) {
