@@ -84,6 +84,10 @@ public class Arguments {
                 throw new IllegalArgumentException(arg);
             }
         }
+
+        if (leak) {
+            nativemem = true;
+        }
     }
 
     private static String alias(char c) {
