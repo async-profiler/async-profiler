@@ -82,8 +82,9 @@ public abstract class JfrConverter extends Classifier {
     }
 
     protected void collectEvents(TimeIntervals timeIntervals) throws IOException {
-        Class<? extends Event> eventClass = args.nativelock ? NativeLockEvent.class
-                : args.nativemem ? MallocEvent.class
+        // args.nativemem ? MallocEvent.class should always be first for the leak detection feature
+        Class<? extends Event> eventClass = args.nativemem ? MallocEvent.class
+                : args.nativelock ? NativeLockEvent.class
                 : args.live ? LiveObject.class
                 : args.alloc ? AllocationSample.class
                 : args.lock ? ContendedLock.class
