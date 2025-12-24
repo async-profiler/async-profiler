@@ -8,6 +8,7 @@ package one.heatmap;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.*;
+import java.util.regex.Pattern;
 
 import one.convert.*;
 import one.jfr.DictionaryInt;
@@ -394,8 +395,8 @@ public class Heatmap {
         // Maps stack trace ID to prototype ID in stackTracesRemap
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final Map<MethodKey, Integer> methodCache = new HashMap<>();
-        final Index<Method> methods = new Index<>(Method.class, Method.EMPTY);
-        final Index<String> symbolTable = new Index<>(String.class, "");
+        final BiDirectionalIndex<Method> methods = new BiDirectionalIndex<>(Method.class, Method.EMPTY);
+        final BiDirectionalIndex<String> symbolTable = new BiDirectionalIndex<>(String.class, "");
 
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
@@ -406,18 +407,50 @@ public class Heatmap {
             this.sampleList = new SampleList(blockDurationMs);
         }
 
+        private String resolveFrameName(Method method) {
+            if (method.className == 0) {
+                return symbolTable.getKey(method.methodName);
+            }
+            if (method.methodName == 0) {
+                return symbolTable.getKey(method.className);
+            }
+            return symbolTable.getKey(method.className) + "." + symbolTable.getKey(method.methodName);
+        }
+
+        private boolean excludeStack(int[] stack, int stackSize) {
+            Pattern include = args.include;
+            Pattern exclude = args.exclude;
+            if (include == null && exclude == null) {
+                return false;
+            }
+            for (int i = 0; i < stackSize; i++) {
+                Method method = methods.getKey(stack[i]);
+                String name = resolveFrameName(method);
+                if (exclude != null && exclude.matcher(name).matches()) {
+                    return true;
+                }
+                if (include != null && include.matcher(name).matches()) {
+                    if (exclude == null) return false;
+                    include = null;
+                }
+            }
+            return include != null;
+        }
+
         public void addEvent(int stackTraceId, int threadId, int classId, byte type, long timeMs) {
-            if (sampleList.getRecordsCount() >= LIMIT) {
+            if (sampleList.getRecordsCount() >= LIMIT || stackTraceId == 0) {
                 return;
             }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
+            int[] prototype = stackTracesRemap.get(prototypeId);
             if (classId == 0 && !args.threads) {
-                sampleList.add(prototypeId, timeMs);
+                if (!excludeStack(prototype, prototype.length)) {
+                    sampleList.add(prototypeId, timeMs);
+                }
                 return;
             }
 
-            int[] prototype = stackTracesRemap.get(prototypeId);
             int stackSize = prototype.length + (args.threads ? 1 : 0) + (classId != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
                 cachedStackTrace = new int[stackSize * 2];
@@ -435,7 +468,9 @@ public class Heatmap {
                 cachedStackTrace[stackSize - 1] = getMethodIndex(key);
             }
 
-            sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
+            if (!excludeStack(cachedStackTrace, stackSize)) {
+                sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
+            }
         }
 
         public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {
