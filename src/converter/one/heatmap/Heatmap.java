@@ -398,6 +398,9 @@ public class Heatmap {
         final BiDirectionalIndex<Method> methods = new BiDirectionalIndex<>(Method.class, Method.EMPTY);
         final BiDirectionalIndex<String> symbolTable = new BiDirectionalIndex<>(String.class, "");
 
+        // Cache for exclude/include filter results per prototype ID
+        final Map<Integer, Boolean> excludeCache = new HashMap<>();
+
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
 
@@ -417,12 +420,24 @@ public class Heatmap {
             return symbolTable.getKey(method.className) + "." + symbolTable.getKey(method.methodName);
         }
 
-        private boolean excludeStack(int[] stack, int stackSize) {
-            Pattern include = args.include;
-            Pattern exclude = args.exclude;
-            if (include == null && exclude == null) {
+        private boolean excludeStack(int prototypeId, int[] stack, int stackSize) {
+            if (args.include == null && args.exclude == null) {
                 return false;
             }
+
+            Boolean cached = excludeCache.get(prototypeId);
+            if (cached != null) {
+                return cached;
+            }
+
+            boolean result = applyIncludeExcludeFilter(stack, stackSize);
+            excludeCache.put(prototypeId, result);
+            return result;
+        }
+
+        private boolean applyIncludeExcludeFilter(int[] stack, int stackSize) {
+            Pattern include = args.include;
+            Pattern exclude = args.exclude;
             for (int i = 0; i < stackSize; i++) {
                 Method method = methods.getKey(stack[i]);
                 String name = resolveFrameName(method);
@@ -445,7 +460,7 @@ public class Heatmap {
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
             if (classId == 0 && !args.threads) {
-                if (!excludeStack(prototype, prototype.length)) {
+                if (!excludeStack(prototypeId, prototype, prototype.length)) {
                     sampleList.add(prototypeId, timeMs);
                 }
                 return;
@@ -468,8 +483,9 @@ public class Heatmap {
                 cachedStackTrace[stackSize - 1] = getMethodIndex(key);
             }
 
-            if (!excludeStack(cachedStackTrace, stackSize)) {
-                sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
+            int newPrototypeId = stackTracesRemap.index(cachedStackTrace, stackSize);
+            if (!excludeStack(newPrototypeId, cachedStackTrace, stackSize)) {
+                sampleList.add(newPrototypeId, timeMs);
             }
         }
 
