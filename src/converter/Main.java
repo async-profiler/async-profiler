@@ -140,6 +140,10 @@ public class Main {
                 "                        and for default stacktraces from flamegraph to icicle\n" +
                 "  -I --include REGEX    Include only stacks with the specified frames\n" +
                 "  -X --exclude REGEX    Exclude stacks with the specified frames\n" +
-                "     --highlight REGEX  Highlight frames matching the given pattern\n");
+                "     --highlight REGEX  Highlight frames matching the given pattern\n" +
+                "\n" +
+                "Heatmap options:\n" +
+                "  -I --include REGEX    Include only stacks with the specified frames\n" +
+                "  -X --exclude REGEX    Exclude stacks with the specified frames\n");
     }
 }

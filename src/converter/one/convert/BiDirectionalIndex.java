@@ -1,3 +1,8 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package one.convert;
 
 import java.util.HashMap;
