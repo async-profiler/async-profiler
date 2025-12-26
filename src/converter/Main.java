@@ -104,6 +104,8 @@ public class Main {
                 "\n" +
                 "Conversion options:\n" +
                 "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap, otlp\n" +
+                "  -I --include REGEX    Include only stacks with the specified frames (only for flamegraph and heatmap)\n" +
+                "  -X --exclude REGEX    Exclude stacks with the specified frames (only for flamegraph and heatmap)\n" +
                 "\n" +
                 "JFR options:\n" +
                 "     --cpu              CPU profile (ExecutionSample)\n" +
@@ -138,12 +140,6 @@ public class Main {
                 "  -r --reverse          Reverse stack traces (defaults to icicle graph)\n" +
                 "  -i --inverted         Toggles the layout for reversed stacktraces from icicle to flamegraph\n" +
                 "                        and for default stacktraces from flamegraph to icicle\n" +
-                "  -I --include REGEX    Include only stacks with the specified frames\n" +
-                "  -X --exclude REGEX    Exclude stacks with the specified frames\n" +
-                "     --highlight REGEX  Highlight frames matching the given pattern\n" +
-                "\n" +
-                "Heatmap options:\n" +
-                "  -I --include REGEX    Include only stacks with the specified frames\n" +
-                "  -X --exclude REGEX    Exclude stacks with the specified frames\n");
+                "     --highlight REGEX  Highlight frames matching the given pattern\n");
     }
 }
