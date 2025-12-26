@@ -5,26 +5,34 @@
 
 package one.convert;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 
 public class BiDirectionalIndex<T> extends Index<T> {
-    private final Map<Integer, T> reverseIndex;
+    private T[] reverseIndex;
 
     public BiDirectionalIndex(Class<T> cls, T empty) {
-        super(cls, empty);
-        this.reverseIndex = new HashMap<>();
-        this.reverseIndex.put(0, empty);
+        this(cls, empty, 256);
+    }
+
+    public BiDirectionalIndex(Class<T> cls, T empty, int initialCapacity) {
+        super(cls, empty, initialCapacity);
+        // Super already checks if initial capacity is < 0
+        initialCapacity = initialCapacity == 0 ? 1 : initialCapacity;
+        this.reverseIndex = (T[]) new Object[initialCapacity];
+        this.reverseIndex[0] = empty;
     }
 
     @Override
     public int index(T key) {
         int idx = super.index(key);
-        reverseIndex.put(idx, key);
+        if (idx >= reverseIndex.length) {
+            this.reverseIndex = Arrays.copyOf(reverseIndex, reverseIndex.length * 2);
+        }
+        reverseIndex[idx] = key;
         return idx;
     }
 
     public T getKey(int idx) {
-        return reverseIndex.get(idx);
+        return reverseIndex[idx];
     }
 }
