@@ -424,15 +424,7 @@ public class Heatmap {
             if (args.include == null && args.exclude == null) {
                 return true;
             }
-
-            Boolean cached = includeCache.get(prototypeId);
-            if (cached != null) {
-                return cached;
-            }
-
-            boolean shouldInclude = applyIncludeExcludeFilter(stack, stackSize);
-            includeCache.put(prototypeId, shouldInclude);
-            return shouldInclude;
+            return includeCache.computeIfAbsent(prototypeId, k -> applyIncludeExcludeFilter(stack, stackSize));
         }
 
         // Returns true if the stack should be included
