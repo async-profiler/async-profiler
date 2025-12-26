@@ -399,7 +399,7 @@ public class Heatmap {
         final BiDirectionalIndex<String> symbolTable = new BiDirectionalIndex<>(String.class, "");
 
         // Cache for exclude/include filter results per prototype ID
-        final Map<Integer, Boolean> excludeCache = new HashMap<>();
+        final Map<Integer, Boolean> includeCache = new HashMap<>();
 
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
@@ -420,21 +420,22 @@ public class Heatmap {
             return symbolTable.getKey(method.className) + "." + symbolTable.getKey(method.methodName);
         }
 
-        private boolean excludeStack(int prototypeId, int[] stack, int stackSize) {
+        private boolean includeStack(int prototypeId, int[] stack, int stackSize) {
             if (args.include == null && args.exclude == null) {
-                return false;
+                return true;
             }
 
-            Boolean cached = excludeCache.get(prototypeId);
+            Boolean cached = includeCache.get(prototypeId);
             if (cached != null) {
                 return cached;
             }
 
-            boolean result = applyIncludeExcludeFilter(stack, stackSize);
-            excludeCache.put(prototypeId, result);
-            return result;
+            boolean shouldInclude = applyIncludeExcludeFilter(stack, stackSize);
+            includeCache.put(prototypeId, shouldInclude);
+            return shouldInclude;
         }
 
+        // Returns true if the stack should be included
         private boolean applyIncludeExcludeFilter(int[] stack, int stackSize) {
             Pattern include = args.include;
             Pattern exclude = args.exclude;
@@ -442,14 +443,14 @@ public class Heatmap {
                 Method method = methods.getKey(stack[i]);
                 String name = resolveFrameName(method);
                 if (exclude != null && exclude.matcher(name).matches()) {
-                    return true;
+                    return false;
                 }
                 if (include != null && include.matcher(name).matches()) {
-                    if (exclude == null) return false;
+                    if (exclude == null) return true;
                     include = null;
                 }
             }
-            return include != null;
+            return include == null;
         }
 
         public void addEvent(int stackTraceId, int threadId, int classId, byte type, long timeMs) {
@@ -460,7 +461,7 @@ public class Heatmap {
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
             if (classId == 0 && !args.threads) {
-                if (!excludeStack(prototypeId, prototype, prototype.length)) {
+                if (includeStack(prototypeId, prototype, prototype.length)) {
                     sampleList.add(prototypeId, timeMs);
                 }
                 return;
@@ -484,7 +485,7 @@ public class Heatmap {
             }
 
             int newPrototypeId = stackTracesRemap.index(cachedStackTrace, stackSize);
-            if (!excludeStack(newPrototypeId, cachedStackTrace, stackSize)) {
+            if (includeStack(newPrototypeId, cachedStackTrace, stackSize)) {
                 sampleList.add(newPrototypeId, timeMs);
             }
         }
