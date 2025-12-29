@@ -8,8 +8,10 @@
 
 #include "engine.h"
 #include "frameName.h"
+#include "index.h"
 #include "protobuf.h"
 #include "writer.h"
+#include <vector>
 
 namespace Otlp {
 
