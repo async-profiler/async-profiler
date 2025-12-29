@@ -17,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
@@ -147,6 +148,7 @@ public class JfrToOtlp extends JfrConverter {
     private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
         private final List<Integer> locationIndices;
         private final double factor = counterFactor();
+        private final Map<String, Boolean> includeCache;
 
         // JFR constant pool stacktrace ID to Range
         private final Map<Integer, Range> idToRange = new HashMap<>();
@@ -156,10 +158,44 @@ public class JfrToOtlp extends JfrConverter {
 
         public OtlpEventToSampleVisitor(List<Integer> locationIndices) {
             this.locationIndices = locationIndices;
+            this.includeCache = new HashMap<>();
+        }
+
+        private boolean includeEvent(Event event) {
+            if (args.include == null && args.exclude == null) {
+                return true;
+            }
+            StackTrace st = jfr.stackTraces.get(event.stackTraceId);
+            int tid = event.tid;
+            return includeCache.computeIfAbsent(event.stackTraceId + ":" + event.tid, k -> includeStack(st, tid));
+        }
+
+        private boolean includeStack(StackTrace stackTrace, int threadId) {
+            Pattern include = args.include;
+            Pattern exclude = args.exclude;
+            for (int i = 0; i < stackTrace.methods.length + 1; i++) {
+                String name;
+                if (i == stackTrace.methods.length) {
+                    name = getThreadName(threadId);
+                } else {
+                    name = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
+                }
+                if (exclude != null && exclude.matcher(name).matches()) {
+                    return false;
+                }
+                if (include != null && include.matcher(name).matches()) {
+                    if (exclude == null) return true;
+                    include = null;
+                }
+            }
+            return include == null;
         }
 
         @Override
         public void visit(Event event, long samples, long value) {
+            if (!includeEvent(event)) {
+                return;
+            }
             long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
             long timeNanos = jfr.chunkStartNanos + nanosFromStart;
 
