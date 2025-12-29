@@ -71,6 +71,11 @@ class FrameName {
     const char* typeSuffix(FrameTypeId type);
     void javaMethodName(jmethodID method);
     void javaClassName(const char* symbol, size_t length, int style);
+    bool include(const char* frame_name);
+    bool exclude(const char* frame_name);
+
+    bool hasIncludeList() { return !_include.empty(); }
+    bool hasExcludeList() { return !_exclude.empty(); }
 
   public:
     FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names);
@@ -79,11 +84,6 @@ class FrameName {
     const char* name(ASGCT_CallFrame& frame, bool for_matching = false);
     FrameTypeId type(ASGCT_CallFrame& frame);
 
-    bool hasIncludeList() { return !_include.empty(); }
-    bool hasExcludeList() { return !_exclude.empty(); }
-
-    bool include(const char* frame_name);
-    bool exclude(const char* frame_name);
     bool excludeTrace(CallTrace* trace);
 };
 
