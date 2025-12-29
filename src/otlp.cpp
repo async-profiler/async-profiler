@@ -9,8 +9,6 @@
 namespace Otlp {
 
 void Recorder::recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples) {
-    using namespace Otlp;
-
     protobuf_mark_t dictionary_mark = _otlp_buffer.startMessage(ProfilesData::dictionary);
 
     recordStacks(call_trace_samples);
@@ -61,8 +59,6 @@ void Recorder::recordProfilesDictionary(const std::vector<CallTraceSample*>& cal
 }
 
 void Recorder::recordStacks(const std::vector<CallTraceSample*>& call_trace_samples) {
-    using namespace Otlp;
-
     {
         // stack_table[0] must always be zero value (Stack{}) and present.
         protobuf_mark_t stack_mark = _otlp_buffer.startMessage(ProfilesDictionary::stack_table);
@@ -93,7 +89,6 @@ void Recorder::recordStacks(const std::vector<CallTraceSample*>& call_trace_samp
 }
 
 void Recorder::recordSampleType(size_t type_strindex, size_t unit_strindex) {
-    using namespace Otlp;
     protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Profile::sample_type, 1);
     _otlp_buffer.field(ValueType::type_strindex, type_strindex);
     _otlp_buffer.field(ValueType::unit_strindex, unit_strindex);
@@ -101,8 +96,6 @@ void Recorder::recordSampleType(size_t type_strindex, size_t unit_strindex) {
 }
 
 void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool count) {
-    using namespace Otlp;
-
     protobuf_mark_t profile_mark = _otlp_buffer.startMessage(ScopeProfiles::profiles);
 
     _otlp_buffer.fieldFixed64(Profile::time_unix_nano, _start_nanos);
@@ -126,8 +119,6 @@ void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, boo
 }
 
 void Recorder::recordOtlpProfiles() {
-    using namespace Otlp;
-
     protobuf_mark_t resource_profiles_mark = _otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
 
