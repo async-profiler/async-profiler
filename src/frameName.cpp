@@ -379,3 +379,24 @@ bool FrameName::exclude(const char* frame_name) {
     }
     return false;
 }
+
+bool FrameName::excludeTrace(CallTrace* trace) {
+    bool check_include = hasIncludeList();
+    bool check_exclude = hasExcludeList();
+    if (!(check_include || check_exclude)) {
+        return false;
+    }
+
+    for (int i = 0; i < trace->num_frames; i++) {
+        const char* frame_name = name(trace->frames[i], true);
+        if (check_exclude && exclude(frame_name)) {
+            return true;
+        }
+        if (check_include && include(frame_name)) {
+            check_include = false;
+            if (!check_exclude) break;
+        }
+    }
+
+    return check_include;
+}

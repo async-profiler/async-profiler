@@ -6,7 +6,10 @@
 #ifndef _OTLP_H
 #define _OTLP_H
 
+#include "engine.h"
+#include "frameName.h"
 #include "protobuf.h"
+#include "writer.h"
 
 namespace Otlp {
 
@@ -81,6 +84,54 @@ namespace KeyValueAndUnit {
 namespace AnyValue {
     const protobuf_index_t string_value = 1;
 }
+
+struct SampleInfo {
+    u64 samples;
+    u64 counter;
+    size_t thread_name_index;
+};
+
+class Recorder {
+  private:
+    ProtoBuffer _otlp_buffer;
+    FrameName& _fn;
+    Index _thread_names;
+    Index _functions;
+    Index _strings;
+    std::vector<SampleInfo> _samples_info;
+    const u64 _start_nanos;
+    const u64 _duration_nanos;
+    const size_t _engine_type_strindex;
+    const size_t _count_strindex;
+    const size_t _engine_unit_strindex;
+
+    // Record a profile with a specified sample type
+    void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool count);
+    void recordSampleType(size_t type_strindex, size_t unit_strindex);
+    void recordStacks(const std::vector<CallTraceSample*>& call_trace_samples);
+
+  public:
+    Recorder(Engine* engine, FrameName& fn, u64 start_nanos, u64 duration_nanos) :
+        _otlp_buffer(ProtoBuffer(Otlp::OTLP_BUFFER_INITIAL_SIZE)),
+        _fn(fn),
+        _thread_names(),
+        _functions(),
+        _strings(),
+        _samples_info(),
+        _engine_type_strindex(_strings.indexOf(engine->type())),
+        _engine_unit_strindex(_strings.indexOf(engine->units())),
+        _count_strindex(_strings.indexOf("count")),
+        _start_nanos(start_nanos),
+        _duration_nanos(duration_nanos) {}
+
+    void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);
+    // Record all available profiles
+    void recordOtlpProfiles();
+
+    void write(Writer& out) {
+        out.write((const char*) _otlp_buffer.data(), _otlp_buffer.offset());
+    }
+};
 
 }
 

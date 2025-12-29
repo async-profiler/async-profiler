@@ -14,6 +14,7 @@
 #include "arguments.h"
 #include "mutex.h"
 #include "vmEntry.h"
+#include "callTraceStorage.h"
 
 #ifdef __APPLE__
 #  include <xlocale.h>
@@ -83,6 +84,7 @@ class FrameName {
 
     bool include(const char* frame_name);
     bool exclude(const char* frame_name);
+    bool excludeTrace(CallTrace* trace);
 };
 
 #endif // _FRAMENAME_H
