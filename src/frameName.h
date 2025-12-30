@@ -14,7 +14,6 @@
 #include "arguments.h"
 #include "mutex.h"
 #include "vmEntry.h"
-#include "callTraceStorage.h"
 
 #ifdef __APPLE__
 #  include <xlocale.h>
@@ -25,6 +24,7 @@ typedef std::map<jmethodID, std::string> JMethodCache;
 typedef std::map<int, std::string> ThreadMap;
 typedef std::map<unsigned int, const char*> ClassMap;
 
+class CallTrace;
 
 enum MatchType {
   MATCH_EQUALS,

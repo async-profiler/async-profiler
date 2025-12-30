@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "callTraceStorage.h"
 #include "demangle.h"
 #include "frameName.h"
 #include "profiler.h"
