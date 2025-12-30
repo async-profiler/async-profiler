@@ -242,8 +242,7 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("loop")
-                _loop = true;
-                if (value == NULL || (_timeout = parseTimeout(value)) == -1) {
+                if (value == NULL || (_loop = parseTimeout(value)) == -1) {
                     msg = "Invalid loop duration";
                 }
 

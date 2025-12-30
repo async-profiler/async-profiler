@@ -1,0 +1,2 @@
+Agent-Class: one.profiler.Agent
+Premain-Class: one.profiler.Agent

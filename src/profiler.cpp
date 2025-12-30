@@ -648,10 +648,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     if (_features.mixed) {
-        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, _features, event_type);
+        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, _features, event_type);
     } else if (event_type <= MALLOC_SAMPLE) {
         if (_cstack == CSTACK_VM) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, _features, event_type);
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, _features, event_type);
         } else {
             int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
             if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
@@ -663,9 +663,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
             num_frames += java_frames;
         }
     } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
-        VMThread* vm_thread;
-        if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor(), event_type);
+        if (VMStructs::hasStackStructs()) {
+            StackWalkFeatures no_features{};
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, no_features, event_type);
         } else {
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }
@@ -1246,8 +1246,11 @@ Error Profiler::start(Arguments& args, bool reset) {
     _start_time = OS::micros();
     _epoch++;
 
-    if (args._timeout != 0 || args._output == OUTPUT_JFR) {
-        _stop_time = addTimeout(_start_time, args._timeout);
+    if (args._timeout != 0 || args._loop != 0 || args._output == OUTPUT_JFR) {
+        _loop_time = addTimeout(_start_time, args._loop);
+        if (args._file_num == 0) {
+            _stop_time = addTimeout(_start_time, args._timeout);
+        }
         startTimer();
     }
 
@@ -1707,7 +1710,8 @@ void Profiler::stopTimer() {
 
 void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
-    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : _stop_time;
+    u64 loop_limit = std::min(_stop_time, _loop_time);
+    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : loop_limit;
 
     while (true) {
         {
@@ -1719,8 +1723,8 @@ void Profiler::timerLoop(void* timer_id) {
             if (_timer_id != timer_id) return;
         }
 
-        if ((current_micros = OS::micros()) >= _stop_time) {
-            restart(_global_args);
+        if ((current_micros = OS::micros()) >= loop_limit) {
+            expire(_global_args, current_micros < _stop_time);
             return;
         }
 
@@ -1857,10 +1861,10 @@ Error Profiler::run(Arguments& args) {
     }
 }
 
-Error Profiler::restart(Arguments& args) {
+Error Profiler::expire(Arguments& args, bool restart) {
     MutexLocker ml(_state_lock);
 
-    Error error = stop(args._loop);
+    Error error = stop(restart);
     if (error) {
         return error;
     }
@@ -1876,7 +1880,7 @@ Error Profiler::restart(Arguments& args) {
         }
     }
 
-    if (args._loop) {
+    if (restart) {
         args._fdtransfer = false;  // keep the previous connection
         args._file_num++;
         return start(args, true);
