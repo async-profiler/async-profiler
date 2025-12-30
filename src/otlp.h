@@ -111,6 +111,7 @@ class Recorder {
     void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool count);
     void recordSampleType(size_t type_strindex, size_t unit_strindex);
     void recordStacks(const std::vector<CallTraceSample*>& call_trace_samples);
+    void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);
 
   public:
     Recorder(Engine* engine, FrameName& fn, u64 start_nanos, u64 duration_nanos) :
@@ -126,10 +127,7 @@ class Recorder {
         _start_nanos(start_nanos),
         _duration_nanos(duration_nanos) {}
 
-    void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);
-    // Record all available profiles
-    void recordOtlpProfiles();
-
+    void record(const std::vector<CallTraceSample*>& call_trace_samples);
     void write(Writer& out) {
         out.write((const char*) _otlp_buffer.data(), _otlp_buffer.offset());
     }

@@ -1626,11 +1626,9 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     Otlp::Recorder recorder(_engine, fn, _start_time * 1000ULL, (OS::micros() - _start_time) * 1000ULL);
-
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
-    recorder.recordProfilesDictionary(call_trace_samples);
-    recorder.recordOtlpProfiles();
+    recorder.record(call_trace_samples);
     recorder.write(out);
 }
 

@@ -118,7 +118,9 @@ void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, boo
     _otlp_buffer.commitMessage(profile_mark);
 }
 
-void Recorder::recordOtlpProfiles() {
+void Recorder::record(const std::vector<CallTraceSample*>& call_trace_samples) {
+    recordProfilesDictionary(call_trace_samples);
+
     protobuf_mark_t resource_profiles_mark = _otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
 
