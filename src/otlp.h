@@ -13,6 +13,8 @@
 #include "writer.h"
 #include <vector>
 
+struct CallTraceSample;
+
 namespace Otlp {
 
 const u32 OTLP_BUFFER_INITIAL_SIZE = 5120;
