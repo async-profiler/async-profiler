@@ -24,12 +24,16 @@ public class BiDirectionalIndex<T> extends Index<T> {
 
     @Override
     public int index(T key) {
+        assert super.size() == reverseIndex.size();
         int idx = super.index(key);
         if (idx < reverseIndex.size()) {
         // This means the key already exists in the index and calling reverseIndex.add(idx, key) will corrupt it.
             return idx;
         }
-        reverseIndex.add(idx, key);
+        if (idx > reverseIndex.size()) {
+            throw new IllegalStateException("Reverse index is out of sync");
+        }
+        reverseIndex.add(key);
         return idx;
     }
 
