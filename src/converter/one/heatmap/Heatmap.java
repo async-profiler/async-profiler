@@ -38,12 +38,14 @@ public class Heatmap {
 
     public void beforeChunk() {
         state.methodCache.clear();
+        state.includeCache.clear();
     }
 
     public void finish(long startMs) {
         this.startMs = startMs;
         state.methodCache.clear();
         state.stackTracesCache.clear();
+        state.includeCache.clear();
     }
 
     private EvaluationContext evaluate() {

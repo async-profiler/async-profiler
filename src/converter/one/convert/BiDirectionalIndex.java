@@ -5,10 +5,10 @@
 
 package one.convert;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 
 public class BiDirectionalIndex<T> extends Index<T> {
-    private T[] reverseIndex;
+    private final ArrayList<T> reverseIndex;
 
     public BiDirectionalIndex(Class<T> cls, T empty) {
         this(cls, empty, 256);
@@ -18,21 +18,29 @@ public class BiDirectionalIndex<T> extends Index<T> {
         super(cls, empty, initialCapacity);
         // Super already checks if initial capacity is < 0
         initialCapacity = initialCapacity == 0 ? 1 : initialCapacity;
-        this.reverseIndex = (T[]) new Object[initialCapacity];
-        this.reverseIndex[0] = empty;
+        this.reverseIndex = new ArrayList<>(initialCapacity);
+        this.reverseIndex.add(empty);
     }
 
     @Override
     public int index(T key) {
         int idx = super.index(key);
-        if (idx >= reverseIndex.length) {
-            this.reverseIndex = Arrays.copyOf(reverseIndex, reverseIndex.length * 2);
+        if (idx < reverseIndex.size()) {
+        // This means the key already exists in the index and calling reverseIndex.add(idx, key) will corrupt it.
+            return idx;
         }
-        reverseIndex[idx] = key;
+        reverseIndex.add(idx, key);
         return idx;
     }
 
     public T getKey(int idx) {
-        return reverseIndex[idx];
+        if (idx < 0 || idx >= reverseIndex.size()) {
+            throw new IllegalArgumentException("Invalid index: " + idx);
+        }
+        T key = reverseIndex.get(idx);
+        if (key == null) {
+            throw new IllegalArgumentException("No key exists at index: " + idx);
+        }
+        return key;
     }
 }
