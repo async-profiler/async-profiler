@@ -28,7 +28,7 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<String> functionPool = new Index<>(String.class, "");
     private final Index<Line> linePool = new Index<>(Line.class, Line.EMPTY);
     private final Index<KeyValue> attributesPool = new Index<>(KeyValue.class, KeyValue.EMPTY);
-    private final Index<IntArrayWrapper> stacksPool = new Index<>(IntArrayWrapper.class, IntArrayWrapper.EMPTY);
+    private final Index<IntArray> stacksPool = new Index<>(IntArray.class, IntArray.EMPTY);
     private final int threadNameIndex = stringPool.index(OTLP_THREAD_NAME);
 
     private final Proto proto = new Proto(1024);
@@ -126,7 +126,7 @@ public class JfrToOtlp extends JfrConverter {
             proto.commitField(locMark);
         }
 
-        for (IntArrayWrapper stack : stacksPool.keys()) {
+        for (IntArray stack : stacksPool.keys()) {
             long stackMark = proto.startField(PROFILES_DICTIONARY_stack_table, MSG_LARGE);
             long locationIndicesMark = proto.startField(STACK_location_indices, MSG_LARGE);
             for (int locationIdx : stack.array) {
@@ -203,13 +203,13 @@ public class JfrToOtlp extends JfrConverter {
             samplesInfo.add(si);
         }
 
-        private IntArrayWrapper makeStack(int stackTraceId) {
+        private IntArray makeStack(int stackTraceId) {
             StackTrace st = jfr.stackTraces.get(stackTraceId);
             int[] stack = new int[st.methods.length];
             for (int i = 0; i < st.methods.length; ++i) {
                 stack[i] = linePool.index(makeLine(st, i));
             }
-            return new IntArrayWrapper(stack);
+            return new IntArray(stack);
         }
 
         private Line makeLine(StackTrace stackTrace, int i) {
@@ -275,20 +275,20 @@ public class JfrToOtlp extends JfrConverter {
         }
     }
 
-    private static final class IntArrayWrapper {
-        static final IntArrayWrapper EMPTY = new IntArrayWrapper(new int[0]);
+    private static final class IntArray {
+        static final IntArray EMPTY = new IntArray(new int[0]);
 
         final int[] array;
         final int hash;
 
-        IntArrayWrapper(int[] array) {
+        IntArray(int[] array) {
             this.array = array;
             this.hash = Arrays.hashCode(array);
         }
 
         @Override
         public boolean equals(Object o) {
-            return o instanceof IntArrayWrapper && Arrays.equals(array, ((IntArrayWrapper) o).array);
+            return o instanceof IntArray && Arrays.equals(array, ((IntArray) o).array);
         }
 
         @Override
