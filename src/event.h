@@ -56,7 +56,7 @@ class MethodTraceEvent : public Event {
 class WallClockEvent : public Event {
   public:
     u64 _start_time;
-    u64 _time_span;
+    u64 _time_span = 0;
     ThreadState _thread_state;
     u32 _samples;
 };
