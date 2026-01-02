@@ -1628,7 +1628,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     Otlp::Recorder recorder(_engine, fn, _start_time * 1000ULL, (OS::micros() - _start_time) * 1000ULL);
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
-    recorder.record(call_trace_samples);
+    recorder.record(call_trace_samples, args._counter == COUNTER_SAMPLES);
     recorder.write(out);
 }
 

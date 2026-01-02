@@ -110,7 +110,7 @@ class Recorder {
     const size_t _engine_unit_strindex;
 
     // Record a profile with a specified sample type
-    void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool count);
+    void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples);
     void recordSampleType(size_t type_strindex, size_t unit_strindex);
     void recordStacks(const std::vector<CallTraceSample*>& call_trace_samples);
     void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);
@@ -129,7 +129,7 @@ class Recorder {
         _start_nanos(start_nanos),
         _duration_nanos(duration_nanos) {}
 
-    void record(const std::vector<CallTraceSample*>& call_trace_samples);
+    void record(const std::vector<CallTraceSample*>& call_trace_samples, bool samples);
     void write(Writer& out) {
         out.write((const char*) _otlp_buffer.data(), _otlp_buffer.offset());
     }

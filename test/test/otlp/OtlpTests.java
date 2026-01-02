@@ -23,17 +23,19 @@ public class OtlpTests {
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
     public void sampleType(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
-        checkSampleTypes(profilesData);
+
+        ValueType sampleType = getProfile(profilesData, 0).getSampleType();
+        assertString(profilesData.getDictionary().getStringTable(sampleType.getTypeStrindex()), "itimer");
+        assertString(profilesData.getDictionary().getStringTable(sampleType.getUnitStrindex()), "count");
     }
 
-    private static void checkSampleTypes(ProfilesData profilesData) {
-        ValueType sampleType0 = getProfile(profilesData, 0).getSampleType();
-        assertString(profilesData.getDictionary().getStringTable(sampleType0.getTypeStrindex()), "itimer");
-        assertString(profilesData.getDictionary().getStringTable(sampleType0.getUnitStrindex()), "count");
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,total,file=%f.pb")
+    public void sampleTypeTotal(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
 
-        ValueType sampleType1 = getProfile(profilesData, 1).getSampleType();
-        assertString(profilesData.getDictionary().getStringTable(sampleType1.getTypeStrindex()), "itimer");
-        assertString(profilesData.getDictionary().getStringTable(sampleType1.getUnitStrindex()), "ns");
+        ValueType sampleType = getProfile(profilesData, 0).getSampleType();
+        assertString(profilesData.getDictionary().getStringTable(sampleType.getTypeStrindex()), "itimer");
+        assertString(profilesData.getDictionary().getStringTable(sampleType.getUnitStrindex()), "ns");
     }
 
     private static void assertString(String actual, String expected) {
@@ -43,11 +45,7 @@ public class OtlpTests {
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,threads,file=%f.pb")
     public void threadName(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
-
-        // counter
         checkThreadNames(getProfile(profilesData, 0), profilesData.getDictionary());
-        // total
-        checkThreadNames(getProfile(profilesData, 1), profilesData.getDictionary());
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
@@ -56,11 +54,7 @@ public class OtlpTests {
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
-
-        // counter
         checkThreadNames(getProfile(profilesData, 0), profilesData.getDictionary());
-        // total
-        checkThreadNames(getProfile(profilesData, 1), profilesData.getDictionary());
     }
 
     private static void checkThreadNames(Profile profile, ProfilesDictionary dictionary) {
@@ -76,11 +70,7 @@ public class OtlpTests {
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
     public void samples(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
-
-        // counter
         checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
-        // total
-        checkSamples(getProfile(profilesData, 1), profilesData.getDictionary());
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
@@ -89,11 +79,7 @@ public class OtlpTests {
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
-
-        // counter
         checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
-        // total
-        checkSamples(getProfile(profilesData, 1), profilesData.getDictionary());
     }
 
     private static void checkSamples(Profile profile, ProfilesDictionary dictionary) {

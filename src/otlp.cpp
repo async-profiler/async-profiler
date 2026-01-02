@@ -95,7 +95,7 @@ void Recorder::recordSampleType(size_t type_strindex, size_t unit_strindex) {
     _otlp_buffer.commitMessage(sample_type_mark);
 }
 
-void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool count) {
+void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples) {
     protobuf_mark_t profile_mark = _otlp_buffer.startMessage(ScopeProfiles::profiles);
 
     _otlp_buffer.fieldFixed64(Profile::time_unix_nano, _start_nanos);
@@ -111,21 +111,21 @@ void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, boo
         if (si.thread_name_index != 0) {
             _otlp_buffer.field(Sample::attribute_indices, si.thread_name_index);
         }
-        _otlp_buffer.field(Sample::values, count ? si.samples : si.counter);
+        _otlp_buffer.field(Sample::values, samples ? si.samples : si.counter);
         _otlp_buffer.commitMessage(sample_mark);
     }
 
     _otlp_buffer.commitMessage(profile_mark);
 }
 
-void Recorder::record(const std::vector<CallTraceSample*>& call_trace_samples) {
+void Recorder::record(const std::vector<CallTraceSample*>& call_trace_samples, bool samples) {
     recordProfilesDictionary(call_trace_samples);
 
     protobuf_mark_t resource_profiles_mark = _otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
 
-    recordOtlpProfile(_engine_type_strindex, _count_strindex, true  /* count */);
-    recordOtlpProfile(_engine_type_strindex, _engine_unit_strindex, false /* count */);
+    size_t unit_strindex = samples ? _count_strindex : _engine_unit_strindex;
+    recordOtlpProfile(_engine_type_strindex, unit_strindex, samples);
 
     _otlp_buffer.commitMessage(scope_profiles_mark);
     _otlp_buffer.commitMessage(resource_profiles_mark);
