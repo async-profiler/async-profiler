@@ -50,6 +50,7 @@ public class JfrReader implements Closeable {
     public long ticksPerSec;
     public double nanosPerTick;
     public boolean stopAtNewChunk;
+    private boolean wallTimespan;
 
     public final Dictionary<JfrClass> types = new Dictionary<>();
     public final Map<String, JfrClass> typesByName = new HashMap<>();
@@ -229,11 +230,14 @@ public class JfrReader implements Closeable {
 
     private ExecutionSample readExecutionSample(boolean wall) {
         long time = getVarlong();
-        if (wall) getVarlong(); // timeSpan is ignored
         int tid = getVarint();
         int stackTraceId = getVarint();
         int threadState = getVarint();
-        int samples = wall ? getVarint() : 1;
+        int samples = 1;
+        if (wall) {
+            samples = getVarint();
+            if (wallTimespan) getVarlong(); // timeSpan is ignored
+        }
         return new ExecutionSample(time, tid, stackTraceId, threadState, samples);
     }
 
@@ -356,12 +360,23 @@ public class JfrReader implements Closeable {
         typesByName.clear();
 
         readMeta(chunkStart + metaOffset);
+        wallTimespan = checkWallHasTimespan();
         readConstantPool(chunkStart + cpOffset);
         cacheEventTypes();
 
         seek(chunkStart + CHUNK_HEADER_SIZE);
         state = STATE_READING;
         return true;
+    }
+
+    private boolean checkWallHasTimespan() {
+        JfrClass wallClass = typesByName.get("profiler.WallClockSample");
+        if (wallClass == null) return false;
+
+        for (JfrField field : wallClass.fields) {
+            if ("timeSpan".equals(field.name)) return true;
+        }
+        return false;
     }
 
     private void readMeta(long metaOffset) throws IOException {

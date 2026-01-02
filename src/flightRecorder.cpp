@@ -1070,11 +1070,11 @@ class Recording {
         int start = buf->skip(1);
         buf->put8(T_WALL_CLOCK_SAMPLE);
         buf->putVar64(event->_start_time);
-        buf->putVar64(event->_time_span);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_thread_state);
         buf->putVar32(event->_samples);
+        buf->putVar64(event->_time_span);
         buf->put8(start, buf->offset() - start);
     }
 

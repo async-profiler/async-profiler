@@ -234,11 +234,11 @@ JfrMetadata::JfrMetadata() : Element("root") {
             << (type("profiler.WallClockSample", T_WALL_CLOCK_SAMPLE, "Wall Clock Sample")
                 << category("Java Virtual Machine", "Profiling")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
-                << field("timeSpan", T_LONG, "Time span", F_DURATION_TICKS)
                 << field("sampledThread", T_THREAD, "Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
-                << field("samples", T_INT, "Samples", F_UNSIGNED))
+                << field("samples", T_INT, "Samples", F_UNSIGNED)
+                << field("timeSpan", T_LONG, "Time span", F_DURATION_TICKS))
 
             << (type("profiler.Malloc", T_MALLOC, "malloc")
                 << category("Java Virtual Machine", "Native Memory")
