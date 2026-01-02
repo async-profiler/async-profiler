@@ -32,6 +32,7 @@ const u32 MAX_IDLE_BATCH = 1000;
 
 struct ThreadSleepState {
     u64 start_time;
+    u64 last_time;
     u64 last_cpu_time;
     u32 call_trace_id;
     u32 counter;
@@ -142,13 +143,13 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 }
 
-void WallClock::recordWallClock(u64 start_time, ThreadState state, u32 samples, int tid, u32 call_trace_id) {
+void WallClock::recordWallClock(const ThreadSleepState& tss, ThreadState state, int tid) {
     WallClockEvent event;
-    event._start_time = start_time;
-    if (samples > 1) event._time_span = TSC::ticks() - start_time;
+    event._start_time = tss.start_time;
+    event._time_span = tss.last_time - tss.start_time;
     event._thread_state = state;
-    event._samples = samples;
-    Profiler::instance()->recordExternalSamples(samples, samples * _interval, tid, call_trace_id, WALL_CLOCK_SAMPLE, &event);
+    event._samples = tss.counter;
+    Profiler::instance()->recordExternalSamples(tss.counter, tss.counter * _interval, tid, tss.call_trace_id, WALL_CLOCK_SAMPLE, &event);
 }
 
 Error WallClock::start(Arguments& args) {
@@ -216,12 +217,17 @@ void WallClock::timerLoop() {
                 u64 new_thread_cpu_time = enabled ? OS::threadCpuTime(thread_id) : 0;
                 if (new_thread_cpu_time != 0 && new_thread_cpu_time - tss.last_cpu_time <= RUNNABLE_THRESHOLD_NS) {
                     if (++tss.counter < MAX_IDLE_BATCH) {
-                        if (tss.counter == 1) tss.start_time = TSC::ticks();
+                        if (tss.counter == 1) {
+                            tss.start_time = TSC::ticks();
+                            tss.last_time = tss.start_time;
+                        } else {
+                            tss.last_time = TSC::ticks();
+                        }
                         continue;
                     }
                 }
                 if (tss.counter != 0) {
-                    recordWallClock(tss.start_time, THREAD_SLEEPING, tss.counter, thread_id, tss.call_trace_id);
+                    recordWallClock(tss, THREAD_SLEEPING, thread_id);
                     tss.counter = 0;
                 }
             }
@@ -258,7 +264,7 @@ void WallClock::timerLoop() {
     for (ThreadSleepMap::const_iterator it = thread_sleep_state.begin(); it != thread_sleep_state.end(); ++it) {
         const ThreadSleepState& tss = it->second;
         if (tss.counter != 0) {
-            recordWallClock(tss.start_time, THREAD_SLEEPING, tss.counter, it->first, tss.call_trace_id);
+            recordWallClock(tss, THREAD_SLEEPING, it->first);
         }
     }
 }
