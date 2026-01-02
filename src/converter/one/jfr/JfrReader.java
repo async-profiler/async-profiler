@@ -227,12 +227,13 @@ public class JfrReader implements Closeable {
         return null;
     }
 
-    private ExecutionSample readExecutionSample(boolean hasSamples) {
+    private ExecutionSample readExecutionSample(boolean wall) {
         long time = getVarlong();
+        if (wall) getVarlong(); // timeSpan is ignored
         int tid = getVarint();
         int stackTraceId = getVarint();
         int threadState = getVarint();
-        int samples = hasSamples ? getVarint() : 1;
+        int samples = wall ? getVarint() : 1;
         return new ExecutionSample(time, tid, stackTraceId, threadState, samples);
     }
 
