@@ -18,7 +18,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
 
-/** Converts .jfr output to OpenTelemetry protocol. */
+/**
+ * Converts .jfr output to OpenTelemetry protocol.
+ */
 public class JfrToOtlp extends JfrConverter {
     // Size in bytes to be allocated in the buffer to hold the varint containing the length of the message
     private static final int MSG_LARGE = 5;
@@ -166,13 +168,13 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class SampleInfo {
-        private final long timeNanos;
-        private final int threadNameAttributeIndex;
-        private final int stackIndex;
-        private final long samples;
-        private final long value;
+        final long timeNanos;
+        final int threadNameAttributeIndex;
+        final int stackIndex;
+        final long samples;
+        final long value;
 
-        public SampleInfo(long timeNanos, int threadNameAttributeIndex, int stackIndex, long samples, long value) {
+        SampleInfo(long timeNanos, int threadNameAttributeIndex, int stackIndex, long samples, long value) {
             this.timeNanos = timeNanos;
             this.threadNameAttributeIndex = threadNameAttributeIndex;
             this.stackIndex = stackIndex;
@@ -226,7 +228,7 @@ public class JfrToOtlp extends JfrConverter {
         final int functionIdx;
         final int lineNumber;
 
-        private Line(int functionIdx, int lineNumber) {
+        Line(int functionIdx, int lineNumber) {
             this.functionIdx = functionIdx;
             this.lineNumber = lineNumber;
         }
@@ -254,7 +256,7 @@ public class JfrToOtlp extends JfrConverter {
         // Only string value is fine for now
         final String value;
 
-        private KeyValue(int keyStrindex, String value) {
+        KeyValue(int keyStrindex, String value) {
             this.keyStrindex = keyStrindex;
             this.value = value;
         }
