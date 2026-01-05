@@ -44,6 +44,12 @@ public class Proto {
         return this;
     }
 
+    public Proto fieldFixed64(int index, long n) {
+        tag(index, 1);
+        writeFixed64(n);
+        return this;
+    }
+
     public Proto field(int index, double d) {
         tag(index, 1);
         writeDouble(d);
@@ -118,8 +124,11 @@ public class Proto {
     }
 
     public void writeDouble(double d) {
+        writeFixed64(Double.doubleToRawLongBits(d));
+    }
+
+    public void writeFixed64(long n) {
         ensureCapacity(8);
-        long n = Double.doubleToRawLongBits(d);
         buf[pos] = (byte) n;
         buf[pos + 1] = (byte) (n >>> 8);
         buf[pos + 2] = (byte) (n >>> 16);

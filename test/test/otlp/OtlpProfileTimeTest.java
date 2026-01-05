@@ -8,7 +8,7 @@ import one.profiler.AsyncProfiler;
 import one.profiler.Events;
 import io.opentelemetry.proto.profiles.v1development.*;
 
-public class OtlpTemporalityTest {
+public class OtlpProfileTimeTest {
 
     public static void main(String[] args) throws Exception {
         AsyncProfiler profiler = AsyncProfiler.getInstance();

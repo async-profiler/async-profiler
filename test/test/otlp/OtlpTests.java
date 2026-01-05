@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.time.*;
 
 import one.convert.JfrToOtlp;
 import one.convert.Arguments;
@@ -87,12 +88,26 @@ public class OtlpTests {
         assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
     }
 
-    @Test(mainClass = OtlpTemporalityTest.class)
+    @Test(mainClass = OtlpProfileTimeTest.class)
     public void profileTime(TestProcess p) throws Exception {
         classpathCheck();
 
         p.waitForExit();
         assert p.exitCode() == 0;
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
+    public void profileTimeFromJfr(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
+        Profile profile = getProfile(profilesData, 0);
+        Instant before = Instant.now()
+                                .minus(CpuBurner.TEST_DURATION)
+                                .minus(Duration.ofSeconds(10)); // just to be sure
+        Instant actual = Instant.ofEpochSecond(0, profile.getTimeUnixNano());
+        assert actual.isAfter(before) : actual;
     }
 
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {

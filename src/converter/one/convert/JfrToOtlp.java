@@ -67,7 +67,7 @@ public class JfrToOtlp extends JfrConverter {
             proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getSampleUnits()));
             proto.commitField(stsMark);
 
-            proto.field(PROFILE_time_unix_nano, jfr.chunkStartNanos);
+            proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
             proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
             writeSamples(samplesInfo, true /* samples */);
@@ -83,7 +83,7 @@ public class JfrToOtlp extends JfrConverter {
             proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
             proto.commitField(sttMark);
 
-            proto.field(PROFILE_time_unix_nano, jfr.chunkStartNanos);
+            proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
             proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
             writeSamples(samplesInfo, false /* samples */);
@@ -98,7 +98,7 @@ public class JfrToOtlp extends JfrConverter {
             proto.field(SAMPLE_stack_index, si.stackIndex);
             proto.field(SAMPLE_values, samples ? si.samples : si.value);
             proto.field(SAMPLE_attribute_indices, si.threadNameAttributeIndex);
-            proto.field(SAMPLE_timestamps_unix_nano, si.timeNanos);
+            proto.fieldFixed64(SAMPLE_timestamps_unix_nano, si.timeNanos);
             proto.commitField(sMark);
         }
     }
