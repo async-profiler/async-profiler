@@ -56,14 +56,8 @@ void ProtoBuffer::field(protobuf_index_t index, u64 n) {
 void ProtoBuffer::fieldFixed64(protobuf_index_t index, u64 n) {
     tag(index, I64);
     ensureCapacity(sizeof(u64));
-    _data[_offset++] = (unsigned char) n;
-    _data[_offset++] = (unsigned char) (n >> 8);
-    _data[_offset++] = (unsigned char) (n >> 16);
-    _data[_offset++] = (unsigned char) (n >> 24);
-    _data[_offset++] = (unsigned char) (n >> 32);
-    _data[_offset++] = (unsigned char) (n >> 40);
-    _data[_offset++] = (unsigned char) (n >> 48);
-    _data[_offset++] = (unsigned char) (n >> 56);
+    *(u64*)(_data + _offset) = n;
+    _offset += 8;
 }
 
 void ProtoBuffer::field(protobuf_index_t index, const char* s) {
