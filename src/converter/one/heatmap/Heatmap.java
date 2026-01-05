@@ -397,8 +397,8 @@ public class Heatmap {
         // Maps stack trace ID to prototype ID in stackTracesRemap
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final Map<MethodKey, Integer> methodCache = new HashMap<>();
-        final BiDirectionalIndex<Method> methods = new BiDirectionalIndex<>(Method.class, Method.EMPTY);
-        final BiDirectionalIndex<String> symbolTable = new BiDirectionalIndex<>(String.class, "");
+        final BidirectionalIndex<Method> methods = new BidirectionalIndex<>(Method.class, Method.EMPTY);
+        final BidirectionalIndex<String> symbolTable = new BidirectionalIndex<>(String.class, "");
 
         // Cache for exclude/include filter results per prototype ID
         final Map<Integer, Boolean> includeCache = new HashMap<>();
@@ -429,6 +429,14 @@ public class Heatmap {
             return includeCache.computeIfAbsent(prototypeId, k -> applyIncludeExcludeFilter(stack, stackSize));
         }
 
+        private boolean includeStack(int prototypeId) {
+            if (args.include == null && args.exclude == null) {
+                return true;
+            }
+            int[] prototype = stackTracesRemap.get(prototypeId);
+            return includeStack(prototypeId, prototype, prototype.length);
+        }
+
         // Returns true if the stack should be included
         private boolean applyIncludeExcludeFilter(int[] stack, int stackSize) {
             Pattern include = args.include;
@@ -453,14 +461,14 @@ public class Heatmap {
             }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
-            int[] prototype = stackTracesRemap.get(prototypeId);
             if (classId == 0 && !args.threads) {
-                if (includeStack(prototypeId, prototype, prototype.length)) {
+                if (includeStack(prototypeId)) {
                     sampleList.add(prototypeId, timeMs);
                 }
                 return;
             }
 
+            int[] prototype = stackTracesRemap.get(prototypeId);
             int stackSize = prototype.length + (args.threads ? 1 : 0) + (classId != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
                 cachedStackTrace = new int[stackSize * 2];
