@@ -59,37 +59,20 @@ public class JfrToOtlp extends JfrConverter {
         List<SampleInfo> samplesInfo = new ArrayList<>();
         collector.forEach(new OtlpEventToSampleVisitor(samplesInfo));
 
-        { // Counter profile
-            long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
+        long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
-            long stsMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
-            proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
-            proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getSampleUnits()));
-            proto.commitField(stsMark);
+        long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
+        proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
+        proto.field(VALUE_TYPE_unit_strindex,
+                    stringPool.index(args.total ? getTotalUnits() : getSampleUnits()));
+        proto.commitField(sttMark);
 
-            proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
-            proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
+        proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
+        proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
-            writeSamples(samplesInfo, true /* samples */);
+        writeSamples(samplesInfo, !args.total /* samples */);
 
-            proto.commitField(pMark);
-        }
-
-        { // Total profile
-            long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
-
-            long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
-            proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
-            proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
-            proto.commitField(sttMark);
-
-            proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
-            proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
-
-            writeSamples(samplesInfo, false /* samples */);
-
-            proto.commitField(pMark);
-        }
+        proto.commitField(pMark);
     }
 
     private void writeSamples(List<SampleInfo> samplesInfo, boolean samples) {
