@@ -1200,6 +1200,14 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("mixed feature is only allowed with VMStructs stack walking");
     }
 
+    if (args._jfr_sync && args._output != OUTPUT_JFR) {
+        return Error("jfrsync is only supported with jfr output");
+    }
+
+    if (args._jfr_sync && !VM::loaded()) {
+        return Error("jfrsync is not supported with non-Java processes");
+    }
+
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_engine == &perf_events && !args._alluser);
 
