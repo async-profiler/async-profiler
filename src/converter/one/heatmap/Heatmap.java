@@ -422,26 +422,19 @@ public class Heatmap {
             return symbolTable.getKey(method.className) + "." + symbolTable.getKey(method.methodName);
         }
 
-        private boolean includeStack(int prototypeId, int[] stack, int stackSize) {
-            if (args.include == null && args.exclude == null) {
-                return true;
-            }
-            return includeCache.computeIfAbsent(prototypeId, k -> applyIncludeExcludeFilter(stack, stackSize));
-        }
-
         private boolean includeStack(int prototypeId) {
             if (args.include == null && args.exclude == null) {
                 return true;
             }
             int[] prototype = stackTracesRemap.get(prototypeId);
-            return includeStack(prototypeId, prototype, prototype.length);
+            return includeCache.computeIfAbsent(prototypeId, k -> applyIncludeExcludeFilter(prototype));
         }
 
         // Returns true if the stack should be included
-        private boolean applyIncludeExcludeFilter(int[] stack, int stackSize) {
+        private boolean applyIncludeExcludeFilter(int[] stack) {
             Pattern include = args.include;
             Pattern exclude = args.exclude;
-            for (int i = 0; i < stackSize; i++) {
+            for (int i = 0; i < stack.length; i++) {
                 Method method = methods.getKey(stack[i]);
                 String name = resolveFrameName(method);
                 if (exclude != null && exclude.matcher(name).matches()) {
@@ -487,7 +480,7 @@ public class Heatmap {
             }
 
             int newPrototypeId = stackTracesRemap.index(cachedStackTrace, stackSize);
-            if (includeStack(newPrototypeId, cachedStackTrace, stackSize)) {
+            if (includeStack(newPrototypeId)) {
                 sampleList.add(newPrototypeId, timeMs);
             }
         }
