@@ -220,8 +220,7 @@ void WallClock::timerLoop() {
                     tss.last_time = TSC::ticks();
                     if (++tss.counter < MAX_IDLE_BATCH) {
                         if (tss.counter == 1) {
-                            tss.start_time = TSC::ticks();
-                            tss.last_time = tss.start_time;
+                            tss.start_time = tss.last_time;
                         }
                         continue;
                     }
