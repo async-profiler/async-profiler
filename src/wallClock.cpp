@@ -217,12 +217,11 @@ void WallClock::timerLoop() {
                 ThreadSleepState& tss = thread_sleep_state[thread_id];
                 u64 new_thread_cpu_time = enabled ? OS::threadCpuTime(thread_id) : 0;
                 if (new_thread_cpu_time != 0 && new_thread_cpu_time - tss.last_cpu_time <= RUNNABLE_THRESHOLD_NS) {
+                    tss.last_time = TSC::ticks();
                     if (++tss.counter < MAX_IDLE_BATCH) {
                         if (tss.counter == 1) {
                             tss.start_time = TSC::ticks();
                             tss.last_time = tss.start_time;
-                        } else {
-                            tss.last_time = TSC::ticks();
                         }
                         continue;
                     }
