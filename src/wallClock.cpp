@@ -130,6 +130,7 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (_mode == WALL_BATCH) {
         WallClockEvent event;
         event._start_time = TSC::ticks();
+        event._time_span = 0;
         event._thread_state = getThreadState(ucontext);
         event._samples = 1;
         u64 trace = Profiler::instance()->recordSample(ucontext, _interval, WALL_CLOCK_SAMPLE, &event);
