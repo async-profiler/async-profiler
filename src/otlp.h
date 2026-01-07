@@ -107,6 +107,7 @@ class Recorder {
     const u64 _duration_nanos;
     const size_t _engine_type_strindex;
     const size_t _engine_unit_strindex;
+    const size_t _count_strindex;
 
     // Record a profile with a specified sample type
     void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples);
@@ -116,7 +117,7 @@ class Recorder {
 
   public:
     Recorder(Engine* engine, FrameName& fn, u64 start_nanos, u64 duration_nanos) :
-        _otlp_buffer(ProtoBuffer(Otlp::OTLP_BUFFER_INITIAL_SIZE)),
+        _otlp_buffer(Otlp::OTLP_BUFFER_INITIAL_SIZE),
         _fn(fn),
         _thread_names(),
         _functions(),
@@ -124,6 +125,7 @@ class Recorder {
         _samples_info(),
         _engine_type_strindex(_strings.indexOf(engine->type())),
         _engine_unit_strindex(_strings.indexOf(engine->units())),
+        _count_strindex(_strings.indexOf("count")),
         _start_nanos(start_nanos),
         _duration_nanos(duration_nanos) {}
 
