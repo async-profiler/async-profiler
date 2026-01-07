@@ -238,7 +238,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
                 << field("samples", T_INT, "Samples", F_UNSIGNED)
-                << field("timeSpan", T_LONG, "Time span", F_DURATION_TICKS))
+                << field("timeSpan", T_LONG, "Time Span", F_DURATION_TICKS))
 
             << (type("profiler.Malloc", T_MALLOC, "malloc")
                 << category("Java Virtual Machine", "Native Memory")

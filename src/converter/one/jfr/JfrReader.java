@@ -50,7 +50,6 @@ public class JfrReader implements Closeable {
     public long ticksPerSec;
     public double nanosPerTick;
     public boolean stopAtNewChunk;
-    private boolean hasWallTimespan;
 
     public final Dictionary<JfrClass> types = new Dictionary<>();
     public final Map<String, JfrClass> typesByName = new HashMap<>();
@@ -81,6 +80,7 @@ public class JfrReader implements Closeable {
     private int free;
     private int cpuTimeSample;
     private int nativeLock;
+    private boolean hasWallTimeSpan;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -233,11 +233,8 @@ public class JfrReader implements Closeable {
         int tid = getVarint();
         int stackTraceId = getVarint();
         int threadState = getVarint();
-        int samples = 1;
-        if (wall) {
-            samples = getVarint();
-            if (hasWallTimespan) getVarlong(); // timeSpan is ignored
-        }
+        int samples = wall ? getVarint() : 1;
+        if (wall && hasWallTimeSpan) getVarlong(); // timeSpan is ignored
         return new ExecutionSample(time, tid, stackTraceId, threadState, samples);
     }
 
@@ -624,7 +621,7 @@ public class JfrReader implements Closeable {
         registerEvent("profiler.ProcessSample", ProcessSample.class);
 
         JfrClass wallClass = typesByName.get("profiler.WallClockSample");
-        hasWallTimespan = wallClass != null && wallClass.field("timeSpan") != null;
+        hasWallTimeSpan = wallClass != null && wallClass.field("timeSpan") != null;
     }
 
     private int getTypeId(String typeName) {
