@@ -416,7 +416,7 @@ void ElfParser::parseDynamicSection() {
             }
         }
 
-        if (symtab == NULL || strtab == NULL || syment == 0 || relent == 0) {
+        if (symtab == NULL || strtab == NULL || syment == 0) {
             return;
         }
 
@@ -425,7 +425,7 @@ void ElfParser::parseDynamicSection() {
         }
 
         const char* base = this->base();
-        if (jmprel != NULL && pltrelsz != 0) {
+        if (jmprel != NULL && pltrelsz != 0 && relent != 0) {
             // Parse .rela.plt table
             for (size_t offs = 0; offs < pltrelsz; offs += relent) {
                 ElfRelocation* r = (ElfRelocation*)(jmprel + offs);
@@ -436,7 +436,7 @@ void ElfParser::parseDynamicSection() {
             }
         }
 
-        if (rel != NULL && relsz != 0) {
+        if (rel != NULL && relsz != 0 && relent != 0) {
             // Relocation entries for imports can be found in .rela.dyn, for example
             // if a shared library is built without PLT (-fno-plt). However, if both
             // entries exist, addImport saves them both.
@@ -457,15 +457,13 @@ void ElfParser::parseDwarfInfo() {
     if (!DWARF_SUPPORTED) return;
 
     ElfProgramHeader* eh_frame_hdr = findProgramHeader(PT_GNU_EH_FRAME);
-    if (eh_frame_hdr != NULL) {
-        if (eh_frame_hdr->p_vaddr != 0) {
-            DwarfParser dwarf(_cc->name(), _base, at(eh_frame_hdr));
-            _cc->setDwarfTable(dwarf.table(), dwarf.count());
-        } else if (strcmp(_cc->name(), "[vdso]") == 0) {
-            FrameDesc* table = (FrameDesc*)malloc(sizeof(FrameDesc));
-            *table = FrameDesc::empty_frame;
-            _cc->setDwarfTable(table, 1);
-        }
+    if (eh_frame_hdr != NULL && eh_frame_hdr->p_vaddr != 0) {
+        DwarfParser dwarf(_cc->name(), _base, at(eh_frame_hdr));
+        _cc->setDwarfTable(dwarf.table(), dwarf.count());
+    } else if (strcmp(_cc->name(), "[vdso]") == 0) {
+        FrameDesc* table = (FrameDesc*)malloc(sizeof(FrameDesc));
+        *table = FrameDesc::empty_frame;
+        _cc->setDwarfTable(table, 1);
     }
 }
 

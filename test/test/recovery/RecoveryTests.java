@@ -73,4 +73,13 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("^\\[unknown"), 0.01, "No more than 1% of unknown frames");
         Assert.isLess(out.ratio("^[^ ;]+(;[^ ;]+)? "), 0.01, "No more than 1% of short stacks");
     }
+
+    // Verify that System.currentTimeMillis() intrinsic is unwound correctly
+    @Test(mainClass = TimeLoop.class, jvm = Jvm.HOTSPOT, jvmVer = {11, Integer.MAX_VALUE}, debugNonSafepoints = true)
+    public void currentTimeMillis(TestProcess p) throws Exception {
+        Output out = p.profile("-d 3 -e cpu -o collapsed");
+        Assert.isLess(out.ratio("^\\[unknown"), 0.01, "No more than 1% of unknown frames");
+        Assert.isLess(out.ratio("^\\[break_"), 0.01, "No more than 1% of broken stacks");
+        Assert.isLess(out.ratio("^\\[vdso]"), 0.01, "vDSO should have symbol information");
+    }
 }
