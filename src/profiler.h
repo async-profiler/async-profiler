@@ -36,7 +36,6 @@ union CallTraceBuffer {
 };
 
 
-class FrameName;
 class NMethod;
 class StackContext;
 

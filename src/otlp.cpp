@@ -124,7 +124,7 @@ void Recorder::record(const std::vector<CallTraceSample*>& call_trace_samples, b
     protobuf_mark_t resource_profiles_mark = _otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
 
-    size_t unit_strindex = samples ? _count_strindex : _engine_unit_strindex;
+    size_t unit_strindex = samples ? _strings.indexOf("count") : _engine_unit_strindex;
     recordOtlpProfile(_engine_type_strindex, unit_strindex, samples);
 
     _otlp_buffer.commitMessage(scope_profiles_mark);

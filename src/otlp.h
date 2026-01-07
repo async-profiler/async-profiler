@@ -106,7 +106,6 @@ class Recorder {
     const u64 _start_nanos;
     const u64 _duration_nanos;
     const size_t _engine_type_strindex;
-    const size_t _count_strindex;
     const size_t _engine_unit_strindex;
 
     // Record a profile with a specified sample type
@@ -125,11 +124,11 @@ class Recorder {
         _samples_info(),
         _engine_type_strindex(_strings.indexOf(engine->type())),
         _engine_unit_strindex(_strings.indexOf(engine->units())),
-        _count_strindex(_strings.indexOf("count")),
         _start_nanos(start_nanos),
         _duration_nanos(duration_nanos) {}
 
     void record(const std::vector<CallTraceSample*>& call_trace_samples, bool samples);
+
     void write(Writer& out) {
         out.write((const char*) _otlp_buffer.data(), _otlp_buffer.offset());
     }

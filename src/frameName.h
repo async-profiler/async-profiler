@@ -74,9 +74,6 @@ class FrameName {
     bool include(const char* frame_name);
     bool exclude(const char* frame_name);
 
-    bool hasIncludeList() { return !_include.empty(); }
-    bool hasExcludeList() { return !_exclude.empty(); }
-
   public:
     FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names);
     ~FrameName();

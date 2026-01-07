@@ -382,8 +382,8 @@ bool FrameName::exclude(const char* frame_name) {
 }
 
 bool FrameName::excludeTrace(CallTrace* trace) {
-    bool check_include = hasIncludeList();
-    bool check_exclude = hasExcludeList();
+    bool check_include = !_include.empty();
+    bool check_exclude = !_exclude.empty();
     if (!(check_include || check_exclude)) {
         return false;
     }
