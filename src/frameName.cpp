@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "callTraceStorage.h"
 #include "demangle.h"
 #include "frameName.h"
 #include "profiler.h"
@@ -378,4 +379,25 @@ bool FrameName::exclude(const char* frame_name) {
         }
     }
     return false;
+}
+
+bool FrameName::excludeTrace(CallTrace* trace) {
+    bool check_include = !_include.empty();
+    bool check_exclude = !_exclude.empty();
+    if (!(check_include || check_exclude)) {
+        return false;
+    }
+
+    for (int i = 0; i < trace->num_frames; i++) {
+        const char* frame_name = name(trace->frames[i], true);
+        if (check_exclude && exclude(frame_name)) {
+            return true;
+        }
+        if (check_include && include(frame_name)) {
+            check_include = false;
+            if (!check_exclude) break;
+        }
+    }
+
+    return check_include;
 }

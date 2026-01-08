@@ -8,6 +8,7 @@ package one.heatmap;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.*;
+import java.util.regex.Pattern;
 
 import one.convert.*;
 import one.jfr.DictionaryInt;
@@ -37,12 +38,14 @@ public class Heatmap {
 
     public void beforeChunk() {
         state.methodCache.clear();
+        state.includeCache.clear();
     }
 
     public void finish(long startMs) {
         this.startMs = startMs;
         state.methodCache.clear();
         state.stackTracesCache.clear();
+        state.includeCache.clear();
     }
 
     private EvaluationContext evaluate() {
@@ -394,8 +397,11 @@ public class Heatmap {
         // Maps stack trace ID to prototype ID in stackTracesRemap
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final Map<MethodKey, Integer> methodCache = new HashMap<>();
-        final Index<Method> methods = new Index<>(Method.class, Method.EMPTY);
-        final Index<String> symbolTable = new Index<>(String.class, "");
+        final BidirectionalIndex<Method> methods = new BidirectionalIndex<>(Method.class, Method.EMPTY);
+        final BidirectionalIndex<String> symbolTable = new BidirectionalIndex<>(String.class, "");
+
+        // Cache for exclude/include filter results per prototype ID
+        final Map<Integer, Boolean> includeCache = new HashMap<>();
 
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
@@ -406,14 +412,52 @@ public class Heatmap {
             this.sampleList = new SampleList(blockDurationMs);
         }
 
+        private String resolveFrameName(Method method) {
+            if (method.className == 0) {
+                return symbolTable.getKey(method.methodName);
+            }
+            if (method.methodName == 0) {
+                return symbolTable.getKey(method.className);
+            }
+            return symbolTable.getKey(method.className) + '.' + symbolTable.getKey(method.methodName);
+        }
+
+        private boolean includeStack(int prototypeId) {
+            if (args.include == null && args.exclude == null) {
+                return true;
+            }
+            return includeCache.computeIfAbsent(prototypeId, stackId -> applyIncludeExcludeFilter(stackId));
+        }
+
+        // Returns true if the stack should be included
+        private boolean applyIncludeExcludeFilter(int stackId) {
+            int[] stack = stackTracesRemap.get(stackId);
+            Pattern include = args.include;
+            Pattern exclude = args.exclude;
+            for (int i = 0; i < stack.length; i++) {
+                Method method = methods.getKey(stack[i]);
+                String name = resolveFrameName(method);
+                if (exclude != null && exclude.matcher(name).matches()) {
+                    return false;
+                }
+                if (include != null && include.matcher(name).matches()) {
+                    if (exclude == null) return true;
+                    include = null;
+                }
+            }
+            return include == null;
+        }
+
         public void addEvent(int stackTraceId, int threadId, int classId, byte type, long timeMs) {
-            if (sampleList.getRecordsCount() >= LIMIT) {
+            if (sampleList.getRecordsCount() >= LIMIT || stackTraceId == 0) {
                 return;
             }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
             if (classId == 0 && !args.threads) {
-                sampleList.add(prototypeId, timeMs);
+                if (includeStack(prototypeId)) {
+                    sampleList.add(prototypeId, timeMs);
+                }
                 return;
             }
 
@@ -435,7 +479,10 @@ public class Heatmap {
                 cachedStackTrace[stackSize - 1] = getMethodIndex(key);
             }
 
-            sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
+            int newStackId = stackTracesRemap.index(cachedStackTrace, stackSize);
+            if (includeStack(newStackId)) {
+                sampleList.add(newStackId, timeMs);
+            }
         }
 
         public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {

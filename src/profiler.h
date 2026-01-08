@@ -36,7 +36,6 @@ union CallTraceBuffer {
 };
 
 
-class FrameName;
 class NMethod;
 class StackContext;
 
@@ -122,7 +121,6 @@ class Profiler {
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
     void updateNativeThreadNames();
-    bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
     Engine* selectAllocEngine(long alloc_interval, bool live);
