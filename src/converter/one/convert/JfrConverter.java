@@ -314,6 +314,9 @@ public abstract class JfrConverter extends Classifier {
 
     public String getValueType(Class<? extends Event> eventClass) {
         if (eventClass == AllocationSample.class) {
+            return "allocations";
+        }
+        if (eventClass == LiveObject.class) {
             return "live-objects";
         }
         if (eventClass == ContendedLock.class) {
