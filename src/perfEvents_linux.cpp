@@ -58,6 +58,12 @@ enum {
     HW_BREAKPOINT_X  = 4
 };
 
+struct read_result {
+    u64 counter;
+    u64 time_enabled; /* PERF_FORMAT_TOTAL_TIME_ENABLED */
+    u64 time_running; /* PERF_FORMAT_TOTAL_TIME_RUNNING */
+};
+
 static int fetchInt(const char* file_name) {
     int fd = open(file_name, O_RDONLY);
     if (fd == -1) {
@@ -613,6 +619,9 @@ int PerfEvents::createForThread(int tid) {
         attr.sample_type |= PERF_SAMPLE_CPU;
     }
 
+    // flags for multiplexing support
+    attr.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
+
     int fd;
     if (FdTransferClient::hasPeer()) {
         fd = FdTransferClient::requestPerfFd(&tid, _target_cpu, &attr, PerfEventType::probe_func);
@@ -700,8 +709,19 @@ u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
         case 3: return StackFrame(ucontext).arg2();
         case 4: return StackFrame(ucontext).arg3();
         default: {
-            u64 counter;
-            return read(siginfo->si_fd, &counter, sizeof(counter)) == sizeof(counter) ? counter : 1;
+            // Read counter with multiplexing metadata for accurate scaling
+            struct read_result result;
+            size_t num_of_bytes = read(siginfo->si_fd, &result, sizeof(result));
+            if(num_of_bytes == sizeof(result)) {
+                // Calculate scaling ratio to compensate for multiplexing
+                // ratio > 1.0 indicates the counter was time-sliced
+                double ratio = (result.time_running > 0 && result.time_enabled > result.time_running) ? (double)result.time_enabled / result.time_running : 1.0;
+                double scaled_counter = result.counter * ratio;
+                return (u64) scaled_counter;
+            } else if (num_of_bytes == sizeof(u64)) {
+                return result.counter;
+            }
+            return 1;
         }
     }
 }
