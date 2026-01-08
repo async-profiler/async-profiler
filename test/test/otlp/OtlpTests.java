@@ -83,6 +83,26 @@ public class OtlpTests {
         checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
     }
 
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,all,file=%f")
+    public void samplesMultipleEnginesFromJfr(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp", "--all"));
+
+        Map<String, Profile> profiles = new HashMap<>();
+        for (int profileIdx = 0; profileIdx < getProfilesCount(profilesData); ++profileIdx) {
+            Profile profile = getProfile(profilesData, profileIdx);
+            ValueType sampleType = profile.getSampleType();
+            String type = profilesData.getDictionary().getStringTable(sampleType.getTypeStrindex());
+            assert !profiles.containsKey(type) : type;
+            profiles.put(type, profile);
+        }
+
+        Profile cpuProfile = profiles.get("cpu");
+        checkSamples(cpuProfile, profilesData.getDictionary());
+    }
+
     private static void checkSamples(Profile profile, ProfilesDictionary dictionary) {
         Output collapsed = toCollapsed(profile, dictionary);
         assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
@@ -153,6 +173,16 @@ public class OtlpTests {
         Line line = location.getLines(location.getLinesList().size() - 1);
         Function function = dictionary.getFunctionTable(line.getFunctionIndex());
         return dictionary.getStringTable(function.getNameStrindex());
+    }
+
+    private static int getProfilesCount(ProfilesData profilesData) {
+        assert profilesData.getResourceProfilesList().size() == 1;
+
+        ResourceProfiles resourceProfiles = profilesData.getResourceProfiles(0);
+        assert resourceProfiles.getScopeProfilesList().size() == 1;
+
+        ScopeProfiles scopeProfiles = resourceProfiles.getScopeProfiles(0);
+        return scopeProfiles.getProfilesList().size();
     }
 
     private static Profile getProfile(ProfilesData profilesData, int index) {

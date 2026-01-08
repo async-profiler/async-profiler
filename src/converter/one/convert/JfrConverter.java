@@ -89,6 +89,7 @@ public abstract class JfrConverter extends Classifier {
                 : args.alloc ? AllocationSample.class
                 : args.lock ? ContendedLock.class
                 : args.trace ? MethodTrace.class
+                : args.all ? null
                 : ExecutionSample.class;
 
         BitSet threadStates = null;
@@ -111,7 +112,8 @@ public abstract class JfrConverter extends Classifier {
 
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
-                if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
+                if (threadStates == null || !(event instanceof ExecutionSample) ||
+                    threadStates.get(((ExecutionSample) event).threadState)) {
                     if (timeIntervals == null || timeIntervals.contains(jfr.eventTimeToNanos(event.time))) {
                         collector.collect(event);
                     }
@@ -310,8 +312,55 @@ public abstract class JfrConverter extends Classifier {
         return "nanoseconds";
     }
 
+    public String getValueType(Class<? extends Event> eventClass) {
+        if (eventClass == AllocationSample.class) {
+            return "live-objects";
+        }
+        if (eventClass == ContendedLock.class) {
+            return "locks";
+        }
+        if (eventClass == NativeLockEvent.class) {
+            return "native-locks";
+        }
+        if (eventClass == MallocEvent.class) {
+            return "malloc";
+        }
+        if (eventClass == MethodTrace.class) {
+            return "methods";
+        }
+        if (eventClass == ExecutionSample.class) {
+            return "cpu";
+        }
+        // TODO: wall
+        return null;
+    }
+
+    public String getSampleUnits(Class<? extends Event> eventClass) {
+        return getSampleUnits();
+    }
+
+    public String getTotalUnits(Class<? extends Event> eventClass) {
+        if (eventClass == AllocationSample.class ||
+            eventClass == LiveObject.class ||
+            eventClass == MallocEvent.class) {
+            return "bytes";
+        }
+        if (eventClass == ContendedLock.class ||
+            eventClass == NativeLockEvent.class ||
+            eventClass == MethodTrace.class ||
+            eventClass == ExecutionSample.class) {
+            return "nanoseconds";
+        }
+        return null;
+    }
+
     public double counterFactor() {
         return (args.lock || args.nativelock) ? jfr.nanosPerTick : 1.0;
+    }
+
+    public double counterFactor(Class<? extends Event> eventClass) {
+        return (eventClass == ContendedLock.class || eventClass == NativeLockEvent.class) ?
+            jfr.nanosPerTick : 1.0;
     }
 
     // Select sum(samples) or sum(value) depending on the --total option.
