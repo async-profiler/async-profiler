@@ -12,7 +12,7 @@ import java.util.Random;
 
 public class CpuBurner {
     private static final Random RANDOM = new Random();
-    private static final Duration TEST_DURATION = Duration.ofSeconds(1);
+    static final Duration TEST_DURATION = Duration.ofSeconds(1);
 
     static void burn() {
         long n = RANDOM.nextLong();

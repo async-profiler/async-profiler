@@ -966,27 +966,6 @@ void Profiler::updateNativeThreadNames() {
     }
 }
 
-bool Profiler::excludeTrace(FrameName* fn, CallTrace* trace) {
-    bool check_include = fn->hasIncludeList();
-    bool check_exclude = fn->hasExcludeList();
-    if (!(check_include || check_exclude)) {
-        return false;
-    }
-
-    for (int i = 0; i < trace->num_frames; i++) {
-        const char* frame_name = fn->name(trace->frames[i], true);
-        if (check_exclude && fn->exclude(frame_name)) {
-            return true;
-        }
-        if (check_include && fn->include(frame_name)) {
-            check_include = false;
-            if (!check_exclude) break;
-        }
-    }
-
-    return check_include;
-}
-
 Engine* Profiler::selectEngine(const char* event_name) {
     if (event_name == NULL) {
         return &noop_engine;
@@ -1472,7 +1451,7 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace)) continue;
+        if (trace == NULL || fn.excludeTrace(trace)) continue;
 
         u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
         if (counter == 0) continue;
@@ -1510,7 +1489,7 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
 
         for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
             CallTrace* trace = (*it)->acquireTrace();
-            if (trace == NULL || excludeTrace(&fn, trace)) continue;
+            if (trace == NULL || fn.excludeTrace(trace)) continue;
 
             u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
             if (counter == 0) continue;
@@ -1572,7 +1551,7 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
             if (trace == NULL || counter == 0) continue;
 
             total_counter += counter;
-            if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
+            if (trace->num_frames == 0 || fn.excludeTrace(trace)) continue;
             samples.push_back(it->second);
         }
     }
@@ -1644,133 +1623,13 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const char* type, const char* units) {
-    using namespace Otlp;
-    protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type, 1);
-    otlp_buffer.field(ValueType::type_strindex, strings.indexOf(type));
-    otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(units));
-    otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
-    otlp_buffer.commitMessage(sample_type_mark);
-}
-
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
-    using namespace Otlp;
-    ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
-    Index strings;
-    Index functions;
-    // Eventually this is going to be Index<Attribute>, for now we keep it simple
-    Index thread_names;
-
-    protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
-    protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
-    protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
-
-    u64 time_nanos = _start_time * 1000ULL;
-    u64 duration_nanos = (OS::micros() - _start_time) * 1000ULL;
-
-    otlp_buffer.field(Profile::time_nanos, time_nanos);
-    otlp_buffer.field(Profile::duration_nanos, duration_nanos);
-
-    recordSampleType(otlp_buffer, strings, _engine->type(), "count");
-    recordSampleType(otlp_buffer, strings, _engine->type(), _engine->units());
-
+    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
+    Otlp::Recorder recorder(_engine, fn, _start_time * 1000ULL, (OS::micros() - _start_time) * 1000ULL);
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
-
-    std::vector<size_t> location_indices;
-    location_indices.reserve(call_trace_samples.size());
-
-    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
-    size_t frames_seen = 0;
-    for (const auto& cts : call_trace_samples) {
-        CallTrace* trace = cts->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
-
-        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
-        otlp_buffer.field(Sample::locations_start_index, frames_seen);
-        otlp_buffer.field(Sample::locations_length, trace->num_frames);
-
-        u32 thread_name_idx = 0;
-        for (int j = 0; j < trace->num_frames; j++) {
-            if (trace->frames[j].bci == BCI_THREAD_ID) {
-                int tid = (int)(uintptr_t) trace->frames[j].method_id;
-                MutexLocker ml(_thread_names_lock);
-                ThreadMap::iterator it = _thread_names.find(tid);
-                if (it != _thread_names.end()) {
-                    thread_name_idx = thread_names.indexOf(it->second);
-                }
-                continue;
-            }
-
-            // To be written below in Profile.location_indices
-            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
-            ++frames_seen;
-        }
-        if (thread_name_idx != 0) {
-            otlp_buffer.field(Sample::attribute_indices, thread_name_idx);
-        }
-
-        protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
-        otlp_buffer.putVarInt(cts->samples);
-        otlp_buffer.putVarInt(cts->counter);
-        otlp_buffer.commitMessage(sample_value_mark);
-        otlp_buffer.commitMessage(sample_mark);
-    }
-
-    protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
-    for (size_t i : location_indices) {
-        otlp_buffer.putVarInt(i);
-    }
-    otlp_buffer.commitMessage(location_indices_mark);
-
-    otlp_buffer.commitMessage(profile_mark);
-    otlp_buffer.commitMessage(scope_profiles_mark);
-    otlp_buffer.commitMessage(resource_profiles_mark);
-
-    protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
-
-    // Write mapping_table. Not currently used, but required by some parsers
-    protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
-    otlp_buffer.commitMessage(mapping_mark);
-
-    // Write function_table
-    functions.forEachOrdered([&] (size_t idx, const std::string& function_name) {
-        protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
-        otlp_buffer.field(Function::name_strindex, strings.indexOf(function_name));
-        otlp_buffer.commitMessage(function_mark);
-    });
-
-    // Write location_table
-    for (size_t function_idx = 0; function_idx < functions.size(); ++function_idx) {
-        protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
-        // TODO: set to the proper mapping when new mappings are added.
-        // For now we keep a dummy default mapping_index for all locations because some parsers
-        // would fail otherwise
-        otlp_buffer.field(Location::mapping_index, (u64)0);
-        protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line, 1);
-        otlp_buffer.field(Line::function_index, function_idx);
-        otlp_buffer.commitMessage(line_mark);
-        otlp_buffer.commitMessage(location_mark);
-    }
-
-    // Write string_table
-    strings.forEachOrdered([&] (size_t idx, const std::string& s) {
-        otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
-    });
-
-    // Write attribute_table (only threads for now)
-    thread_names.forEachOrdered([&] (size_t idx, const std::string& s) {
-        protobuf_mark_t attr_mark = otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
-        otlp_buffer.field(Key::key, OTLP_THREAD_NAME);
-        protobuf_mark_t value_mark = otlp_buffer.startMessage(Key::value);
-        otlp_buffer.field(AnyValue::string_value, s.data(), s.length());
-        otlp_buffer.commitMessage(value_mark);
-        otlp_buffer.commitMessage(attr_mark);
-    });
-
-    otlp_buffer.commitMessage(dictionary_mark);
-
-    out.write((const char*) otlp_buffer.data(), otlp_buffer.offset());
+    recorder.record(call_trace_samples, args._counter == COUNTER_SAMPLES);
+    recorder.write(out);
 }
 
 u64 Profiler::addTimeout(u64 start_micros, int timeout) {
