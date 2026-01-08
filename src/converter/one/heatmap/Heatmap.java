@@ -426,12 +426,12 @@ public class Heatmap {
             if (args.include == null && args.exclude == null) {
                 return true;
             }
-            int[] prototype = stackTracesRemap.get(prototypeId);
-            return includeCache.computeIfAbsent(prototypeId, k -> applyIncludeExcludeFilter(prototype));
+            return includeCache.computeIfAbsent(prototypeId, k -> applyIncludeExcludeFilter(prototypeId));
         }
 
         // Returns true if the stack should be included
-        private boolean applyIncludeExcludeFilter(int[] stack) {
+        private boolean applyIncludeExcludeFilter(int prototypeId) {
+            int[] stack = stackTracesRemap.get(prototypeId);
             Pattern include = args.include;
             Pattern exclude = args.exclude;
             for (int i = 0; i < stack.length; i++) {
