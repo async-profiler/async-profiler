@@ -37,3 +37,4 @@ public class BidirectionalIndex<T> extends Index<T> {
         return reverseIndex.get(idx);
     }
 }
+
