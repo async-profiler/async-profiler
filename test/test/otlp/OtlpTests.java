@@ -104,6 +104,7 @@ public class OtlpTests {
     }
 
     private static void checkSamples(Profile profile, ProfilesDictionary dictionary) {
+        assert profile != null;
         Output collapsed = toCollapsed(profile, dictionary);
         assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
     }
