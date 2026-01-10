@@ -17,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Converts .jfr output to OpenTelemetry protocol.
@@ -57,7 +58,8 @@ public class JfrToOtlp extends JfrConverter {
     @Override
     protected void convertChunk() {
         List<SampleInfo> samplesInfo = new ArrayList<>();
-        collector.forEach(new OtlpEventToSampleVisitor(samplesInfo));
+        OtlpEventToSampleVisitor otlpEventToSampleVisitor = new OtlpEventToSampleVisitor(samplesInfo);
+        collector.forEach(otlpEventToSampleVisitor);
 
         long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
@@ -73,6 +75,7 @@ public class JfrToOtlp extends JfrConverter {
         writeSamples(samplesInfo, !args.total /* samples */);
 
         proto.commitField(pMark);
+        otlpEventToSampleVisitor.excludeCache.clear();
     }
 
     private void writeSamples(List<SampleInfo> samplesInfo, boolean samples) {
@@ -171,13 +174,53 @@ public class JfrToOtlp extends JfrConverter {
         // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
         private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
         private final double factor = counterFactor();
+        private final Map<Long, Boolean> excludeCache;
 
         public OtlpEventToSampleVisitor(List<SampleInfo> samplesInfo) {
             this.samplesInfo = samplesInfo;
+            this.excludeCache = new HashMap<>();
+        }
+
+        private boolean excludeEvent(Event event) {
+            if (args.include == null && args.exclude == null) {
+                return false;
+            }
+            return excludeCache.computeIfAbsent((long) event.stackTraceId << 32 | event.tid,
+                    key -> excludeStack(event.stackTraceId, event.tid)
+            );
+        }
+
+        private boolean excludeStack(int stackId, int threadId) {
+            StackTrace stackTrace = jfr.stackTraces.get(stackId);
+            Pattern include = args.include;
+            Pattern exclude = args.exclude;
+            for (int i = 0; i < stackTrace.methods.length; i++) {
+                String name = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
+                if (exclude != null && exclude.matcher(name).matches()) {
+                    return true;
+                }
+                if (include != null && include.matcher(name).matches()) {
+                    if (exclude == null) return false;
+                    include = null;
+                }
+            }
+            if (args.threads) {
+                String threadName = getThreadName(threadId);
+                if (exclude != null && exclude.matcher(threadName).matches()) {
+                    return true;
+                }
+                if (include != null && include.matcher(threadName).matches()) {
+                    return false;
+                }
+            }
+            return include != null;
         }
 
         @Override
         public void visit(Event event, long samples, long value) {
+            if (excludeEvent(event)) {
+                return;
+            }
             String threadName = getThreadName(event.tid);
             KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
             int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
