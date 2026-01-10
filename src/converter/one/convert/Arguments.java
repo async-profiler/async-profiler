@@ -21,6 +21,7 @@ public class Arguments {
     public double grain;
     public double tail = 0.1;
     public int skip;
+    public boolean all;
     public boolean help;
     public boolean reverse;
     public boolean inverted;

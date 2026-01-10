@@ -9,8 +9,7 @@ import static one.convert.OtlpConstants.*;
 
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
-import one.jfr.event.Event;
-import one.jfr.event.EventCollector;
+import one.jfr.event.*;
 import one.proto.Proto;
 
 import java.io.FileOutputStream;
@@ -56,15 +55,25 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     protected void convertChunk() {
-        List<SampleInfo> samplesInfo = new ArrayList<>();
+        Map<Class<? extends Event>, List<SampleInfo>> samplesInfo = new HashMap<>();
         collector.forEach(new OtlpEventToSampleVisitor(samplesInfo));
+        for (Map.Entry<Class<? extends Event>, List<SampleInfo>> entry : samplesInfo.entrySet()) {
+            writeProfile(entry.getKey(), entry.getValue());
+        }
+    }
 
+    private void writeProfile(Class<? extends Event> eventClass, List<SampleInfo> samplesInfo) {
         long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
         long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
-        proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
-        proto.field(VALUE_TYPE_unit_strindex,
-                    stringPool.index(args.total ? getTotalUnits() : getSampleUnits()));
+
+        String valueType = getValueType(eventClass);
+        assert valueType != null;
+        String unit = args.total ? getTotalUnits(eventClass) : getSampleUnits(eventClass);
+        assert unit != null;
+
+        proto.field(VALUE_TYPE_type_strindex, stringPool.index(valueType));
+        proto.field(VALUE_TYPE_unit_strindex, stringPool.index(unit));
         proto.commitField(sttMark);
 
         proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
@@ -139,6 +148,13 @@ public class JfrToOtlp extends JfrConverter {
         proto.commitField(profilesDictionaryMark);
     }
 
+    private boolean isSupported(Event event) {
+        if (getValueType(event.getClass()) == null) return false;
+        if (!(event instanceof MallocEvent)) return true;
+        MallocEvent mallocEvent = (MallocEvent) event;
+        return mallocEvent.size > 0; // discard 'free' event
+    }
+
     public static void convert(String input, String output, Arguments args) throws IOException {
         JfrToOtlp converter;
         try (JfrReader jfr = new JfrReader(input)) {
@@ -167,29 +183,33 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
-        private final List<SampleInfo> samplesInfo;
+        private final Map<Class<? extends Event>, List<SampleInfo>> samplesInfo;
         // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
         private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
-        private final double factor = counterFactor();
 
-        public OtlpEventToSampleVisitor(List<SampleInfo> samplesInfo) {
+        public OtlpEventToSampleVisitor(Map<Class<? extends Event>, List<SampleInfo>> samplesInfo) {
             this.samplesInfo = samplesInfo;
         }
 
         @Override
         public void visit(Event event, long samples, long value) {
+            if (!isSupported(event)) return;
+
             String threadName = getThreadName(event.tid);
             KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
             int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
             long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
             long timeNanos = jfr.chunkStartNanos + nanosFromStart;
+            double factor = counterFactor(event.getClass());
             SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, samples,
                                            factor == 1.0 ? value : (long) (value * factor));
-            samplesInfo.add(si);
+            samplesInfo.computeIfAbsent(event.getClass(), key -> new ArrayList<>()).add(si);
         }
 
         private IntArray makeStack(int stackTraceId) {
             StackTrace st = jfr.stackTraces.get(stackTraceId);
+            if (st == null) return IntArray.EMPTY;
+
             int[] stack = new int[st.methods.length];
             for (int i = 0; i < st.methods.length; ++i) {
                 stack[i] = linePool.index(makeLine(st, i));

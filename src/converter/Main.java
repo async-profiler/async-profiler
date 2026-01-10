@@ -51,6 +51,10 @@ public class Main {
     }
 
     public static void convert(String input, String output, Arguments args) throws IOException {
+        if (args.all && !"otlp".equals(args.output)) {
+            throw new IllegalArgumentException("'all' not supported");
+        }
+
         if (isJfr(input)) {
             if ("html".equals(args.output) || "collapsed".equals(args.output)) {
                 JfrToFlame.convert(input, output, args);
