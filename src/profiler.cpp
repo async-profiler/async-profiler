@@ -1257,13 +1257,13 @@ Error Profiler::start(Arguments& args, bool reset) {
     return Error::OK;
 
 error7:
-    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
-
-error6:
     if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
 
-error5:
+error6:
     if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
+
+error5:
+    if (_event_mask & EM_WALL) wall_clock.stop();
 
 error4:
     if (_event_mask & EM_LOCK) lock_tracer.stop();
