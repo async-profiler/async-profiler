@@ -177,17 +177,13 @@ public class JfrToOtlp extends JfrConverter {
             this.samplesInfo = samplesInfo;
         }
 
-        private boolean excludeEvent(Event event) {
-            if (args.include == null && args.exclude == null) {
-                return false;
-            }
-            return excludeStack(event.stackTraceId, event.tid);
-        }
-
         private boolean excludeStack(int stackId, int threadId) {
-            StackTrace stackTrace = jfr.stackTraces.get(stackId);
             Pattern include = args.include;
             Pattern exclude = args.exclude;
+            if (include == null && exclude == null) {
+                return false;
+            }
+
             if (args.threads) {
                 String threadName = getThreadName(threadId);
                 if (exclude != null && exclude.matcher(threadName).matches()) {
@@ -198,6 +194,8 @@ public class JfrToOtlp extends JfrConverter {
                     include = null;
                 }
             }
+
+            StackTrace stackTrace = jfr.stackTraces.get(stackId);
             for (int i = 0; i < stackTrace.methods.length; i++) {
                 String name = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
                 if (exclude != null && exclude.matcher(name).matches()) {
@@ -213,9 +211,10 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public void visit(Event event, long samples, long value) {
-            if (excludeEvent(event)) {
+            if (excludeStack(event.stackTraceId, event.tid)) {
                 return;
             }
+
             String threadName = getThreadName(event.tid);
             KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
             int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
