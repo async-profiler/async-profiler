@@ -686,7 +686,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     if (_add_sched_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
     }
-    if (_add_cpu_frame) {
+    if (_add_cpu_frame && event_type == PERF_SAMPLE) {
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
