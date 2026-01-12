@@ -17,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Converts .jfr output to OpenTelemetry protocol.
@@ -176,8 +177,44 @@ public class JfrToOtlp extends JfrConverter {
             this.samplesInfo = samplesInfo;
         }
 
+        private boolean excludeStack(int stackId, int threadId) {
+            Pattern include = args.include;
+            Pattern exclude = args.exclude;
+            if (include == null && exclude == null) {
+                return false;
+            }
+
+            if (args.threads) {
+                String threadName = getThreadName(threadId);
+                if (exclude != null && exclude.matcher(threadName).matches()) {
+                    return true;
+                }
+                if (include != null && include.matcher(threadName).matches()) {
+                    if (exclude == null) return false;
+                    include = null;
+                }
+            }
+
+            StackTrace stackTrace = jfr.stackTraces.get(stackId);
+            for (int i = 0; i < stackTrace.methods.length; i++) {
+                String name = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
+                if (exclude != null && exclude.matcher(name).matches()) {
+                    return true;
+                }
+                if (include != null && include.matcher(name).matches()) {
+                    if (exclude == null) return false;
+                    include = null;
+                }
+            }
+            return include != null;
+        }
+
         @Override
         public void visit(Event event, long samples, long value) {
+            if (excludeStack(event.stackTraceId, event.tid)) {
+                return;
+            }
+
             String threadName = getThreadName(event.tid);
             KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
             int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
