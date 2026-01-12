@@ -20,7 +20,7 @@ import java.util.*;
 
 public class JfrTests {
 
-    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,file=%profile.jfr")
+    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,wall,record-cpu,file=%profile.jfr")
     public void cpuLoad(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -40,6 +40,18 @@ public class JfrTests {
         out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "3500");
         assert !out.contains(spikePattern);
         assert out.contains(normalLoadPattern);
+    }
+
+    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,wall,record-cpu,file=%profile.jfr", os = Os.LINUX)
+    public void recordCpuMultiEngine(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        Output out = Output.convertJfrToCollapsed(p.getFilePath("%profile"), "--wall");
+        assert !out.contains("^CPU-\\d+;");
+
+        out = Output.convertJfrToCollapsed(p.getFilePath("%profile"), "--cpu");
+        assert out.contains("^CPU-\\d+;");
     }
 
     /**
