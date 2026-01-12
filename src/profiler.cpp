@@ -1078,12 +1078,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("jfrsync is not supported with non-Java processes");
     }
 
-    if (args._fdtransfer) {
-        if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
-            return Error("Failed to initialize FdTransferClient");
-        }
-    }
-
     if (args._proc > 0) {
         if (!OS::isLinux()) {
             return Error("Process sampling is not supported on the platform");
@@ -1198,6 +1192,12 @@ Error Profiler::start(Arguments& args, bool reset) {
             uninstallTraps();
             switchLibraryTrap(false);
             return error;
+        }
+    }
+
+    if (args._fdtransfer) {
+        if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
+            return Error("Failed to initialize FdTransferClient");
         }
     }
 
