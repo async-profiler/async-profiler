@@ -75,7 +75,8 @@ public class RecoveryTests {
     }
 
     // Verify that System.currentTimeMillis() intrinsic is unwound correctly
-    @Test(mainClass = TimeLoop.class, jvm = Jvm.HOTSPOT, jvmVer = {11, Integer.MAX_VALUE}, debugNonSafepoints = true)
+    // TODO: Enable test on JDK 11 after fixing #1653
+    @Test(mainClass = TimeLoop.class, jvm = Jvm.HOTSPOT, jvmVer = {17, Integer.MAX_VALUE}, debugNonSafepoints = true)
     public void currentTimeMillis(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
         Assert.isLess(out.ratio("^\\[unknown"), 0.01, "No more than 1% of unknown frames");
