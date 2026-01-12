@@ -58,8 +58,7 @@ public class JfrToOtlp extends JfrConverter {
     @Override
     protected void convertChunk() {
         List<SampleInfo> samplesInfo = new ArrayList<>();
-        OtlpEventToSampleVisitor otlpEventToSampleVisitor = new OtlpEventToSampleVisitor(samplesInfo);
-        collector.forEach(otlpEventToSampleVisitor);
+        collector.forEach(new OtlpEventToSampleVisitor(samplesInfo));
 
         long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
@@ -75,7 +74,6 @@ public class JfrToOtlp extends JfrConverter {
         writeSamples(samplesInfo, !args.total /* samples */);
 
         proto.commitField(pMark);
-        otlpEventToSampleVisitor.excludeCache.clear();
     }
 
     private void writeSamples(List<SampleInfo> samplesInfo, boolean samples) {
@@ -174,26 +172,32 @@ public class JfrToOtlp extends JfrConverter {
         // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
         private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
         private final double factor = counterFactor();
-        private final Map<Long, Boolean> excludeCache;
 
         public OtlpEventToSampleVisitor(List<SampleInfo> samplesInfo) {
             this.samplesInfo = samplesInfo;
-            this.excludeCache = new HashMap<>();
         }
 
         private boolean excludeEvent(Event event) {
             if (args.include == null && args.exclude == null) {
                 return false;
             }
-            return excludeCache.computeIfAbsent((long) event.stackTraceId << 32 | event.tid,
-                    key -> excludeStack(event.stackTraceId, event.tid)
-            );
+            return excludeStack(event.stackTraceId, event.tid);
         }
 
         private boolean excludeStack(int stackId, int threadId) {
             StackTrace stackTrace = jfr.stackTraces.get(stackId);
             Pattern include = args.include;
             Pattern exclude = args.exclude;
+            if (args.threads) {
+                String threadName = getThreadName(threadId);
+                if (exclude != null && exclude.matcher(threadName).matches()) {
+                    return true;
+                }
+                if (include != null && include.matcher(threadName).matches()) {
+                    if (exclude == null) return false;
+                    include = null;
+                }
+            }
             for (int i = 0; i < stackTrace.methods.length; i++) {
                 String name = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
                 if (exclude != null && exclude.matcher(name).matches()) {
@@ -202,15 +206,6 @@ public class JfrToOtlp extends JfrConverter {
                 if (include != null && include.matcher(name).matches()) {
                     if (exclude == null) return false;
                     include = null;
-                }
-            }
-            if (args.threads) {
-                String threadName = getThreadName(threadId);
-                if (exclude != null && exclude.matcher(threadName).matches()) {
-                    return true;
-                }
-                if (include != null && include.matcher(threadName).matches()) {
-                    return false;
                 }
             }
             return include != null;
