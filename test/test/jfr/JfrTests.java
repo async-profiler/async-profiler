@@ -20,7 +20,7 @@ import java.util.*;
 
 public class JfrTests {
 
-    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,wall,record-cpu,file=%profile.jfr")
+    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,file=%profile.jfr")
     public void cpuLoad(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
