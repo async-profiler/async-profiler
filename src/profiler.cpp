@@ -1074,6 +1074,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiling event is not supported with non-Java processes");
     }
 
+    if (args._jfr_sync && !VM::loaded()) {
+        return Error("jfrsync is not supported with non-Java processes");
+    }
+
     if (args._fdtransfer) {
         if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
             return Error("Failed to initialize FdTransferClient");
