@@ -1095,6 +1095,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiling event is not supported with non-Java processes");
     }
 
+    if (args._jfr_sync && !VM::loaded()) {
+        return Error("jfrsync is not supported with non-Java processes");
+    }
+
     if (args._fdtransfer) {
         if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
             return Error("Failed to initialize FdTransferClient");
@@ -1198,14 +1202,6 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     if (_cstack != CSTACK_VM && _features.mixed) {
         return Error("mixed feature is only allowed with VMStructs stack walking");
-    }
-
-    if (args._jfr_sync && args._output != OUTPUT_JFR) {
-        return Error("jfrsync is only supported with jfr output");
-    }
-
-    if (args._jfr_sync && !VM::loaded()) {
-        return Error("jfrsync is not supported with non-Java processes");
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
