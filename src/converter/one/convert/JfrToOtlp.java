@@ -298,6 +298,7 @@ public class JfrToOtlp extends JfrConverter {
         }
     }
 
+
     private static final class IntArray {
         static final IntArray EMPTY = new IntArray(new int[0]);
 
