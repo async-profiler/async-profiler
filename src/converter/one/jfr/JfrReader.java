@@ -48,6 +48,7 @@ public class JfrReader implements Closeable {
     public long chunkEndNanos;
     public long chunkStartTicks;
     public long ticksPerSec;
+    public double nanosPerTick;
     public boolean stopAtNewChunk;
 
     public final Dictionary<JfrClass> types = new Dictionary<>();
@@ -78,6 +79,8 @@ public class JfrReader implements Closeable {
     private int malloc;
     private int free;
     private int cpuTimeSample;
+    private int nativeLock;
+    private boolean hasWallTimeSpan;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -165,6 +168,10 @@ public class JfrReader implements Closeable {
             int size = getVarint();
             int type = getVarint();
 
+            if (size <= 0) {
+                throw new IOException("Corrupted JFR recording: invalid event size");
+            }
+
             if (type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
                 if (state != STATE_NEW_CHUNK && stopAtNewChunk) {
                     buf.position(pos);
@@ -197,6 +204,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
+            } else if (type == nativeLock) {
+                if (cls == null || cls == NativeLockEvent.class) return (E) readNativeLockEvent();
             } else if (type == activeSetting) {
                 readActiveSetting();
             } else {
@@ -219,12 +228,13 @@ public class JfrReader implements Closeable {
         return null;
     }
 
-    private ExecutionSample readExecutionSample(boolean hasSamples) {
+    private ExecutionSample readExecutionSample(boolean wall) {
         long time = getVarlong();
         int tid = getVarint();
         int stackTraceId = getVarint();
         int threadState = getVarint();
-        int samples = hasSamples ? getVarint() : 1;
+        int samples = wall ? getVarint() : 1;
+        if (wall && hasWallTimeSpan) getVarlong(); // timeSpan is ignored
         return new ExecutionSample(time, tid, stackTraceId, threadState, samples);
     }
 
@@ -255,6 +265,15 @@ public class JfrReader implements Closeable {
         long samplingPeriod = getVarlong();
         boolean biased = getBoolean();
         return new ExecutionSample(time, tid, stackTraceId, ExecutionSample.CPU_TIME_SAMPLE, 1);
+    }
+
+    private NativeLockEvent readNativeLockEvent() {
+        long time = getVarlong();
+        long duration = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        long address = getVarlong();
+        return new NativeLockEvent(time, tid, stackTraceId, address, duration);
     }
 
     private MallocEvent readMallocEvent(boolean hasSize) {
@@ -332,6 +351,7 @@ public class JfrReader implements Closeable {
         startNanos = Math.min(startNanos, chunkStartNanos);
         endNanos = Math.max(endNanos, chunkEndNanos);
         startTicks = Math.min(startTicks, chunkStartTicks);
+        nanosPerTick = 1e9 / ticksPerSec;
 
         types.clear();
         typesByName.clear();
@@ -592,12 +612,16 @@ public class JfrReader implements Closeable {
         malloc = getTypeId("profiler.Malloc");
         free = getTypeId("profiler.Free");
         cpuTimeSample = getTypeId("jdk.CPUTimeSample");
+        nativeLock = getTypeId("profiler.NativeLock");
 
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);
         registerEvent("jdk.ObjectCount", ObjectCount.class);
         registerEvent("jdk.ObjectCountAfterGC", ObjectCount.class);
         registerEvent("profiler.ProcessSample", ProcessSample.class);
+
+        JfrClass wallClass = typesByName.get("profiler.WallClockSample");
+        hasWallTimeSpan = wallClass != null && wallClass.field("timeSpan") != null;
     }
 
     private int getTypeId(String typeName) {
@@ -701,6 +725,12 @@ public class JfrReader implements Closeable {
         }
     }
 
+    public void rewind() throws IOException {
+        seek(0);
+        state = STATE_NEW_CHUNK;
+        ensureBytes(CHUNK_HEADER_SIZE);
+    }
+
     private boolean ensureBytes(int needed) throws IOException {
         if (buf.remaining() >= needed) {
             return true;
@@ -725,5 +755,9 @@ public class JfrReader implements Closeable {
         }
         buf.flip();
         return buf.limit() > 0;
+    }
+
+    public long eventTimeToNanos(long time) {
+        return chunkStartNanos + (long) ((time - chunkStartTicks) * nanosPerTick);
     }
 }

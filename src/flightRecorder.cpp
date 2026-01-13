@@ -58,8 +58,9 @@ static jclass _jfr_sync_class = NULL;
 static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
+static bool _jfr_starting = false;
 
-static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm", "vmx"};
+static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
 
 
 struct CpuTime {
@@ -539,7 +540,7 @@ class Recording {
     }
 
     static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures& f) {
-        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s %s",
+        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
                  f.unwind_comp   ? "unwind_comp"   : "-",
@@ -549,6 +550,7 @@ class Recording {
                  f.stats         ? "stats"         : "-",
                  f.jnienv        ? "jnienv"        : "-",
                  f.probe_sp      ? "probesp"       : "-",
+                 f.mixed         ? "mixed"         : "-",
                  f.vtable_target ? "vtable"        : "-",
                  f.comp_task     ? "comptask"      : "-",
                  f.pc_addr       ? "pcaddr"        : "-");
@@ -642,8 +644,8 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "end", args._end);
-        writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._buf, args._include);
-        writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._buf, args._exclude);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._include);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._exclude);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jstackdepth", args._jstackdepth);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jfropts", args._jfr_options);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "chunksize", args._chunk_size);
@@ -661,6 +663,12 @@ class Recording {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "wall", args._wall);
             writeBoolSetting(buf, T_EXECUTION_SAMPLE, "nobatch", args._nobatch);
         }
+        if (args._nativemem >= 0) {
+            writeIntSetting(buf, T_MALLOC, "nativemem", args._nativemem);
+        }
+        if (args._nativelock >= 0) {
+            writeIntSetting(buf, T_NATIVE_LOCK, "nativelock", args._nativelock);
+        }
 
         writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
         writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
@@ -675,10 +683,8 @@ class Recording {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
-        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", args._latency >= 0);
-        if (args._latency >= 0) {
-            writeIntSetting(buf, T_METHOD_TRACE, "latency", args._latency);
-        }
+        writeBoolSetting(buf, T_METHOD_TRACE, "enabled", !args._trace.empty());
+        writeListSetting(buf, T_METHOD_TRACE, "trace", args._trace);
 
         writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
         if (args._proc > 0) {
@@ -710,10 +716,9 @@ class Recording {
         writeStringSetting(buf, category, key, str);
     }
 
-    void writeListSetting(Buffer* buf, int category, const char* key, const char* base, int offset) {
-        while (offset != 0) {
-            writeStringSetting(buf, category, key, base + offset);
-            offset = ((int*)(base + offset))[-1];
+    void writeListSetting(Buffer* buf, int category, const char* key, const std::vector<const char*>& list) {
+        for (const char* s : list) {
+            writeStringSetting(buf, category, key, s);
         }
     }
 
@@ -1069,6 +1074,7 @@ class Recording {
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_thread_state);
         buf->putVar32(event->_samples);
+        buf->putVar64(event->_time_span);
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1196,6 +1202,17 @@ class Recording {
         buf->putVar32(event->_class_id);
         buf->putVar64(event->_timeout);
         buf->putVar64(MIN_JLONG);
+        buf->putVar64(event->_address);
+        buf->put8(start, buf->offset() - start);
+    }
+
+    void recordNativeLockSample(Buffer* buf, int tid, u32 call_trace_id, NativeLockEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_NATIVE_LOCK);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_end_time - event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
         buf->putVar64(event->_address);
         buf->put8(start, buf->offset() - start);
     }
@@ -1386,7 +1403,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     int event_mask = args.eventMask() |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
 
+    __atomic_store_n(&_jfr_starting, true, __ATOMIC_RELEASE);
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
+    __atomic_store_n(&_jfr_starting, false, __ATOMIC_RELEASE);
 
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -1440,6 +1459,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
             case PARK_SAMPLE:
                 _rec->recordThreadPark(buf, tid, call_trace_id, (LockEvent*)event);
                 break;
+            case NATIVE_LOCK_SAMPLE:
+                _rec->recordNativeLockSample(buf, tid, call_trace_id, (NativeLockEvent*)event);
+                break;
             case PROFILING_WINDOW:
                 _rec->recordWindow(buf, tid, (ProfilingWindow*)event);
                 break;
@@ -1471,4 +1493,8 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
     _rec->flush(buf);
 
     _rec_lock.unlockShared();
+}
+
+bool FlightRecorder::isJfrStarting() {
+    return __atomic_load_n(&_jfr_starting, __ATOMIC_ACQUIRE);
 }

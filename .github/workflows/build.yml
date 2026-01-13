@@ -17,6 +17,9 @@ env:
   build_java_distribution: corretto
   build_java_version: 11
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ${{ inputs.runner }}

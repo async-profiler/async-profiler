@@ -16,6 +16,7 @@ enum EventType {
     PERF_SAMPLE,
     EXECUTION_SAMPLE,
     WALL_CLOCK_SAMPLE,
+    NATIVE_LOCK_SAMPLE,
     MALLOC_SAMPLE,
     INSTRUMENTED_METHOD,
     METHOD_TRACE,
@@ -55,6 +56,7 @@ class MethodTraceEvent : public Event {
 class WallClockEvent : public Event {
   public:
     u64 _start_time;
+    u64 _time_span;
     ThreadState _thread_state;
     u32 _samples;
 };
@@ -72,6 +74,13 @@ class LockEvent : public EventWithClassId {
     u64 _end_time;
     uintptr_t _address;
     long long _timeout;
+};
+
+class NativeLockEvent : public Event {
+  public:
+    u64 _start_time;
+    u64 _end_time;
+    uintptr_t _address;
 };
 
 class LiveObject : public EventWithClassId {

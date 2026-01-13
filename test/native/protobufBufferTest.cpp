@@ -186,15 +186,15 @@ TEST_CASE(Buffer_test_VarIntByteSize) {
 
 TEST_CASE(Buffer_test_string_with_explicit_length) {
     ProtoBuffer buf(100);
-    
+
     const char* longString = "hello_world_this_is_a_long_string";
     size_t partialLength = 5;
 
     buf.field(1, longString, partialLength);
-    
+
     CHECK_EQ(buf.offset(), 1 + 1 + partialLength);
     CHECK_EQ(buf.data()[0], (1 << 3) | LEN);
     CHECK_EQ(buf.data()[1], partialLength);
     CHECK_EQ(strncmp((const char*) buf.data() + 2, "hello", partialLength), 0);
-    
+
 }

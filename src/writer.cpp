@@ -34,6 +34,12 @@ Writer& Writer::operator<<(long n) {
     return *this;
 }
 
+Writer& Writer::operator<<(u64 n) {
+    char buf[24];
+    write(buf, snprintf(buf, sizeof(buf), "%llu", n));
+    return *this;
+}
+
 FileWriter::FileWriter(const char* file_name) : _size(0) {
     _fd = open(file_name, O_WRONLY | O_TRUNC | O_CREAT, 0644);
     _buf = (char*)malloc(BUF_SIZE);

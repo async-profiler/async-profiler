@@ -10,7 +10,6 @@ import one.jfr.StackTrace;
 import one.jfr.event.AllocationSample;
 import one.jfr.event.Event;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -73,19 +72,21 @@ public class JfrToFlame extends JfrConverter {
     }
 
     public void dump(OutputStream out) throws IOException {
-        try (PrintStream ps = new PrintStream(out, false, "UTF-8")) {
-            fg.dump(ps);
+        fg.dump(out);
+    }
+
+    public static FlameGraph parse(String input, Arguments args) throws IOException {
+        try (JfrReader jfr = new JfrReader(input)) {
+            JfrToFlame converter = new JfrToFlame(jfr, args);
+            converter.convert();
+            return converter.fg;
         }
     }
 
     public static void convert(String input, String output, Arguments args) throws IOException {
-        JfrToFlame converter;
-        try (JfrReader jfr = new JfrReader(input)) {
-            converter = new JfrToFlame(jfr, args);
-            converter.convert();
-        }
-        try (FileOutputStream out = new FileOutputStream(output)) {
-            converter.dump(out);
+        FlameGraph fg = parse(input, args);
+        try (PrintStream out = new PrintStream(output, "UTF-8")) {
+            fg.dump(out);
         }
     }
 }

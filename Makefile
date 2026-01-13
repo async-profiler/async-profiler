@@ -1,4 +1,4 @@
-PROFILER_VERSION ?= 4.1
+PROFILER_VERSION ?= 4.2.1
 
 ifeq ($(COMMIT_TAG),true)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(shell git rev-parse --short=8 HEAD)
@@ -52,6 +52,7 @@ JAR=$(JAVA_HOME)/bin/jar
 JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
+TEST_JAVA ?= $(JAVA_HOME)/bin/java
 
 TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
@@ -69,12 +70,15 @@ HEADERS := $(wildcard src/*.h)
 RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
+JAR_MANIFEST := src/api/one/profiler/MANIFEST.MF
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java' ! -path 'test/stubs/*')
 TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
 CPP_TEST_INCLUDES := -Isrc -Itest/native
+TEST_LIB_SOURCES := $(wildcard test/native/libs/*)
+TEST_BIN_SOURCES := $(shell find test/test -name "*.c*")
 
 ifeq ($(JAVA_HOME),)
   JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -132,8 +136,7 @@ ifneq (,$(STATIC_BINARY))
   CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
 endif
 
-
-.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
+.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
@@ -194,10 +197,10 @@ build/$(ASPROF_HEADER): src/asprof.h
 	mkdir -p build/include
 	cp -f $< build/include
 
-build/$(API_JAR): $(API_SOURCES)
+build/$(API_JAR): $(API_SOURCES) $(JAR_MANIFEST)
 	mkdir -p build/api
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $(API_SOURCES)
-	$(JAR) cf $@ -C build/api .
+	$(JAR) cfm $@ $(JAR_MANIFEST) -C build/api .
 	$(RM) -r build/api
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
@@ -207,7 +210,7 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	$(RM) -r build/converter
 
 %.class: %.java
-	$(JAVAC) -source 7 -target 7 -Xlint:-options -g:none $^
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -g:none $^
 
 build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 	mkdir -p build/test
@@ -218,19 +221,20 @@ else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
 endif
 
-build-test-java: all build/$(TEST_JAR) build-test-libs build-test-bins
+build-test-java: all build/$(TEST_JAR) build/test/build-test-libs build/test/build-test-bins
 
-build-test-cpp: build/test/cpptests build-test-libs
+build-test-cpp: build/test/cpptests build/test/build-test-libs
 
 build-test: build-test-cpp build-test-java
 
-build-test-libs:
+build/test/build-test-libs: $(TEST_LIB_SOURCES)
 	@mkdir -p $(TEST_LIB_DIR)
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libcallsmalloc.$(SOEXT) test/native/libs/callsmalloc.c
 	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjnimalloc.$(SOEXT) test/native/libs/jnimalloc.c
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libmalloc.$(SOEXT) test/native/libs/malloc.c
 	$(CC) -fno-optimize-sibling-calls -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjninativestacks.$(SOEXT) test/native/libs/jninativestacks.c
+	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjninativelocks.$(SOEXT) test/native/libs/jninativelocks.c -lpthread
 
 ifeq ($(OS_TAG),linux)
 	$(CC) -c -shared -fPIC -o $(TEST_LIB_DIR)/vaddrdif.o test/native/libs/vaddrdif.c
@@ -242,15 +246,18 @@ ifeq ($(OS_TAG),linux)
 	$(AS) -o $(TEST_LIB_DIR)/twiceatzero.o test/native/libs/twiceatzero.s
 	$(LD) -shared -o $(TEST_LIB_DIR)/libtwiceatzero.$(SOEXT) $(TEST_LIB_DIR)/twiceatzero.o --section-start=.seg1=0x4000 -z max-page-size=0x1000
 endif
+	@touch $@
 
-build-test-bins:
+build/test/build-test-bins: $(TEST_BIN_SOURCES)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CC) -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
 	$(CC) -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
+	$(CC) -o $(TEST_BIN_DIR)/native_lock_contention test/test/nativelock/native_lock_contention.c -lpthread
 	$(CC) -o $(TEST_BIN_DIR)/profile_with_dlopen -Isrc test/test/nativemem/profile_with_dlopen.c -ldl
 	$(CC) -o $(TEST_BIN_DIR)/preload_malloc -Isrc test/test/nativemem/preload_malloc.c -ldl
 	$(CC) -o $(TEST_BIN_DIR)/nativemem_known_lib_crash -Isrc test/test/nativemem/nativemem_known_lib_crash.c -ldl
 	$(CXX) -o $(TEST_BIN_DIR)/non_java_app -std=c++11 $(INCLUDES) $(CPP_TEST_INCLUDES) test/test/nonjava/non_java_app.cpp $(LIBS)
+	@touch $@
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
@@ -258,7 +265,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(TEST_JAVA) $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -267,7 +274,12 @@ coverage: clean-coverage
 	cd build/test/ && gcovr -r ../.. --html-details --gcov-executable "$(GCOV)" -o coverage/index.html
 	rm -rf -- -.gc*
 
-test: test-cpp test-java
+# unit tests shouldn't run if the user selects an integration test target
+ifeq ($(TESTS),)
+  TEST_CPP := test-cpp
+endif
+
+test: $(TEST_CPP) test-java
 
 $(TEST_DEPS_DIR):
 	mkdir -p $@

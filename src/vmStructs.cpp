@@ -36,7 +36,6 @@ int VMStructs::_thread_osthread_offset = -1;
 int VMStructs::_thread_anchor_offset = -1;
 int VMStructs::_thread_state_offset = -1;
 int VMStructs::_thread_vframe_offset = -1;
-int VMStructs::_thread_exception_offset = -1;
 int VMStructs::_osthread_id_offset = -1;
 int VMStructs::_call_wrapper_anchor_offset = -1;
 int VMStructs::_comp_env_offset = -1;
@@ -263,10 +262,6 @@ void VMStructs::initOffsets() {
                     _thread_state_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_vframe_array_head") == 0) {
                     _thread_vframe_offset = *(int*)(entry + offset_offset);
-                }
-            } else if (strcmp(type, "ThreadShadow") == 0) {
-                if (strcmp(field, "_exception_file") == 0) {
-                    _thread_exception_offset = *(int*)(entry + offset_offset);
                 }
             } else if (strcmp(type, "OSThread") == 0) {
                 if (strcmp(field, "_thread_id") == 0) {
@@ -525,7 +520,6 @@ void VMStructs::resolveOffsets() {
             && _scopes_pcs_offset >= 0
             && ((_mutable_data_offset >= 0 && _relocation_size_offset >= 0) || _nmethod_metadata_offset >= 0)
             && _thread_vframe_offset >= 0
-            && _thread_exception_offset >= 0
             && _constmethod_size >= 0;
 
     // Since JDK-8268406, it is no longer possible to get VMMethod* by dereferencing jmethodID

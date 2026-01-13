@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "callTraceStorage.h"
 #include "demangle.h"
 #include "frameName.h"
 #include "profiler.h"
@@ -88,8 +89,8 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
 
-    buildFilter(_include, args._buf, args._include);
-    buildFilter(_exclude, args._buf, args._exclude);
+    for (const char* s : args._include) _include.push_back(s);
+    for (const char* s : args._exclude) _exclude.push_back(s);
 
     Profiler::instance()->classMap()->collect(_class_names);
 }
@@ -109,13 +110,6 @@ FrameName::~FrameName() {
     }
 
     freelocale(uselocale(_saved_locale));
-}
-
-void FrameName::buildFilter(std::vector<Matcher>& vector, const char* base, int offset) {
-    while (offset != 0) {
-        vector.push_back(base + offset);
-        offset = ((int*)(base + offset))[-1];
-    }
 }
 
 const char* FrameName::decodeNativeSymbol(const char* name) {
@@ -385,4 +379,25 @@ bool FrameName::exclude(const char* frame_name) {
         }
     }
     return false;
+}
+
+bool FrameName::excludeTrace(CallTrace* trace) {
+    bool check_include = !_include.empty();
+    bool check_exclude = !_exclude.empty();
+    if (!(check_include || check_exclude)) {
+        return false;
+    }
+
+    for (int i = 0; i < trace->num_frames; i++) {
+        const char* frame_name = name(trace->frames[i], true);
+        if (check_exclude && exclude(frame_name)) {
+            return true;
+        }
+        if (check_include && include(frame_name)) {
+            check_include = false;
+            if (!check_exclude) break;
+        }
+    }
+
+    return check_include;
 }

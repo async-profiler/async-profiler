@@ -17,7 +17,7 @@ class Index {
   private:
     std::unordered_map<std::string, size_t> _idx_map;
     size_t _start_index;
-  
+
   public:
     Index(size_t start_index = 0) : _start_index(start_index) {
         // The first index should contain the empty string
@@ -47,6 +47,10 @@ class Index {
 
     size_t size() const {
         return _idx_map.size();
+    }
+
+    bool empty() const {
+        return _idx_map.empty();
     }
 
     void forEachOrdered(const std::function<void(size_t idx, const std::string&)>& consumer) const {

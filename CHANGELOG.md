@@ -1,5 +1,55 @@
 # Changelog
 
+## [4.2.1] - 2025-11-22
+
+### Bug fixes
+
+ - #1599: Workaround for the kernel PERF_EVENT_IOC_REFRESH bug
+ - #1596: Do not block any signals during execution of a custom crash handler
+
+## [4.2] - 2025-10-20
+
+### Features
+
+ - Java Method Tracing and Latency Profiling
+   * #1421: Latency profiling
+   * #1435: Allow wildcards in Instrument profiling engine
+   * #1499: `--trace` option with per-method latency threshold
+ - System-wide process sampling on Linux
+   * #1411: `--proc` option to record `profiler.ProcessSample` events
+ - VMStructs stack walker by default
+   * #1539: Use VMStructs stack walking mode by default
+   * #1537: Support `comptask` and `vtable` features
+   * #1517: Use JavaFrameAnchor to find top Java frame
+   * #1449: Special handling of prologue and epilogue of compiled methods
+
+### Improvements
+
+ - #1475: Add `CPUTimeSample` event support to jfrconv
+ - #1414: Per-thread flamegraph option in JFR heatmap converter
+ - #1526: Expose JfrReader dictionary that maps osThreadId to javaThreadId
+ - #1448: Thread name in OpenTelemetry output
+ - #1413: Add `time_nanos` and `duration_nanos` to OTLP profiles
+ - #1450: Unwind dylib stubs as empty frames on macOS
+ - #1416: Add synthetic symbols for Mach-O stubs/trampolines
+ - Allow cross-compilation for 32-bit platforms
+
+### Bug fixes
+
+ - #1515: Fix UnsatisfiedLinkError when tmpdir is set to a relative path
+ - #1500: Detect if `calloc` calls `malloc` for nativemem profiling
+ - #1427: Re-implement SafeAccess crash protection
+ - #1417: Two wall-clock profilers interfere with each other
+
+### Project Infrastructure
+
+ - #1527: GHA: replace macos-13 with macos-15-intel
+ - #1510: Add option to retry tests
+ - #1508: Add more GHA jobs to cover JDK versions on ARM
+ - #1502: Fix job dependencies between integration tests and builds
+ - #1466: Add Liberica JDK on Alpaquita Linux to the CI
+ - Made integration tests more stable overall
+
 ## [4.1] - 2025-07-21
 
 ### Features
@@ -378,7 +428,7 @@
 ### Features
  - Converters between different output formats:
    - JFR -> nflx (FlameScope)
-   - Collapsed stacks -> HTML 5 Flame Graph 
+   - Collapsed stacks -> HTML 5 Flame Graph
 
 ### Improvements
  - `profiler.sh` no longer requires bash (contributed by @cfstras)
@@ -462,7 +512,7 @@
 ### Features
  - Interactive Call tree and Backtrace tree in HTML format (contributed by @rpulle)
  - Experimental support for Java Flight Recorder (JFR) compatible output
- 
+
 ### Improvements
  - Added units: `ms`, `us`, `s` and multipliers: `K`, `M`, `G` for interval argument
  - API and command-line option `-v` for profiler version
@@ -476,7 +526,7 @@
 
 ### Features
  - Profiling of native functions, e.g. malloc
- 
+
 ### Improvements
  - JDK 9, 10, 11 support for heap profiling with accurate stack traces
  - `root` can now profile Java processes of any user
@@ -488,7 +538,7 @@
  - Produce SVG files out of the box; flamegraph.pl is no longer needed
  - Profile ReentrantLock contention
  - Java API
- 
+
 ### Improvements
  - Allocation and Lock profiler now works on JDK 7, too
  - Faster dumping of results

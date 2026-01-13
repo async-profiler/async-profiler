@@ -63,7 +63,7 @@ static int start_attach_mechanism(int pid, int nspid) {
     do {
         nanosleep(&ts, NULL);
         result = check_socket(nspid);
-    } while (result != 0 && (ts.tv_nsec += 20000000) < 500000000);
+    } while (result != 0 && (ts.tv_nsec += 20000000) < 500000000 && kill(pid, 0) == 0);
 
     unlink(path);
     return result;

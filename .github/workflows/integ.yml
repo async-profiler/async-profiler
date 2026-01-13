@@ -37,6 +37,9 @@ on:
         required: false
         default: 0
 
+permissions:
+  contents: read
+
 jobs:
   integration-test:
     runs-on: ${{ inputs.runner }}

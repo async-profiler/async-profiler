@@ -24,6 +24,7 @@ typedef std::map<jmethodID, std::string> JMethodCache;
 typedef std::map<int, std::string> ThreadMap;
 typedef std::map<unsigned int, const char*> ClassMap;
 
+class CallTrace;
 
 enum MatchType {
   MATCH_EQUALS,
@@ -66,11 +67,12 @@ class FrameName {
     ThreadMap& _thread_names;
     locale_t _saved_locale;
 
-    void buildFilter(std::vector<Matcher>& vector, const char* base, int offset);
     const char* decodeNativeSymbol(const char* name);
     const char* typeSuffix(FrameTypeId type);
     void javaMethodName(jmethodID method);
     void javaClassName(const char* symbol, size_t length, int style);
+    bool include(const char* frame_name);
+    bool exclude(const char* frame_name);
 
   public:
     FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names);
@@ -79,11 +81,7 @@ class FrameName {
     const char* name(ASGCT_CallFrame& frame, bool for_matching = false);
     FrameTypeId type(ASGCT_CallFrame& frame);
 
-    bool hasIncludeList() { return !_include.empty(); }
-    bool hasExcludeList() { return !_exclude.empty(); }
-
-    bool include(const char* frame_name);
-    bool exclude(const char* frame_name);
+    bool excludeTrace(CallTrace* trace);
 };
 
 #endif // _FRAMENAME_H

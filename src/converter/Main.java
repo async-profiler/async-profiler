@@ -68,6 +68,14 @@ public class Main {
         }
     }
 
+    public static FlameGraph parseFlameGraph(String input, Arguments args) throws IOException {
+        if (isJfr(input)) {
+            return JfrToFlame.parse(input, args);
+        } else {
+            return FlameGraph.parse(input, args);
+        }
+    }
+
     private static String getFileName(String fileName) {
         return fileName.substring(fileName.lastIndexOf(File.separatorChar) + 1);
     }
@@ -96,6 +104,8 @@ public class Main {
                 "\n" +
                 "Conversion options:\n" +
                 "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap, otlp\n" +
+                "  -I --include REGEX    Include only stacks with the specified frames\n" +
+                "  -X --exclude REGEX    Exclude stacks with the specified frames\n" +
                 "\n" +
                 "JFR options:\n" +
                 "     --cpu              CPU profile (ExecutionSample)\n" +
@@ -107,6 +117,8 @@ public class Main {
                 "     --leak             Only include memory leaks in nativemem\n" +
                 "     --tail RATIO       Ignore tail allocations for leak profiling (10% by default)\n" +
                 "     --lock             Lock contention profile\n" +
+                "     --nativelock       Native (pthread) lock contention profile\n" +
+                "     --trace            Method traces / latency profile\n" +
                 "  -t --threads          Split stack traces by threads\n" +
                 "  -s --state LIST       Filter thread states: runnable, sleeping\n" +
                 "     --classify         Classify samples into predefined categories\n" +
@@ -118,6 +130,7 @@ public class Main {
                 "     --dot              Dotted class names\n" +
                 "     --from TIME        Start time in ms (absolute or relative)\n" +
                 "     --to TIME          End time in ms (absolute or relative)\n" +
+                "     --latency MS       Retain only samples within MethodTraces of at least MS milliseconds\n" +
                 "\n" +
                 "Flame Graph options:\n" +
                 "     --title STRING     Flame Graph title\n" +
@@ -127,8 +140,6 @@ public class Main {
                 "  -r --reverse          Reverse stack traces (defaults to icicle graph)\n" +
                 "  -i --inverted         Toggles the layout for reversed stacktraces from icicle to flamegraph\n" +
                 "                        and for default stacktraces from flamegraph to icicle\n" +
-                "  -I --include REGEX    Include only stacks with the specified frames\n" +
-                "  -X --exclude REGEX    Exclude stacks with the specified frames\n" +
                 "     --highlight REGEX  Highlight frames matching the given pattern\n");
     }
 }

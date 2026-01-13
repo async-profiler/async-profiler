@@ -42,7 +42,6 @@ class VMStructs {
     static int _thread_anchor_offset;
     static int _thread_state_offset;
     static int _thread_vframe_offset;
-    static int _thread_exception_offset;
     static int _osthread_id_offset;
     static int _call_wrapper_anchor_offset;
     static int _comp_env_offset;
@@ -335,13 +334,30 @@ class JavaFrameAnchor : VMStructs {
     }
 
     bool getFrame(const void*& pc, uintptr_t& sp, uintptr_t& fp) {
-        if (lastJavaPC() != NULL && lastJavaSP() != 0) {
-            pc = lastJavaPC();
-            sp = lastJavaSP();
-            fp = lastJavaFP();
-            return true;
+        if (lastJavaPC() == NULL || lastJavaSP() == 0) {
+            return false;
         }
-        return false;
+        pc = lastJavaPC();
+        sp = lastJavaSP();
+        fp = lastJavaFP();
+        return true;
+    }
+
+    // Similar to getFrame, but handles partially saved frames.
+    // Relevant for allocation hooks executed in _thread_in_vm state.
+    bool restoreFrame(const void*& pc, uintptr_t& sp, uintptr_t& fp) {
+        if (lastJavaSP() == 0) {
+            return false;
+        }
+
+        sp = lastJavaSP();
+        if ((fp = lastJavaFP()) == 0) {
+            fp = sp;
+        }
+        if ((pc = lastJavaPC()) == NULL) {
+            pc = ((const void**)sp)[-1];
+        }
+        return true;
     }
 };
 
@@ -391,10 +407,6 @@ class VMThread : VMStructs {
 
     bool inDeopt() {
         return *(void**) at(_thread_vframe_offset) != NULL;
-    }
-
-    void*& exception() {
-        return *(void**) at(_thread_exception_offset);
     }
 
     JavaFrameAnchor* anchor() {
@@ -489,7 +501,7 @@ class NMethod : VMStructs {
             return *(void**) at(-_nmethod_entry_offset);
         }
     }
-    
+
     bool contains(const void* pc) {
         return pc >= this && pc < at(size());
     }
@@ -519,6 +531,11 @@ class NMethod : VMStructs {
     bool isStub() {
         const char* n = name();
         return n != NULL && strncmp(n, "StubRoutines", 12) == 0;
+    }
+
+    bool isVTableStub() {
+        const char* n = name();
+        return n != NULL && strcmp(n, "vtable chunks") == 0;
     }
 
     VMMethod* method() {

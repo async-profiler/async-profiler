@@ -22,17 +22,9 @@ void J9ObjectSampler::VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread
     }
 }
 
-Error J9ObjectSampler::check(Arguments& args) {
+Error J9ObjectSampler::start(Arguments& args) {
     if (J9Ext::InstrumentableObjectAlloc_id < 0) {
         return Error("InstrumentableObjectAlloc is not supported on this JVM");
-    }
-    return Error::OK;
-}
-
-Error J9ObjectSampler::start(Arguments& args) {
-    Error error = check(args);
-    if (error) {
-        return error;
     }
 
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;

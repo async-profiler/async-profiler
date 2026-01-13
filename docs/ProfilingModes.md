@@ -172,6 +172,30 @@ enter this lock/monitor.
 
 Example: `asprof -e lock -t -i 5ms -f result.html 8983`
 
+## Native lock profiling
+
+`--nativelock` option tells async-profiler to measure pthread lock contention in the profiled application.
+Native lock profiling can help developers understand pthread lock acquisition patterns, lock contention (when threads
+have to wait to acquire native locks), time spent waiting for pthread mutexes and read-write locks, and which code paths
+are blocked due to native synchronization primitives.
+
+Native lock profiling works by intercepting calls to:
+
+- [`pthread_mutex_lock`](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html)
+- [`pthread_rwlock_rdlock`](https://man7.org/linux/man-pages/man3/pthread_rwlock_rdlock.3p.html)
+- [`pthread_rwlock_wrlock`](https://man7.org/linux/man-pages/man3/pthread_rwlock_wrlock.3p.html)
+
+In this mode, the top frame shows the native function that experienced contention (e.g., pthread_mutex_lock_hook),
+and the counter represents the number of nanoseconds threads spent waiting to acquire the lock.
+
+Key differences from Java lock profiling:
+
+- Profiles native pthread locks instead of Java monitors.
+- Works with C/C++ applications and native libraries used by Java applications.
+- Captures contention in native code paths that Java lock profiling cannot see.
+
+Example: `asprof --nativelock 5ms -t -f result.html 8983`
+
 ## Java method profiling
 
 `-e ClassName.methodName` option instruments the given Java method
@@ -191,9 +215,8 @@ The massive CodeCache flush doesn't occur if attaching async-profiler as an agen
 
 ### Latency profiling
 
-In the context of _Java method profiling_, async-profiler supports latency profiling. Users may
-specify a threshold latency with the parameter `latency`. Only the calls exceeding this threshold
-in total runtime will be profiled. Method calls resulting in an exception are ignored.
+Please refer to our blog post on [latency profiling](https://github.com/async-profiler/async-profiler/discussions/1497)
+to know more about this profiling mode.
 
 ## Native function profiling
 
@@ -296,6 +319,7 @@ asprof --loop 1h -f /var/log/profile-%t.jfr 8983
 | `-e page-faults`                          | Software page faults                                                                                                                                                                                                                               |
 | `-e context-switches`                     | Context switches                                                                                                                                                                                                                                   |
 | `-e cycles`                               | Total CPU cycles                                                                                                                                                                                                                                   |
+| `-e ref-cycles`                           | CPU reference cycles, not affected by CPU frequency scaling                                                                                                                                                                                        |
 | `-e instructions`                         | Retired CPU instructions                                                                                                                                                                                                                           |
 | `-e cache-references`                     | Cache accesses (usually Last Level Cache, but may depend on the architecture)                                                                                                                                                                      |
 | `-e cache-misses`                         | Cache accesses requiring fetching data from a higher-level cache or main memory                                                                                                                                                                    |

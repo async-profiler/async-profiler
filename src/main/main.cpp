@@ -35,9 +35,8 @@ static const char USAGE_STRING[] =
     "  resume              resume profiling without resetting collected data\n"
     "  stop                stop profiling\n"
     "  dump                dump collected data without stopping profiling session\n"
-    "  check               check if the specified profiling event is available\n"
     "  status              print profiling status\n"
-    "  meminfo             print profiler memory stats\n"
+    "  metrics             print profiler metrics in Prometheus format\n"
     "  list                list profiling events supported by the target JVM\n"
     "  load                load agent library (jattach action)\n"
     "  jcmd                run JVM diagnostic command (jattach action)\n"
@@ -59,7 +58,7 @@ static const char USAGE_STRING[] =
     "  -I include          output only stack traces containing the specified pattern\n"
     "  -X exclude          exclude stack traces with the specified pattern\n"
     "  -L level            log level: debug|info|warn|error|none\n"
-    "  -F features         advanced stack trace features: vtable, comptask, pcaddr\n"
+    "  -F features         advanced stack trace features: mixed, vtable, comptask, pcaddr\n"
     "  -v, --version       display version string\n"
     "\n"
     "  --title string      FlameGraph title\n"
@@ -73,8 +72,9 @@ static const char USAGE_STRING[] =
     "  --live              build allocation profile from live objects only\n"
     "  --nativemem bytes   native allocation profiling interval in bytes\n"
     "  --nofree            do not collect free calls in native allocation profiling\n"
-    "  --latency duration  Java method latency profiling threshold\n"
-    "  --lock duration     lock profiling threshold in nanoseconds\n"
+    "  --trace method      Method to be instrumented with optional latency threshold\n"
+    "  --lock time         lock profiling threshold in nanoseconds\n"
+    "  --nativelock time   pthread mutex/rwlock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
     "  --proc interval     process sampling interval (default: 30s)\n"
     "  --all               shorthand for enabling cpu, wall, alloc, live,\n"
@@ -413,7 +413,7 @@ int main(int argc, const char** argv) {
         String arg = args.next();
 
         if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" || arg == "check" ||
-            arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect") {
+            arg == "status" || arg == "metrics" || arg == "list" || arg == "collect") {
             action = arg;
 
         } else if (arg == "load" || arg == "jcmd" || arg == "threaddump" || arg == "dumpheap" || arg == "inspectheap") {
@@ -504,8 +504,8 @@ int main(int argc, const char** argv) {
                    arg == "--sched" || arg == "--live" || arg == "--nofree" || arg == "--record-cpu") {
             format << "," << (arg.str() + 2);
 
-        } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
-                   arg == "--latency" || arg == "--chunksize" || arg == "--chunktime" ||
+        } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||
+                   arg == "--wall" || arg == "--trace" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
                    arg == "--target-cpu" || arg == "--proc") {
             params << "," << (arg.str() + 2) << "=" << args.next();
@@ -588,12 +588,13 @@ int main(int argc, const char** argv) {
         signal(SIGTERM, sigint_handler);
 
         while (time_micros() < end_time) {
+            sleep(1);
+
             if (kill(pid, 0) != 0) {
                 fprintf(stderr, "Process exited\n");
                 if (use_tmp_file) print_file(file, STDOUT_FILENO);
                 return 0;
             }
-            sleep(1);
         }
 
         fprintf(stderr, end_time != 0 ? "Done\n" : "Interrupted\n");

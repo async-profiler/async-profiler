@@ -57,12 +57,16 @@ public class CpuTests {
         Output outRightCpu = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --target-cpu 0");
         assertCloseTo(outRightCpu.total(), 2_000_000_000, "perf_events total should match profiling duration");
     }
-    
+
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsRecordCpuEventsCount(TestProcess p) throws Exception {
         pinCpu(p, 1);
 
         Output output = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --record-cpu");
+        assert output.contains("\\[CPU-1\\]");
+        assert !output.contains("\\[CPU-0\\]");
+
+        output = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --record-cpu --all-user");
         assert output.contains("\\[CPU-1\\]");
         assert !output.contains("\\[CPU-0\\]");
     }
