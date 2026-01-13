@@ -324,6 +324,7 @@
 		if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
 			event.preventDefault();
 			search(true);
+			return false;
 		} else if (event.key === 'Escape') {
 			search(false);
 		} else if ((event.key === 'n' || event.key === 'N') && nav.length > 0) {
@@ -332,13 +333,16 @@
 			document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
 			window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
 			canvas.onmousemove();
+			return false;
 		} else if (event.key === 'i') {
 			canvas.onmouseout();
 			document.getElementById('inverted').onclick();
+			return false;
 		} else if (event.key === '0') {
 			canvas.onmouseout();
 			root = levels[0][0];
 			search(false);
+			return false;
 		}
 	}
 
