@@ -38,6 +38,9 @@ public class JfrToPprof extends JfrConverter {
 
             @Override
             public void visit(Event event, long value) {
+                if (excludeStack(event.stackTraceId, event.tid, event.classId())) {
+                    return;
+                }
                 profile.field(2, sample(s, event, value));
                 s.reset();
             }
