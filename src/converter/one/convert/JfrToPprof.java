@@ -13,6 +13,7 @@ import one.proto.Proto;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -38,6 +39,9 @@ public class JfrToPprof extends JfrConverter {
 
             @Override
             public void visit(Event event, long value) {
+                if (excludeStack(event.stackTraceId, event.tid, event.classId())) {
+                    return;
+                }
                 profile.field(2, sample(s, event, value));
                 s.reset();
             }
