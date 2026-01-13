@@ -1059,6 +1059,21 @@ Error Profiler::start(Arguments& args, bool reset) {
         VM::tryAttach();
     }
 
+    if (args._fdtransfer) {
+        if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
+            return Error("Failed to initialize FdTransferClient");
+        }
+    }
+
+    Error error = startInternal(args, reset);
+    if (error) {
+        FdTransferClient::closePeer();
+    }
+
+    return error;
+}
+
+Error Profiler::startInternal(Arguments& args, bool reset) {
     Error error = checkJvmCapabilities();
     if (error) {
         return error;
@@ -1195,13 +1210,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    if (args._fdtransfer) {
-        if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
-            error = Error("Failed to initialize FdTransferClient");
-            goto error1;
-        }
-    }
-
     error = _engine->start(args);
     if (error) {
         goto error1;
@@ -1287,7 +1295,6 @@ error1:
     _jfr.stop();
     unlockAll();
 
-    FdTransferClient::closePeer();
     return error;
 }
 
