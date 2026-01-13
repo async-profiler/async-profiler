@@ -58,6 +58,7 @@ static jclass _jfr_sync_class = NULL;
 static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
+static bool _jfr_starting = false;
 
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
 
@@ -1073,6 +1074,7 @@ class Recording {
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_thread_state);
         buf->putVar32(event->_samples);
+        buf->putVar64(event->_time_span);
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1401,7 +1403,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     int event_mask = args.eventMask() |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
 
+    __atomic_store_n(&_jfr_starting, true, __ATOMIC_RELEASE);
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
+    __atomic_store_n(&_jfr_starting, false, __ATOMIC_RELEASE);
 
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -1489,4 +1493,8 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
     _rec->flush(buf);
 
     _rec_lock.unlockShared();
+}
+
+bool FlightRecorder::isJfrStarting() {
+    return __atomic_load_n(&_jfr_starting, __ATOMIC_ACQUIRE);
 }

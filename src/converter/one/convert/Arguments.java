@@ -44,6 +44,7 @@ public class Arguments {
     public boolean dot;
     public long from;
     public long to;
+    public long latency = -1;
     public final List<String> files = new ArrayList<>();
 
     public Arguments(String... args) {

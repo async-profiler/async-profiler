@@ -36,7 +36,6 @@ union CallTraceBuffer {
 };
 
 
-class FrameName;
 class NMethod;
 class StackContext;
 
@@ -68,6 +67,7 @@ class Profiler {
 
     u64 _start_time;
     u64 _stop_time;
+    u64 _loop_time;
     int _epoch;
     u32 _gc_id;
     WaitableMutex _timer_lock;
@@ -121,7 +121,6 @@ class Profiler {
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
     void updateNativeThreadNames();
-    bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
     Engine* selectAllocEngine(long alloc_interval, bool live);
@@ -193,7 +192,7 @@ class Profiler {
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, Writer& out);
-    Error restart(Arguments& args);
+    Error expire(Arguments& args, bool restart);
     void shutdown(Arguments& args);
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);

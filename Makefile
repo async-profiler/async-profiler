@@ -1,4 +1,4 @@
-PROFILER_VERSION ?= 4.2
+PROFILER_VERSION ?= 4.2.1
 
 ifeq ($(COMMIT_TAG),true)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(shell git rev-parse --short=8 HEAD)
@@ -52,6 +52,7 @@ JAR=$(JAVA_HOME)/bin/jar
 JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
+TEST_JAVA ?= $(JAVA_HOME)/bin/java
 
 TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
@@ -69,6 +70,7 @@ HEADERS := $(wildcard src/*.h)
 RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
+JAR_MANIFEST := src/api/one/profiler/MANIFEST.MF
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java' ! -path 'test/stubs/*')
 TESTS ?=
@@ -195,10 +197,10 @@ build/$(ASPROF_HEADER): src/asprof.h
 	mkdir -p build/include
 	cp -f $< build/include
 
-build/$(API_JAR): $(API_SOURCES)
+build/$(API_JAR): $(API_SOURCES) $(JAR_MANIFEST)
 	mkdir -p build/api
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $(API_SOURCES)
-	$(JAR) cf $@ -C build/api .
+	$(JAR) cfm $@ $(JAR_MANIFEST) -C build/api .
 	$(RM) -r build/api
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
@@ -263,7 +265,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	@echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(TEST_JAVA) $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage

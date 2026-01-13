@@ -20,7 +20,7 @@ public class PmuTests {
     @Test(mainClass = Dictionary.class, os = Os.LINUX)
     public void cycles(TestProcess p) throws Exception {
         try {
-            p.profile("-e cycles -d 3 -o collapsed -f %f");
+            p.profile("-e ref-cycles -d 3 -o collapsed -f %f");
             Output out = p.readFile("%f");
             // We are skipping the test in one case, for more details: https://github.com/actions/runner-images/issues/11689
             if (out.total() == 0 &&
@@ -29,6 +29,7 @@ public class PmuTests {
                 System.out.println("Skipping the test PmuTests.cycles on ARM64 in GitHub Actions as no samples have been collected");
                 return;
             }
+
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test16K"), 0.4);
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.4);
         } catch (Exception e) {
@@ -43,9 +44,15 @@ public class PmuTests {
         try {
             p.profile("-e cache-misses -d 3 -o collapsed -f %f");
 
-            Output out = p.readFile("%f");
-            Assert.isLess(out.ratio("test/pmu/Dictionary.test16K"), 0.2);
-            Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.8);
+            // TODO: https://github.com/async-profiler/async-profiler/issues/1588
+            //  It was observed on certain system configuration that the 'cache-misses' event will not be collected,
+            //  both async-profiler & perf are failing to collect samples & reporting 0 with no obvious cause,
+            //  the test is marked as pass if such a condition is encountered until that is root caused
+            if (p.getFile("%f").length() != 0) {
+                Output out = p.readFile("%f");
+                Assert.isLess(out.ratio("test/pmu/Dictionary.test16K"), 0.2);
+                Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.8);
+            }
         } catch (Exception e) {
             if (!p.readFile(TestProcess.PROFERR).contains("Perf events unavailable")) {
                 throw e;

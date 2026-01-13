@@ -12,6 +12,7 @@
 #include "engine.h"
 #include "os.h"
 
+struct ThreadSleepState;
 
 class WallClock : public Engine {
   private:
@@ -39,7 +40,7 @@ class WallClock : public Engine {
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
-    static void recordWallClock(u64 start_time, ThreadState state, u32 samples, int tid, u32 call_trace_id);
+    static void recordWallClock(const ThreadSleepState& tss, ThreadState state, int tid);
 
   public:
     const char* type() {

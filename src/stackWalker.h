@@ -28,16 +28,11 @@ struct StackContext {
 };
 
 class StackWalker {
-  private:
-    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
-                      StackWalkFeatures features, EventType event_type,
-                      const void* pc, uintptr_t sp, uintptr_t fp);
-
   public:
     static int walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
     static int walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
-    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackWalkFeatures features, EventType event_type);
-    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor, EventType event_type);
+    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, int lock_index,
+                      StackWalkFeatures features, EventType event_type);
 
     static void checkFault();
 };

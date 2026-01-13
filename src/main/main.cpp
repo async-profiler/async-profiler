@@ -588,12 +588,13 @@ int main(int argc, const char** argv) {
         signal(SIGTERM, sigint_handler);
 
         while (time_micros() < end_time) {
+            sleep(1);
+
             if (kill(pid, 0) != 0) {
                 fprintf(stderr, "Process exited\n");
                 if (use_tmp_file) print_file(file, STDOUT_FILENO);
                 return 0;
             }
-            sleep(1);
         }
 
         fprintf(stderr, end_time != 0 ? "Done\n" : "Interrupted\n");

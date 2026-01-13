@@ -33,14 +33,15 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public void convert() throws IOException {
-        jfr.stopAtNewChunk = true;
+        TimeIntervals timeIntervals = readLatencyTimeIntervals();
 
+        jfr.stopAtNewChunk = true;
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
 
             collector.beforeChunk();
-            collectEvents();
+            collectEvents(timeIntervals);
             collector.afterChunk();
 
             convertChunk();
@@ -51,13 +52,39 @@ public abstract class JfrConverter extends Classifier {
         }
     }
 
+    protected final TimeIntervals readLatencyTimeIntervals() throws IOException {
+        if (args.latency < 0) return null;
+
+        TimeIntervals.Builder intervalsBuilder = new TimeIntervals.Builder();
+        boolean foundMethodTrace = false; // We'll throw an exception if none is found
+
+        jfr.stopAtNewChunk = true;
+        while (jfr.hasMoreChunks()) {
+            long minLatencyTicks = args.latency * jfr.ticksPerSec / 1000;
+            MethodTrace event;
+            while ((event = jfr.readEvent(MethodTrace.class)) != null) {
+                foundMethodTrace = true;
+                if (event.duration >= minLatencyTicks) {
+                    intervalsBuilder.add(jfr.eventTimeToNanos(event.time), jfr.eventTimeToNanos(event.time + event.duration));
+                }
+            }
+        }
+        jfr.rewind();
+
+        if (!foundMethodTrace) {
+            throw new RuntimeException("No jdk.MethodTrace events found");
+        }
+        return intervalsBuilder.build();
+    }
+
     protected EventCollector createCollector(Arguments args) {
         return new EventAggregator(args.threads, args.grain);
     }
 
-    protected void collectEvents() throws IOException {
-        Class<? extends Event> eventClass = args.nativelock ? NativeLockEvent.class
-                : args.nativemem ? MallocEvent.class
+    protected void collectEvents(TimeIntervals timeIntervals) throws IOException {
+        // args.nativemem ? MallocEvent.class should always be first for the leak detection feature
+        Class<? extends Event> eventClass = args.nativemem ? MallocEvent.class
+                : args.nativelock ? NativeLockEvent.class
                 : args.live ? LiveObject.class
                 : args.alloc ? AllocationSample.class
                 : args.lock ? ContendedLock.class
@@ -85,7 +112,9 @@ public abstract class JfrConverter extends Classifier {
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    collector.collect(event);
+                    if (timeIntervals == null || timeIntervals.contains(jfr.eventTimeToNanos(event.time))) {
+                        collector.collect(event);
+                    }
                 }
             }
         }
@@ -282,7 +311,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public double counterFactor() {
-        return (args.lock || args.nativelock) ? 1e9 / jfr.ticksPerSec : 1.0;
+        return (args.lock || args.nativelock) ? jfr.nanosPerTick : 1.0;
     }
 
     // Select sum(samples) or sum(value) depending on the --total option.

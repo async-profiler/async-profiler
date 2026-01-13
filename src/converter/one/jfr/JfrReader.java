@@ -48,6 +48,7 @@ public class JfrReader implements Closeable {
     public long chunkEndNanos;
     public long chunkStartTicks;
     public long ticksPerSec;
+    public double nanosPerTick;
     public boolean stopAtNewChunk;
 
     public final Dictionary<JfrClass> types = new Dictionary<>();
@@ -79,6 +80,7 @@ public class JfrReader implements Closeable {
     private int free;
     private int cpuTimeSample;
     private int nativeLock;
+    private boolean hasWallTimeSpan;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -226,12 +228,13 @@ public class JfrReader implements Closeable {
         return null;
     }
 
-    private ExecutionSample readExecutionSample(boolean hasSamples) {
+    private ExecutionSample readExecutionSample(boolean wall) {
         long time = getVarlong();
         int tid = getVarint();
         int stackTraceId = getVarint();
         int threadState = getVarint();
-        int samples = hasSamples ? getVarint() : 1;
+        int samples = wall ? getVarint() : 1;
+        if (wall && hasWallTimeSpan) getVarlong(); // timeSpan is ignored
         return new ExecutionSample(time, tid, stackTraceId, threadState, samples);
     }
 
@@ -348,6 +351,7 @@ public class JfrReader implements Closeable {
         startNanos = Math.min(startNanos, chunkStartNanos);
         endNanos = Math.max(endNanos, chunkEndNanos);
         startTicks = Math.min(startTicks, chunkStartTicks);
+        nanosPerTick = 1e9 / ticksPerSec;
 
         types.clear();
         typesByName.clear();
@@ -615,6 +619,9 @@ public class JfrReader implements Closeable {
         registerEvent("jdk.ObjectCount", ObjectCount.class);
         registerEvent("jdk.ObjectCountAfterGC", ObjectCount.class);
         registerEvent("profiler.ProcessSample", ProcessSample.class);
+
+        JfrClass wallClass = typesByName.get("profiler.WallClockSample");
+        hasWallTimeSpan = wallClass != null && wallClass.field("timeSpan") != null;
     }
 
     private int getTypeId(String typeName) {
@@ -718,6 +725,12 @@ public class JfrReader implements Closeable {
         }
     }
 
+    public void rewind() throws IOException {
+        seek(0);
+        state = STATE_NEW_CHUNK;
+        ensureBytes(CHUNK_HEADER_SIZE);
+    }
+
     private boolean ensureBytes(int needed) throws IOException {
         if (buf.remaining() >= needed) {
             return true;
@@ -742,5 +755,9 @@ public class JfrReader implements Closeable {
         }
         buf.flip();
         return buf.limit() > 0;
+    }
+
+    public long eventTimeToNanos(long time) {
+        return chunkStartNanos + (long) ((time - chunkStartTicks) * nanosPerTick);
     }
 }

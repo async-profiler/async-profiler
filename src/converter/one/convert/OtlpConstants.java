@@ -7,12 +7,15 @@ package one.convert;
 
 final class OtlpConstants {
 
+    static final String OTLP_THREAD_NAME = "thread.name";
+
     static final int
             PROFILES_DICTIONARY_mapping_table = 1,
             PROFILES_DICTIONARY_location_table = 2,
             PROFILES_DICTIONARY_function_table = 3,
             PROFILES_DICTIONARY_string_table = 5,
-            PROFILES_DICTIONARY_attribute_table = 6;
+            PROFILES_DICTIONARY_attribute_table = 6,
+            PROFILES_DICTIONARY_stack_table = 7;
 
     static final int
             PROFILES_DATA_resource_profiles = 1,
@@ -24,10 +27,9 @@ final class OtlpConstants {
 
     static final int
             PROFILE_sample_type = 1,
-            PROFILE_sample = 2,
-            PROFILE_location_indices = 3,
-            PROFILE_time_nanos = 4,
-            PROFILE_duration_nanos = 5;
+            PROFILE_samples = 2,
+            PROFILE_time_unix_nano = 3,
+            PROFILE_duration_nanos = 4;
 
     static final int
             VALUE_TYPE_type_strindex = 1,
@@ -35,11 +37,13 @@ final class OtlpConstants {
             VALUE_TYPE_aggregation_temporality = 3;
 
     static final int
-            SAMPLE_locations_start_index = 1,
-            SAMPLE_locations_length = 2,
-            SAMPLE_value = 3,
-            SAMPLE_attribute_indices = 4,
-            SAMPLE_timestamps_unix_nano = 6;
+            SAMPLE_stack_index = 1,
+            SAMPLE_values = 2,
+            SAMPLE_attribute_indices = 3,
+            SAMPLE_timestamps_unix_nano = 5;
+
+    static final int
+            STACK_location_indices = 1;
 
     static final int
             LOCATION_mapping_index = 1,
@@ -47,15 +51,13 @@ final class OtlpConstants {
 
     static final int
             LINE_function_index = 1,
-            LINE_line = 2;
+            LINE_lines = 2;
 
     static final int FUNCTION_name_strindex = 1;
 
-    static final int AGGREGATION_TEMPORARALITY_cumulative = 2;
-
     static final int
-            KEY_VALUE_key = 1,
-            KEY_VALUE_value = 2;
+            KEY_VALUE_AND_UNIT_key_strindex = 1,
+            KEY_VALUE_AND_UNIT_value = 2;
 
     static final int ANY_VALUE_string_value = 1;
 }

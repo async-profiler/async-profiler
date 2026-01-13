@@ -19,6 +19,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/utsname.h>
 #include <linux/perf_event.h>
 #include "arch.h"
 #include "fdtransferClient.h"
@@ -153,6 +154,17 @@ static void adjustFDLimit() {
     }
 }
 
+// Workaround for the kernel bug: PERF_EVENT_IOC_REFRESH can hang
+// the entire system on Linux 6.16.x and 6.17.x.
+// See https://github.com/async-profiler/async-profiler/issues/1578
+static bool hasPerfEventRefreshBug() {
+    static struct utsname u{};
+    if (u.release[0] == 0 && uname(&u) != 0) {
+        return false;
+    }
+    return strncmp(u.release, "6.16.", 5) == 0 || strncmp(u.release, "6.17.", 5) == 0;
+}
+
 struct FunctionWithCounter {
     const char* name;
     int counter_arg;
@@ -169,7 +181,7 @@ struct PerfEventType {
 
     enum {
         IDX_CPU = 0,
-        IDX_PREDEFINED = 12,
+        IDX_PREDEFINED = 13,
         IDX_RAW,
         IDX_PMU,
         IDX_BREAKPOINT,
@@ -460,6 +472,7 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"branch-instructions",   1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
     {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
     {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
+    {"ref-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU_CYCLES},
 
     {"L1-dcache-load-misses", 1000000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D)},
     {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
@@ -532,6 +545,7 @@ class PerfEvent : public SpinLock {
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
+int PerfEvents::_ioc_enable;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
 bool PerfEvents::_use_perf_mmap;
@@ -642,7 +656,7 @@ int PerfEvents::createForThread(int tid) {
     if (fcntl(fd, F_SETFL, O_ASYNC) < 0 || fcntl(fd, F_SETSIG, _signal) < 0 || fcntl(fd, F_SETOWN_EX, &ex) < 0) {
         err = errno;
         Log::warn("perf_event fcntl failed: %s", strerror(err));
-    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 || ioctl(fd, PERF_EVENT_IOC_REFRESH, 1) < 0) {
+    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 || ioctl(fd, _ioc_enable, 1) < 0) {
         err = errno;
         Log::warn("perf_event ioctl failed: %s", strerror(err));
     } else {
@@ -698,6 +712,10 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
+    if (_ioc_enable == PERF_EVENT_IOC_ENABLE) {
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_DISABLE, 0);
+    }
+
     if (_enabled) {
         ExecutionEvent event(TSC::ticks());
         u64 counter = readCounter(siginfo, ucontext);
@@ -707,13 +725,17 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    ioctl(siginfo->si_fd, _ioc_enable, 1);
 }
 
 void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (siginfo->si_code <= 0) {
         // Looks like an external signal; don't treat as a profiling event
         return;
+    }
+
+    if (_ioc_enable == PERF_EVENT_IOC_ENABLE) {
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_DISABLE, 0);
     }
 
     if (_enabled) {
@@ -727,7 +749,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    ioctl(siginfo->si_fd, _ioc_enable, 1);
 }
 
 const char* PerfEvents::title() {
@@ -778,6 +800,13 @@ Error PerfEvents::start(Arguments& args) {
         _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
     }
     _use_perf_mmap = _kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _record_cpu;
+
+    if (strcmp(_event_type->name, "cpu-clock") == 0 && hasPerfEventRefreshBug()) {
+        Log::debug("Enable workaround for PERF_EVENT_IOC_REFRESH bug");
+        _ioc_enable = PERF_EVENT_IOC_ENABLE;   // opt-in for manual enable/disable
+    } else {
+        _ioc_enable = PERF_EVENT_IOC_REFRESH;  // autodisable perf_event on counter overflow
+    }
 
     adjustFDLimit();
 

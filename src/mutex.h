@@ -17,6 +17,7 @@ class Mutex {
   public:
     Mutex();
 
+    bool tryLock();
     void lock();
     void unlock();
 };
