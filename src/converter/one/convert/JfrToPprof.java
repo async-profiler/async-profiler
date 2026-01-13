@@ -13,7 +13,6 @@ import one.proto.Proto;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 /**
