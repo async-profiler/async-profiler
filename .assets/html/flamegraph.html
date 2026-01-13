@@ -3,9 +3,9 @@
 <head>
 <meta charset='utf-8'>
 <style>
-    body {margin: 0; padding: 10px 10px 22px 10px; background-color: #ffffff}
+	body {margin: 0; padding: 10px 10px 22px 10px; background-color: #ffffff}
 	h1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}
-    header {margin: -24px 0 5px 0; line-height: 24px}
+	header {margin: -24px 0 5px 0; line-height: 24px}
 	.title-toolbar-container {
 		display: flex;
 		align-items: center;
@@ -21,11 +21,6 @@
 		flex-direction: column;
 		align-items: center;
 		flex-grow: 1;
-	}
-	.toolbar-section {
-		display: flex;
-		align-items: center;
-		gap: 2px;
 	}
 	.left-toolbar {
 		display: flex;
@@ -58,19 +53,7 @@
 		z-index: 1000;
 		pointer-events: none;
 	}
-	.top {
-		border-top: .1px solid #000
-	}
-	.left {
-		border-left: .1px solid #000
-	}
-	.bottom {
-		border-bottom: .1px solid #000
-	}
-	.right {
-		border-right: .1px solid #000
-	}
-	.toolbarIcon {
+	.toolbar-icon {
 		width: 24px;
 		height: 24px;
 		margin: 0 2px;
@@ -79,17 +62,12 @@
 		align-items: center;
 		cursor: pointer;
 	}
-	.toolbarSelected {
-		background-color: #cccccc;
-		outline: 1px solid #999999;
-		border-radius: 4px;
-	}
-	.toolbarIcon:hover {
+	.toolbar-icon:hover {
 		background-color: #ffffe0;
 		outline: 1px solid #ffc000;
 		border-radius: 4px;
 	}
-	.bordered {
+	.remove-borders {
 		outline: none;
 		border: none;
 	}
@@ -109,9 +87,9 @@
 
 <div class="title-toolbar-container">
 	<div class="left-toolbar">
-		<div id="invert" class="toolbarIcon" title="Invert Graph [I]"><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="m10 4-7 6h14Z" fill="#004d80"/><path d="m10 16-7-6h14Z" fill="#ff8d40"/><path stroke="#c4c4c4" d="M0 10h20"/></svg></div>
-		<div id="search" class="toolbarIcon" title="Search by Regex [Ctrl + F]"><svg height="20" width="20" viewBox="-39.26 -39.26 471.13 471.13" xml:space="preserve" stroke="#000" stroke-width=".004"><path style="fill:#fff" d="M273.713 147.774c0 69.495-56.501 125.931-125.931 125.931-69.495 0-125.931-56.501-125.931-125.931 0-69.495 56.501-125.931 125.931-125.931s125.931 56.501 125.931 125.931z"/><path style="fill:#40b2ff" d="M370.747 348.695c0 1.422-1.616 6.271-7.176 12.283-6.206 6.659-12.477 9.762-14.739 9.762h-.065c-19.459-1.616-61.996-43.184-109.576-106.796v-.129a148 148 0 0 0 24.63-24.63h.129c63.614 47.514 105.181 90.116 106.797 109.51z"/><path style="fill:#ff8d40" d="m208.679 86.877-14.481 14.481c-17.131 17.131-46.545 5.042-46.545-19.265V61.6c-49.002 0-88.372 40.792-86.109 90.246 2.004 43.895 38.141 80.032 82.036 82.036 49.455 2.263 90.246-37.172 90.246-86.109.13-23.724-9.503-45.251-25.147-60.896z"/><path style="fill:#004d80" d="M276.105 220.954c12.347-21.527 19.459-46.545 19.459-73.18C295.564 66.319 229.237.057 147.718.057S0 66.32 0 147.904s66.327 147.717 147.717 147.717c26.57 0 51.523-7.111 73.18-19.459 39.822 53.333 91.863 113.519 126.061 116.364 12.283.517 22.885-6.723 32.776-16.743 5.172-5.624 13.77-16.937 12.8-28.768-2.91-34.134-63.096-86.239-116.429-126.061zM147.717 273.77c-69.495 0-125.931-56.501-125.931-125.931S78.287 21.908 147.717 21.908s125.931 56.501 125.931 125.931S217.212 273.77 147.717 273.77zm215.855 87.208c-6.206 6.659-12.412 9.762-14.739 9.762h-.065c-19.459-1.616-61.996-43.184-109.576-106.796v-.129a148 148 0 0 0 24.63-24.63h.129c63.612 47.58 105.18 90.182 106.796 109.576 0 1.357-1.616 6.205-7.175 12.217z"/></svg></div>
-		<div id="graph-info" class="toolbarIcon"><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" stroke="#004d80" fill="none"/><path d="M10 5.5c-1.25 0-2.25 1-2.25 2.25H9a1.25 1.25 0 0 1 2.5 0c0 .65-.55 1-1 1.2-.7.35-1.25.85-1.25 1.8V11h1.5v-.25c0-.37.29-.65.68-.83.73-.34 1.32-.87 1.32-2.17 0-1.25-1.5-2.25-2.75-2.25" fill="#ff8d40" stroke="#ff8d40" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="13.5" r="1" fill="#ff8d40"/></svg></div>
+		<div id="invert" class="toolbar-icon" title="Invert Graph [I]"><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="m10 4-7 6h14Z" fill="#004d80"/><path d="m10 16-7-6h14Z" fill="#ff8d40"/><path stroke="#c4c4c4" d="M0 10h20"/></svg></div>
+		<div id="search" class="toolbar-icon" title="Search by Regex [Ctrl + F]"><svg height="20" width="20" viewBox="-39.26 -39.26 471.13 471.13" xml:space="preserve" stroke="#000" stroke-width=".004"><path style="fill:#fff" d="M273.713 147.774c0 69.495-56.501 125.931-125.931 125.931-69.495 0-125.931-56.501-125.931-125.931 0-69.495 56.501-125.931 125.931-125.931s125.931 56.501 125.931 125.931z"/><path style="fill:#40b2ff" d="M370.747 348.695c0 1.422-1.616 6.271-7.176 12.283-6.206 6.659-12.477 9.762-14.739 9.762h-.065c-19.459-1.616-61.996-43.184-109.576-106.796v-.129a148 148 0 0 0 24.63-24.63h.129c63.614 47.514 105.181 90.116 106.797 109.51z"/><path style="fill:#ff8d40" d="m208.679 86.877-14.481 14.481c-17.131 17.131-46.545 5.042-46.545-19.265V61.6c-49.002 0-88.372 40.792-86.109 90.246 2.004 43.895 38.141 80.032 82.036 82.036 49.455 2.263 90.246-37.172 90.246-86.109.13-23.724-9.503-45.251-25.147-60.896z"/><path style="fill:#004d80" d="M276.105 220.954c12.347-21.527 19.459-46.545 19.459-73.18C295.564 66.319 229.237.057 147.718.057S0 66.32 0 147.904s66.327 147.717 147.717 147.717c26.57 0 51.523-7.111 73.18-19.459 39.822 53.333 91.863 113.519 126.061 116.364 12.283.517 22.885-6.723 32.776-16.743 5.172-5.624 13.77-16.937 12.8-28.768-2.91-34.134-63.096-86.239-116.429-126.061zM147.717 273.77c-69.495 0-125.931-56.501-125.931-125.931S78.287 21.908 147.717 21.908s125.931 56.501 125.931 125.931S217.212 273.77 147.717 273.77zm215.855 87.208c-6.206 6.659-12.412 9.762-14.739 9.762h-.065c-19.459-1.616-61.996-43.184-109.576-106.796v-.129a148 148 0 0 0 24.63-24.63h.129c63.612 47.58 105.18 90.182 106.796 109.576 0 1.357-1.616 6.205-7.175 12.217z"/></svg></div>
+		<div id="graph-info" class="toolbar-icon"><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" stroke="#004d80" fill="none"/><path d="M10 5.5c-1.25 0-2.25 1-2.25 2.25H9a1.25 1.25 0 0 1 2.5 0c0 .65-.55 1-1 1.2-.7.35-1.25.85-1.25 1.8V11h1.5v-.25c0-.37.29-.65.68-.83.73-.34 1.32-.87 1.32-2.17 0-1.25-1.5-2.25-2.75-2.25" fill="#ff8d40" stroke="#ff8d40" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="13.5" r="1" fill="#ff8d40"/></svg></div>
 
 		<div id="info-tooltip">
 			<div style="float:left">
@@ -143,7 +121,7 @@
 				Shift + N - Focus on previous match<br>
 				Esc - Cancel search<br>
 				<br>
-				I - invert graph<br>
+				I - Invert graph<br>
 			</div>
 		</div>
 	</div>
@@ -157,7 +135,7 @@
 	</div>
 </div>
 
-<div class='bordered' style="display: flex; flex-direction: column;">
+<div class='remove-borders'>
 	<canvas id='canvas'></canvas>
 	<div id='hl'><span></span></div>
 	<p id='status'></p>
@@ -211,7 +189,6 @@
 	function f(key, level, left, width, inln, c1, int) {
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
 			color: getTypeColor(key & 7), title: cpool[key >>> 3],
-			type: key & 7,
 			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
 	}
@@ -407,15 +384,15 @@
 		search(false);
 	}
 
-	btnInvert.onclick = function(e) {
+	btnInvert.onclick = function() {
 		invertMode();
 	}
 
-	btnInvert.onmousedown = function(e) {
+	btnInvert.onmousedown = function() {
 		return false;
 	}
 
-	btnInfo.onmouseenter = function(e) {
+	btnInfo.onmouseenter = function() {
 		infoTooltip.style.left = (btnInfo.offsetLeft + 25) + 'px';
 		infoTooltip.style.top = (btnInfo.offsetTop + 25) + 'px';
 		infoTooltip.style.display = 'block';
@@ -429,27 +406,31 @@
 		return false;
 	};
 
-	btnInfo.ondblclick = function(e) {
+	btnInfo.ondblclick = function() {
 		return false;
 	}
 
 	window.onkeydown = function(event) {
 		if (event.key === 'Escape') {
 			search(false);
-		} else if((event.ctrlKey || event.metaKey) && event.key === 'f') {
+			return false;
+		} else if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
 			search(true);
-		} else if (event.key === 'n' && nav.length > 0) {
+			return false;
+		} else if ((event.key === 'n' || event.key === 'N') && nav.length > 0) {
 			navIndex = (navIndex + (event.shiftKey ? nav.length - 1 : 1)) % nav.length;
 			render(nav[navIndex]);
 			document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
 			window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
 			canvas.onmousemove();
+			return false;
 		} else if (event.key === 'i') {
 			invertMode();
+			return false;
 		} else if (event.key === '0') {
 			resetZoom();
+			return false;
 		}
-		return false;
 	}
 
 	function invertMode() {
