@@ -1,5 +1,42 @@
 # Changelog
 
+## [4.3]
+
+### Features
+
+ - #1547: Native lock profiling 
+ - #1566: Filter cpu/wall profiles by latency
+ - #1568: Expose async-profiler metrics in Prometheus format
+ - #1628: async-profiler.jar as Java agent; remote control via JMX
+
+### Improvements
+
+ - #1140: FlameGraph improvements: legend, hot keys, new toolbar icons
+ - #1530: Timezone switcher between Local and UTC time in Heatmaps
+ - #1582: Support `--include`/`--exclude` options for JFR to Heatmap/OTLP/pprof conversion
+ - #1624: Compatibility with OTLP v1.9.0
+ - #1629: Harden crash protection in StackWalker
+
+### Breaking changes
+
+ - #1277: New `timeSpan` field in WallClockSample events
+ - #1518: Deprecate `check` command
+ - #1590: Support compilation on modern JDKs. Drop JDK 7 support
+
+### Bug fixes
+
+ - #1599: Workaround for the kernel PERF_EVENT_IOC_REFRESH bug
+ - #1596: Do not block any signals during execution of a custom crash handler
+ - #1584: JfrReader loops on corrupted recordings
+ - #1555: Parse FlameGraph title from HTML input
+ - #1621: `loop` and `timeout` options do not work together
+ - #1641: Unwind vDSO correctly on Linux-ARM64
+ - #1648: Fix stop sequence in Profiler::start
+ - #1575: Fix CodeCache memory leak in lock profiling while looping
+ - #1558: Fix record-cpu bug when kernel stacks are not available
+ - #1651: Do not record CPU frame for non-perf samples
+ - #1614, #1615, #1617, #1623: Fix races related to VM termination
+
 ## [4.2.1] - 2025-11-22
 
 ### Bug fixes
