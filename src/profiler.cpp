@@ -972,7 +972,7 @@ Engine* Profiler::selectEngine(Arguments& args) {
     if (event_name == NULL) {
         return &noop_engine;
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
-        if (args._record_cpu || args._target_cpu >= 0 || FdTransferClient::hasPeer() || PerfEvents::supported()) {
+        if (args._record_cpu || args._target_cpu != -1 || FdTransferClient::hasPeer() || PerfEvents::supported()) {
             return &perf_events;
         } else if (CTimer::supported()) {
             return &ctimer;
