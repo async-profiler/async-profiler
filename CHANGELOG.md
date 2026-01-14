@@ -4,7 +4,7 @@
 
 ### Features
 
- - #1547: Native lock profiling 
+ - #1547: Native lock profiling
  - #1566: Filter cpu/wall profiles by latency
  - #1568: Expose async-profiler metrics in Prometheus format
  - #1628: async-profiler.jar as Java agent; remote control via JMX
