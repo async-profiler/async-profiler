@@ -52,7 +52,7 @@ jobs:
 
   integ-linux-x64:
     name: integ / linux-x64
-    needs: build-linux-x64
+    needs: [build-linux-x64, build-jars]
     strategy:
       fail-fast: false
       matrix:
@@ -95,7 +95,7 @@ jobs:
 
   integ-linux-arm64:
     name: integ / linux-arm64
-    needs: build-linux-arm64
+    needs: [build-linux-arm64, build-jars]
     strategy:
       fail-fast: false
       matrix:
@@ -115,7 +115,7 @@ jobs:
 
   integ-macos:
     name: integ / macos
-    needs: build-macos
+    needs: [build-macos, build-jars]
     strategy:
       fail-fast: false
       matrix:
@@ -146,7 +146,7 @@ jobs:
       contents: write
     name: publish (nightly)
     runs-on: ubuntu-latest
-    needs: [build-jars, integ-linux-x64, integ-linux-arm64, integ-macos]
+    needs: [integ-linux-x64, integ-linux-arm64, integ-macos]
     steps:
       - name: Download async-profiler binaries and jars
         uses: actions/download-artifact@v4
