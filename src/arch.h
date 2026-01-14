@@ -48,11 +48,11 @@ static inline u32 loadAcquire(u32& var) {
 }
 
 static inline void storeRelease(u64& var, u64 value) {
-    return __atomic_store_n(&var, value, __ATOMIC_RELEASE);
+    __atomic_store_n(&var, value, __ATOMIC_RELEASE);
 }
 
 static inline void storeRelease(u32& var, u32 value) {
-    return __atomic_store_n(&var, value, __ATOMIC_RELEASE);
+    __atomic_store_n(&var, value, __ATOMIC_RELEASE);
 }
 
 #if defined(__x86_64__) || defined(__i386__)
