@@ -228,6 +228,7 @@ class Arguments {
     double _minwidth;
     bool _reverse;
     bool _inverted;
+    int _jmethod_id_limit;
 
     Arguments() :
         _buf(NULL),
@@ -287,7 +288,8 @@ class Arguments {
         _title(NULL),
         _minwidth(0),
         _reverse(false),
-        _inverted(false) {
+        _inverted(false),
+        _jmethod_id_limit(0) {
     }
 
     ~Arguments();

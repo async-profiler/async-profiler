@@ -25,6 +25,14 @@
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
 
+static u32 jmethod_id_limit = 0;
+static u32 jmethod_id_count = 0;
+static u32 jmethod_id_count_warned = 0;
+
+void setJmethodIdLimit(u32 limit) {
+    jmethod_id_limit = limit;
+}
+
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 
@@ -364,7 +372,17 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
     }
 }
 
-void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
+void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count) {
+    u32 count = loadAcquire(jmethod_id_count);
+    if (jmethod_id_limit > 0 && count > jmethod_id_limit) {
+        if (!loadAcquire(jmethod_id_count_warned)) {
+            storeRelease(jmethod_id_count_warned, 1);
+            Log::warn("Total number of generated jmethod-ids exceeds %d, stop generating jmethod-ids",
+                    jmethod_id_limit
+            );
+        }
+        return;
+    }
     if (VMStructs::hasClassLoaderData()) {
         VMKlass* vmklass = VMKlass::fromJavaClass(jni, klass);
         int method_count = vmklass->methodCount();
@@ -383,6 +401,9 @@ void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
     jint method_count;
     jmethodID* methods;
     if (jvmti->GetClassMethods(klass, &method_count, &methods) == 0) {
+        if (update_count) {
+            atomicInc(jmethod_id_count, method_count);
+        }
         jvmti->Deallocate((unsigned char*)methods);
     }
 }
@@ -392,7 +413,7 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
     jclass* classes;
     if (jvmti->GetLoadedClasses(&class_count, &classes) == 0) {
         for (int i = 0; i < class_count; i++) {
-            loadMethodIDs(jvmti, jni, classes[i]);
+            loadMethodIDs(jvmti, jni, classes[i], true);
         }
         jvmti->Deallocate((unsigned char*)classes);
     }
@@ -400,6 +421,7 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
 
 void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ready();
+    jmethod_id_limit = _global_args._jmethod_id_limit;
     loadAllMethodIDs(jvmti, jni);
 
     // Allow profiler server only at JVM startup
@@ -433,7 +455,7 @@ jvmtiError VM::RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmt
         JNIEnv* env = jni();
         for (int i = 0; i < class_count; i++) {
             if (class_definitions[i].klass != NULL) {
-                loadMethodIDs(jvmti, env, class_definitions[i].klass);
+                loadMethodIDs(jvmti, env, class_definitions[i].klass, false);
             }
         }
     }
@@ -449,7 +471,7 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
         JNIEnv* env = jni();
         for (int i = 0; i < class_count; i++) {
             if (classes[i] != NULL) {
-                loadMethodIDs(jvmti, env, classes[i]);
+                loadMethodIDs(jvmti, env, classes[i], false);
             }
         }
     }
@@ -489,6 +511,10 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     if (error) {
         Log::error("%s", error.message());
         return ARGUMENTS_ERROR;
+    }
+
+    if (args._action == ACTION_START) {
+        jmethod_id_limit = args._jmethod_id_limit;
     }
 
     if (!VM::init(vm, true)) {

@@ -9,6 +9,7 @@
 #include <jvmti.h>
 #include "arch.h"
 
+void setJmethodIdLimit(u32 limit);
 
 enum FrameTypeId {
     FRAME_INTERPRETED  = 0,
@@ -114,7 +115,7 @@ class VM {
 
     static void ready();
     static void applyPatch(char* func, const char* patch, const char* end_patch);
-    static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
+    static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count = true);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
     static bool hasJvmThreads();
 
