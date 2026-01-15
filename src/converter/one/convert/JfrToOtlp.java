@@ -35,9 +35,15 @@ public class JfrToOtlp extends JfrConverter {
     private final int threadNameIndex = stringPool.index(OTLP_THREAD_NAME);
 
     private final Proto proto = new Proto(1024);
+    private final List<SampleInfo> samplesInfo = new ArrayList<>();
+    private final long resourceProfilesMark;
+    private final long scopeProfilesMark;
 
     public JfrToOtlp(JfrReader jfr, Arguments args) {
         super(jfr, args);
+
+        resourceProfilesMark = proto.startField(PROFILES_DATA_resource_profiles, MSG_LARGE);
+        scopeProfilesMark = proto.startField(RESOURCE_PROFILES_scope_profiles, MSG_LARGE);
     }
 
     public void dump(OutputStream out) throws IOException {
@@ -45,21 +51,21 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     @Override
+    protected EventCollector createCollector(Arguments args) {
+        return new OtlpEventCollector();
+    }
+
+    @Override
     public void convert() throws IOException {
-        long rpMark = proto.startField(PROFILES_DATA_resource_profiles, MSG_LARGE);
-        long spMark = proto.startField(RESOURCE_PROFILES_scope_profiles, MSG_LARGE);
         super.convert();
-        proto.commitField(spMark);
-        proto.commitField(rpMark);
+        proto.commitField(scopeProfilesMark);
+        proto.commitField(resourceProfilesMark);
 
         writeProfileDictionary();
     }
 
     @Override
     protected void convertChunk() {
-        List<SampleInfo> samplesInfo = new ArrayList<>();
-        collector.forEach(new OtlpEventToSampleVisitor(samplesInfo));
-
         long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
         long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
@@ -167,15 +173,10 @@ public class JfrToOtlp extends JfrConverter {
         }
     }
 
-    private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
-        private final List<SampleInfo> samplesInfo;
+    private final class OtlpEventCollector implements EventCollector {
         // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
         private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
         private final double factor = counterFactor();
-
-        public OtlpEventToSampleVisitor(List<SampleInfo> samplesInfo) {
-            this.samplesInfo = samplesInfo;
-        }
 
         private boolean excludeStack(int stackId, int threadId) {
             Pattern include = args.include;
@@ -210,7 +211,7 @@ public class JfrToOtlp extends JfrConverter {
         }
 
         @Override
-        public void visit(Event event, long samples, long value) {
+        public void collect(Event event) {
             if (excludeStack(event.stackTraceId, event.tid)) {
                 return;
             }
@@ -220,7 +221,8 @@ public class JfrToOtlp extends JfrConverter {
             int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
             long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
             long timeNanos = jfr.chunkStartNanos + nanosFromStart;
-            SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, samples,
+            long value = event.value();
+            SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, event.samples(),
                                            factor == 1.0 ? value : (long) (value * factor));
             samplesInfo.add(si);
         }
@@ -239,6 +241,25 @@ public class JfrToOtlp extends JfrConverter {
             int lineNumber = stackTrace.locations[i] >>> 16;
             int functionIdx = functionPool.index(methodName);
             return new Line(functionIdx, lineNumber);
+        }
+
+        @Override
+        public void beforeChunk() {
+            samplesInfo.clear();
+            stacksIndexCache.clear();
+        }
+
+        @Override
+        public void afterChunk() {}
+
+        @Override
+        public boolean finish() {
+            return false;
+        }
+
+        @Override
+        public void forEach(EventCollector.Visitor visitor) {
+            throw new UnsupportedOperationException("Not supported");
         }
     }
 
