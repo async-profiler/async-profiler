@@ -35,14 +35,9 @@ public class JfrToOtlp extends JfrConverter {
 
     private final Proto proto = new Proto(1024);
     private final List<SampleInfo> samplesInfo = new ArrayList<>();
-    private final long resourceProfilesMark;
-    private final long scopeProfilesMark;
 
     public JfrToOtlp(JfrReader jfr, Arguments args) {
         super(jfr, args);
-
-        resourceProfilesMark = proto.startField(PROFILES_DATA_resource_profiles, MSG_LARGE);
-        scopeProfilesMark = proto.startField(RESOURCE_PROFILES_scope_profiles, MSG_LARGE);
     }
 
     public void dump(OutputStream out) throws IOException {
@@ -56,9 +51,11 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     public void convert() throws IOException {
+        long rpMark = proto.startField(PROFILES_DATA_resource_profiles, MSG_LARGE);
+        long spMark = proto.startField(RESOURCE_PROFILES_scope_profiles, MSG_LARGE);
         super.convert();
-        proto.commitField(scopeProfilesMark);
-        proto.commitField(resourceProfilesMark);
+        proto.commitField(spMark);
+        proto.commitField(rpMark);
 
         writeProfileDictionary();
     }
