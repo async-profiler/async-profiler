@@ -25,7 +25,7 @@
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
 
-static constexpr u32 _jmethod_id_limit = 1024 * 1024 * 500 / 8; // 500 MiB memory, about 65 million methods
+static constexpr u32 JMETHOD_ID_LIMIT = 1024 * 1024 * 500 / 8; // 500 MiB memory, about 65 million methods
 static u32 _jmethod_id_count = 0;
 static bool _jmethod_id_count_warned = false;
 
@@ -369,9 +369,9 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count) {
-    if (loadAcquire(_jmethod_id_count) > _jmethod_id_limit) {
+    if (loadAcquire(_jmethod_id_count) > JMETHOD_ID_LIMIT) {
 		if (__sync_bool_compare_and_swap(&_jmethod_id_count_warned, false, true)) {
-			Log::warn("Total number of generated jmethod-ids exceeds %d, stop generating more", _jmethod_id_limit);
+			Log::warn("Total number of generated jmethod-ids exceeds %d, stop generating more", JMETHOD_ID_LIMIT);
 		}
         return;
     }
