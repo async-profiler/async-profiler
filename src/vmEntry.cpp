@@ -25,7 +25,7 @@
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
 
-static u32 _jmethod_id_limit = 1024 * 1024 * 500 / 8; // 500 MiB memory, about 65 million methods
+static constexpr u32 _jmethod_id_limit = 1024 * 1024 * 500 / 8; // 500 MiB memory, about 65 million methods
 static u32 _jmethod_id_count = 0;
 static bool _jmethod_id_count_warned = false;
 
