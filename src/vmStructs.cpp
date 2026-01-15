@@ -105,8 +105,6 @@ int VMStructs::_interpreter_frame_bcp_offset = 0;
 unsigned char VMStructs::_unsigned5_base = 0;
 const void** VMStructs::_call_stub_return_addr = NULL;
 const void* VMStructs::_call_stub_return = NULL;
-const void* VMStructs::_interpreted_frame_valid_start = NULL;
-const void* VMStructs::_interpreted_frame_valid_end = NULL;
 
 jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
@@ -560,14 +558,6 @@ void VMStructs::initJvmFunctions() {
     if (VM::hotspot_version() == 8) {
         _lock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor28lock_without_safepoint_checkEv");
         _unlock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor6unlockEv");
-    }
-
-    if (VM::hotspot_version() > 0) {
-        CodeBlob* blob = _libjvm->findBlob("_ZNK5frame26is_interpreted_frame_validEP10JavaThread");
-        if (blob != NULL) {
-            _interpreted_frame_valid_start = blob->_start;
-            _interpreted_frame_valid_end = blob->_end;
-        }
     }
 }
 
