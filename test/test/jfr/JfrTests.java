@@ -42,7 +42,7 @@ public class JfrTests {
         assert out.contains(normalLoadPattern);
     }
 
-    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu-clock,wall,record-cpu,file=%profile.jfr", os = Os.LINUX)
+    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,wall,record-cpu,file=%profile.jfr", os = Os.LINUX)
     public void recordCpuMultiEngine(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
