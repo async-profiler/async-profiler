@@ -9,8 +9,6 @@
 #include <jvmti.h>
 #include "arch.h"
 
-void setJmethodIdLimit(u32 limit);
-
 enum FrameTypeId {
     FRAME_INTERPRETED  = 0,
     FRAME_JIT_COMPILED = 1,

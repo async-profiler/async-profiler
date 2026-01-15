@@ -51,10 +51,6 @@ static inline void storeRelease(u64& var, u64 value) {
     __atomic_store_n(&var, value, __ATOMIC_RELEASE);
 }
 
-static inline void storeRelease(u32& var, u32 value) {
-    __atomic_store_n(&var, value, __ATOMIC_RELEASE);
-}
-
 #if defined(__x86_64__) || defined(__i386__)
 
 typedef unsigned char instruction_t;

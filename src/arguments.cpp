@@ -487,11 +487,6 @@ Error Arguments::parse(const char* args) {
             CASE("inverted")
                 _inverted = true;
 
-            CASE("jmid-limit")
-                if (value == NULL || (_jmethod_id_limit = atoi(value)) < 0) {
-                    msg = "jmid-limit must be >= 0";
-                }
-
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
         }

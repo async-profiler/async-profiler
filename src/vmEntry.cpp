@@ -25,13 +25,10 @@
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
 
-static u32 jmethod_id_limit = 0;
-static u32 jmethod_id_count = 0;
-static u32 jmethod_id_count_warned = 0;
-
-void setJmethodIdLimit(u32 limit) {
-    jmethod_id_limit = limit;
-}
+// static u32 _jmethod_id_limit = 1024 * 1024 * 500 / 8; // 500 MiB memory, about 65 million methods
+static u32 _jmethod_id_limit = 1024;
+static u32 _jmethod_id_count = 0;
+static bool _jmethod_id_count_warned = false;
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
@@ -373,14 +370,10 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count) {
-    u32 count = loadAcquire(jmethod_id_count);
-    if (jmethod_id_limit > 0 && count > jmethod_id_limit) {
-        if (!loadAcquire(jmethod_id_count_warned)) {
-            storeRelease(jmethod_id_count_warned, 1);
-            Log::warn("Total number of generated jmethod-ids exceeds %d, stop generating jmethod-ids",
-                    jmethod_id_limit
-            );
-        }
+    if (loadAcquire(_jmethod_id_count) > _jmethod_id_limit) {
+		if (__sync_bool_compare_and_swap(&_jmethod_id_count_warned, false, true)) {
+			Log::warn("Total number of generated jmethod-ids exceeds %d, stop generating more", _jmethod_id_limit);
+		}
         return;
     }
     if (VMStructs::hasClassLoaderData()) {
@@ -402,7 +395,7 @@ void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_c
     jmethodID* methods;
     if (jvmti->GetClassMethods(klass, &method_count, &methods) == 0) {
         if (update_count) {
-            atomicInc(jmethod_id_count, method_count);
+            atomicInc(_jmethod_id_count, method_count);
         }
         jvmti->Deallocate((unsigned char*)methods);
     }
@@ -421,7 +414,6 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
 
 void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ready();
-    jmethod_id_limit = _global_args._jmethod_id_limit;
     loadAllMethodIDs(jvmti, jni);
 
     // Allow profiler server only at JVM startup
@@ -511,10 +503,6 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     if (error) {
         Log::error("%s", error.message());
         return ARGUMENTS_ERROR;
-    }
-
-    if (args._action == ACTION_START) {
-        jmethod_id_limit = args._jmethod_id_limit;
     }
 
     if (!VM::init(vm, true)) {

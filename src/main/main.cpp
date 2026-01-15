@@ -95,8 +95,6 @@ static const char USAGE_STRING[] =
     "  --fdtransfer        run separate fdtransfer process to serve perf requests\n"
     "                      from the non-privileged target\n"
     "  --target-cpu cpu    sample threads on a specific CPU (perf_events only, default: -1)\n"
-    "  --jmid-limit limit  the number of methods to generate jmethod id (default 0, i.e. no limit).\n"
-    "                      if this limit is exceeded, no more jmethod id will be generated\n"
     "\n"
     "<pid> is a numeric process ID of the target JVM\n"
     "      or 'jps' keyword to find running JVM automatically\n"
@@ -543,9 +541,6 @@ int main(int argc, const char** argv) {
             snprintf(buf, sizeof(buf), "@asprof-%d-%08x", getpid(), (unsigned int)time_micros());
             fdtransfer = buf;
             params << ",fdtransfer=" << fdtransfer;
-
-        } else if (arg == "--jmid-limit") {
-            params << ",jmid-limit=" << args.next();
 
         } else if (arg.str()[0] >= '0' && arg.str()[0] <= '9' && pid == 0) {
             pid = atoi(arg.str());
