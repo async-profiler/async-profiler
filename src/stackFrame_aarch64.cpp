@@ -353,10 +353,6 @@ void StackFrame::adjustSP(const void* entry, const void* pc, uintptr_t& sp) {
     }
 }
 
-bool StackFrame::skipFaultInstruction() {
-    return false;
-}
-
 bool StackFrame::checkInterruptedSyscall() {
 #ifdef __APPLE__
     // We are not interested in syscalls that do not check error code, e.g. semaphore_wait_trap

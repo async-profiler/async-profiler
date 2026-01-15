@@ -869,11 +869,6 @@ void Profiler::crashHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         StackWalker::checkFault();
     }
 
-    // Workaround for JDK-8313796. Setting cstack=dwarf also helps
-    if (VMStructs::isInterpretedFrameValidFunc((const void*)pc) && frame.skipFaultInstruction()) {
-        return;
-    }
-
     if (WX_MEMORY && Trap::isFaultInstruction(pc)) {
         return;
     }

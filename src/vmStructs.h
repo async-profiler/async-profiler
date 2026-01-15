@@ -111,8 +111,6 @@ class VMStructs {
     static unsigned char _unsigned5_base;
     static const void** _call_stub_return_addr;
     static const void* _call_stub_return;
-    static const void* _interpreted_frame_valid_start;
-    static const void* _interpreted_frame_valid_end;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -129,7 +127,6 @@ class VMStructs {
     static void initOffsets();
     static void resolveOffsets();
     static void patchSafeFetch();
-    static void initJvmFunctions();
     static void initTLS(void* vm_thread);
     static void initThreadBridge();
 
@@ -181,10 +178,6 @@ class VMStructs {
 
     static bool hasJavaThreadId() {
         return _tid != NULL;
-    }
-
-    static bool isInterpretedFrameValidFunc(const void* pc) {
-        return pc >= _interpreted_frame_valid_start && pc < _interpreted_frame_valid_end;
     }
 };
 
