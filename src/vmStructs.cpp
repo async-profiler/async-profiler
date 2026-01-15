@@ -131,7 +131,6 @@ void VMStructs::init(CodeCache* libjvm) {
     if (libjvm != NULL) {
         _libjvm = libjvm;
         initOffsets();
-        initJvmFunctions();
     }
 }
 
@@ -477,11 +476,16 @@ void VMStructs::resolveOffsets() {
             && _comp_task_offset >= 0
             && _comp_method_offset >= 0;
 
-    _has_class_loader_data = _class_loader_data_offset >= 0
-            && _class_loader_data_next_offset == sizeof(uintptr_t) * 8 + 8
-            && _methods_offset >= 0
-            && _klass != NULL
-            && _lock_func != NULL && _unlock_func != NULL;
+    if (VM::hotspot_version() == 8) {
+        _lock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor28lock_without_safepoint_checkEv");
+        _unlock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor6unlockEv");
+        _has_class_loader_data = _class_loader_data_offset >= 0
+                && _class_loader_data_next_offset == sizeof(uintptr_t) * 8 + 8
+                && _methods_offset >= 0
+                && _klass != NULL
+                && _lock_func != NULL
+                && _unlock_func != NULL;
+    }
 
 #if defined(__x86_64__) || defined(__i386__)
     _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -8 : VM::hotspot_version() == 8 ? -7 : 0;
@@ -551,13 +555,6 @@ void VMStructs::resolveOffsets() {
     if (_collected_heap_addr != NULL && _collected_heap_reserved_offset >= 0 &&
         _region_start_offset >= 0 && _region_size_offset >= 0) {
         _collected_heap = *_collected_heap_addr + _collected_heap_reserved_offset;
-    }
-}
-
-void VMStructs::initJvmFunctions() {
-    if (VM::hotspot_version() == 8) {
-        _lock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor28lock_without_safepoint_checkEv");
-        _unlock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor6unlockEv");
     }
 }
 

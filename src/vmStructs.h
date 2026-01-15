@@ -127,7 +127,6 @@ class VMStructs {
     static void initOffsets();
     static void resolveOffsets();
     static void patchSafeFetch();
-    static void initJvmFunctions();
     static void initTLS(void* vm_thread);
     static void initThreadBridge();
 
