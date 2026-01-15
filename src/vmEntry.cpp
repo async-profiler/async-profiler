@@ -25,6 +25,10 @@
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
 
+static constexpr u32 JMETHOD_ID_LIMIT = 1024 * 1024 * 500 / 8; // 500 MiB memory, about 65 million methods
+static u32 _jmethod_id_count = 0;
+static bool _jmethod_id_count_warned = false;
+
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 
@@ -364,7 +368,13 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
     }
 }
 
-void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
+int VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count) {
+    if (loadAcquire(_jmethod_id_count) > JMETHOD_ID_LIMIT) {
+        if (__sync_bool_compare_and_swap(&_jmethod_id_count_warned, false, true)) {
+            Log::warn("Total number of generated jmethod-ids exceeds %d, stop generating more", JMETHOD_ID_LIMIT);
+        }
+        return -1;
+    }
     if (VMStructs::hasClassLoaderData()) {
         VMKlass* vmklass = VMKlass::fromJavaClass(jni, klass);
         int method_count = vmklass->methodCount();
@@ -383,8 +393,13 @@ void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
     jint method_count;
     jmethodID* methods;
     if (jvmti->GetClassMethods(klass, &method_count, &methods) == 0) {
+        if (update_count) {
+            atomicInc(_jmethod_id_count, method_count);
+        }
         jvmti->Deallocate((unsigned char*)methods);
+        return method_count;
     }
+    return -1;
 }
 
 void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
@@ -425,33 +440,78 @@ void JNICALL VM::VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
     Profiler::instance()->shutdown(_global_args);
 }
 
+#define GET_METHOD_COUNT(klass) ({                               \
+    u32 prev = 0;                                                \
+    JNIEnv* env = jni();                                         \
+    for (int i = 0; i < class_count; i++) {                      \
+        if (klass != NULL) {                                     \
+            int count = loadMethodIDs(jvmti, env, klass, false); \
+            if (count < 0) {                                     \
+                prev = -1;                                       \
+                break;                                           \
+            } else {                                             \
+                prev += count;                                   \
+            }                                                    \
+        }                                                        \
+    };                                                           \
+    prev;                                                        \
+})                                                               \
+
 jvmtiError VM::RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions) {
+    u32 method_count_total_prev = GET_METHOD_COUNT(class_definitions[i].klass);
+
     jvmtiError result = _orig_RedefineClasses(jvmti, class_count, class_definitions);
 
+    u32 method_count_total = 0;
     if (result == 0) {
         // jmethodIDs are invalidated after RedefineClasses
         JNIEnv* env = jni();
         for (int i = 0; i < class_count; i++) {
             if (class_definitions[i].klass != NULL) {
-                loadMethodIDs(jvmti, env, class_definitions[i].klass);
+                int count = loadMethodIDs(jvmti, env, class_definitions[i].klass, false);
+                if (method_count_total >= 0) {
+                    if (count < 0) {
+                        method_count_total = -1; // limited
+                    } else {
+                        method_count_total += count;
+                    }
+                }
             }
         }
+    }
+
+    if (method_count_total_prev >= 0 && method_count_total >= 0) {
+        atomicInc(_jmethod_id_count, method_count_total - method_count_total_prev);
     }
 
     return result;
 }
 
 jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes) {
+    u32 method_count_total_prev = GET_METHOD_COUNT(classes[i]);
+
     jvmtiError result = _orig_RetransformClasses(jvmti, class_count, classes);
 
+    u32 method_count_total = 0;
     if (result == 0) {
         // jmethodIDs are invalidated after RetransformClasses
         JNIEnv* env = jni();
         for (int i = 0; i < class_count; i++) {
             if (classes[i] != NULL) {
-                loadMethodIDs(jvmti, env, classes[i]);
+                int count = loadMethodIDs(jvmti, env, classes[i], false);
+                if (method_count_total >= 0) {
+                    if (count < 0) {
+                        method_count_total = -1; // limited
+                    } else {
+                        method_count_total += count;
+                    }
+                }
             }
         }
+    }
+
+    if (method_count_total_prev >= 0 && method_count_total >= 0) {
+        atomicInc(_jmethod_id_count, method_count_total - method_count_total_prev);
     }
 
     return result;
