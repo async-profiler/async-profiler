@@ -122,7 +122,7 @@ class Profiler {
     void updateJavaThreadNames();
     void updateNativeThreadNames();
     void mangle(const char* name, char* buf, size_t size);
-    Engine* selectEngine(const char* event_name);
+    Engine* selectEngine(Arguments& args);
     Engine* selectAllocEngine(long alloc_interval, bool live);
     Engine* activeEngine();
     Error checkJvmCapabilities();

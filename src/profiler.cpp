@@ -869,11 +869,6 @@ void Profiler::crashHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         StackWalker::checkFault();
     }
 
-    // Workaround for JDK-8313796. Setting cstack=dwarf also helps
-    if (VMStructs::isInterpretedFrameValidFunc((const void*)pc) && frame.skipFaultInstruction()) {
-        return;
-    }
-
     if (WX_MEMORY && Trap::isFaultInstruction(pc)) {
         return;
     }
@@ -966,11 +961,13 @@ void Profiler::updateNativeThreadNames() {
     }
 }
 
-Engine* Profiler::selectEngine(const char* event_name) {
+Engine* Profiler::selectEngine(Arguments& args) {
+    const char* event_name = args._event;
+
     if (event_name == NULL) {
         return &noop_engine;
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
-        if (FdTransferClient::hasPeer() || PerfEvents::supported()) {
+        if (args._record_cpu || args._target_cpu != -1 || FdTransferClient::hasPeer() || PerfEvents::supported()) {
             return &perf_events;
         } else if (CTimer::supported()) {
             return &ctimer;
@@ -1149,7 +1146,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
 
-    _engine = selectEngine(args._event);
+    _engine = selectEngine(args);
     if (_engine == &wall_clock && args._wall >= 0) {
         return Error("Cannot start wall clock with the selected event");
     } else if (_engine != &perf_events && args._target_cpu != -1) {

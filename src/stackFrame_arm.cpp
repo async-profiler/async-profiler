@@ -125,10 +125,6 @@ void StackFrame::adjustSP(const void* entry, const void* pc, uintptr_t& sp) {
     // Not needed
 }
 
-bool StackFrame::skipFaultInstruction() {
-    return false;
-}
-
 bool StackFrame::checkInterruptedSyscall() {
     return retval() == (uintptr_t)-EINTR;
 }

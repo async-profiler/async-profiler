@@ -75,8 +75,6 @@ class StackFrame {
 
     void adjustSP(const void* entry, const void* pc, uintptr_t& sp);
 
-    bool skipFaultInstruction();
-
     bool checkInterruptedSyscall();
 
     // Check if PC points to a syscall instruction
