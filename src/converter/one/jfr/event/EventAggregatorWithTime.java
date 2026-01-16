@@ -109,7 +109,7 @@ public class EventAggregatorWithTime implements EventCollector {
     }
 
     private boolean sameGroup(Event e1, Event e2) {
-        return e1.stackTraceId == e2.stackTraceId && (!threads || e1.tid == e2.tid) && e1.sameGroup(e2);
+        return e1.stackTraceId == e2.stackTraceId && e1.tid == e2.tid && e1.sameGroup(e2);
     }
 
     private void resize(int newCapacity) {
