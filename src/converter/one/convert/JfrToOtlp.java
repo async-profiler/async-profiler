@@ -44,7 +44,7 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     protected EventCollector createCollector(Arguments args) {
-        return new EventAggregatorWithTime(args.threads, !args.total /* samples */);
+        return new EventAggregatorWithTime(args.threads, args.total);
     }
 
     private EventAggregatorWithTime getCollector() {
