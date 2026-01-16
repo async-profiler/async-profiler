@@ -102,7 +102,7 @@ public class EventAggregatorWithTime implements EventCollector {
                 }
             }
         }
-    }    
+    }
 
     private int hashCode(Event e) {
         return e.hashCode() + (threads ? e.tid * 31 : 0);
