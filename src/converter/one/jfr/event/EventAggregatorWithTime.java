@@ -116,7 +116,7 @@ public class EventAggregatorWithTime implements EventCollector {
         Event[] newKeys = new Event[newCapacity];
         long[][] newContents = new long[newCapacity][];
         long[][] newTimestamps = new long[newCapacity][];
-        int[] newTimestampsCount = new int[newCapacity];
+        int[] newCounts = new int[newCapacity];
 
         int mask = newKeys.length - 1;
 
@@ -127,7 +127,7 @@ public class EventAggregatorWithTime implements EventCollector {
                         newKeys[j] = keys[i];
                         newContents[j] = contents[i];
                         newTimestamps[j] = timestamps[i];
-                        newTimestampsCount[j] = counts[i];
+                        newCounts[j] = counts[i];
                         break;
                     }
                 }
@@ -137,7 +137,7 @@ public class EventAggregatorWithTime implements EventCollector {
         keys = newKeys;
         contents = newContents;
         timestamps = newTimestamps;
-        counts = newTimestampsCount;
+        counts = newCounts;
     }
 
     public static interface Visitor {
