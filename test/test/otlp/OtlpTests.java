@@ -51,7 +51,7 @@ public class OtlpTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void threadNameFromJfr(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
@@ -76,7 +76,7 @@ public class OtlpTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void samplesFromJfr(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
@@ -86,6 +86,17 @@ public class OtlpTests {
     private static void checkSamples(Profile profile, ProfilesDictionary dictionary) {
         Output collapsed = toCollapsed(profile, dictionary);
         assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
+    public void nonAggregatedSamplesFromJfr(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
+        for (Sample sample : getProfile(profilesData, 0).getSamplesList()) {
+            assert(sample.getValuesList().size() == sample.getTimestampsUnixNanoList().size());
+        }
     }
 
     @Test(mainClass = OtlpProfileTimeTest.class)
@@ -98,7 +109,7 @@ public class OtlpTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void profileTimeFromJfr(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));

@@ -20,10 +20,5 @@ public interface EventCollector {
 
     interface Visitor {
         void visit(Event event, long samples, long value);
-
-        // Implementations can assume that ownership of 'timestamps' is released to the visitor
-        default void visit(Event event, long samples, long value, long[] timestamps) {
-            visit(event, samples, value);
-        }
     }
 }

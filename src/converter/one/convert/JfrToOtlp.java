@@ -9,9 +9,7 @@ import static one.convert.OtlpConstants.*;
 
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
-import one.jfr.event.Event;
-import one.jfr.event.EventCollector;
-import one.jfr.event.EventAggregator;
+import one.jfr.event.*;
 import one.proto.Proto;
 
 import java.io.FileOutputStream;
@@ -46,7 +44,11 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     protected EventCollector createCollector(Arguments args) {
-        return new EventAggregator(args.threads, args.grain, true /* recordTimestamps */);
+        return new EventAggregatorWithTime(args.threads, !args.total /* samples */);
+    }
+
+    private EventAggregatorWithTime getCollector() {
+        return (EventAggregatorWithTime) collector;
     }
 
     @Override
@@ -63,7 +65,7 @@ public class JfrToOtlp extends JfrConverter {
     @Override
     protected void convertChunk() {
         List<SampleInfo> samplesInfo = new ArrayList<>();
-        collector.forEach(new OtlpEventToSampleVisitor(samplesInfo));
+        getCollector().forEach(new OtlpEventParser(samplesInfo));
 
         long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
@@ -76,7 +78,7 @@ public class JfrToOtlp extends JfrConverter {
         proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
         proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
-        writeSamples(samplesInfo, !args.total /* samples */);
+        writeSamples(samplesInfo, args.total);
 
         proto.commitField(pMark);
     }
@@ -85,13 +87,20 @@ public class JfrToOtlp extends JfrConverter {
         for (SampleInfo si : samplesInfo) {
             long sMark = proto.startField(PROFILE_samples, MSG_LARGE);
             proto.field(SAMPLE_stack_index, si.stackIndex);
-            proto.field(SAMPLE_values, samples ? si.samples : si.value);
             proto.field(SAMPLE_attribute_indices, si.threadNameAttributeIndex);
-            long tMark = proto.startField(SAMPLE_timestamps_unix_nano, si.timeNanos.length > 8 ? MSG_LARGE : MSG_SMALL);
+
+            int maxLenByteCount = si.timeNanos.length > 8 ? MSG_LARGE : MSG_SMALL;
+            long vMark = proto.startField(SAMPLE_values, maxLenByteCount);
+            for (long c : si.contents) {
+                proto.writeLong(c);
+            }
+            proto.commitField(vMark);
+            long tMark = proto.startField(SAMPLE_timestamps_unix_nano, maxLenByteCount);
             for (long t : si.timeNanos) {
                 proto.writeFixed64(t);
             }
             proto.commitField(tMark);
+
             proto.commitField(sMark);
         }
     }
@@ -164,35 +173,28 @@ public class JfrToOtlp extends JfrConverter {
         final long[] timeNanos;
         final int threadNameAttributeIndex;
         final int stackIndex;
-        final long samples;
-        final long value;
+        final long[] contents;
 
-        SampleInfo(long[] timeNanos, int threadNameAttributeIndex, int stackIndex, long samples, long value) {
+        SampleInfo(long[] timeNanos, int threadNameAttributeIndex, int stackIndex, long[] contents) {
             this.timeNanos = timeNanos;
             this.threadNameAttributeIndex = threadNameAttributeIndex;
             this.stackIndex = stackIndex;
-            this.samples = samples;
-            this.value = value;
+            this.contents = contents;
         }
     }
 
-    private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
+    private final class OtlpEventParser implements EventAggregatorWithTime.Visitor {
         private final List<SampleInfo> samplesInfo;
         // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
         private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
         private final double factor = counterFactor();
 
-        public OtlpEventToSampleVisitor(List<SampleInfo> samplesInfo) {
+        public OtlpEventParser(List<SampleInfo> samplesInfo) {
             this.samplesInfo = samplesInfo;
         }
 
         @Override
-        public void visit(Event event, long samples, long value) {
-            throw new IllegalStateException("Should not be called");
-        }
-
-        @Override
-        public void visit(Event event, long samples, long value, long[] timestamps) {
+        public void visit(Event event, long[] contents, long[] timestamps) {
             if (excludeStack(event.stackTraceId, event.tid, 0)) {
                 return;
             }
@@ -201,12 +203,16 @@ public class JfrToOtlp extends JfrConverter {
             KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
             int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
 
+            if (args.total && factor != 1.0) {
+                for (int i = 0; i < contents.length; ++i) {
+                    contents[i] = (long) (contents[i] * factor);
+                }
+            }
             for (int i = 0; i < timestamps.length; ++i) {
                 long nanosFromStart = (long) ((timestamps[i] - jfr.chunkStartTicks) * jfr.nanosPerTick);
                 timestamps[i] = jfr.chunkStartNanos + nanosFromStart;
             }
-            SampleInfo si = new SampleInfo(timestamps, attributesPool.index(threadNameKv), stackIndex, samples,
-                                           factor == 1.0 ? value : (long) (value * factor));
+            SampleInfo si = new SampleInfo(timestamps, attributesPool.index(threadNameKv), stackIndex, contents);
             samplesInfo.add(si);
         }
 
