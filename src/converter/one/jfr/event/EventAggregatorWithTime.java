@@ -18,7 +18,6 @@ public class EventAggregatorWithTime implements EventCollector {
     private long[][] timestamps;
     private int[] timestampCount;
     private int size;
-    private double fraction;
 
     public EventAggregatorWithTime(boolean threads, boolean total) {
         this.threads = threads;
