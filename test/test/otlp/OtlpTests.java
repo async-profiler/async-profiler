@@ -94,9 +94,12 @@ public class OtlpTests {
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
+        boolean found = false;
         for (Sample sample : getProfile(profilesData, 0).getSamplesList()) {
             assert(sample.getValuesList().size() == sample.getTimestampsUnixNanoList().size());
+            found = found || sample.getValuesList().size() > 1;
         }
+        assert found : "No sample contains more than one value/timestamp pair";
     }
 
     @Test(mainClass = OtlpProfileTimeTest.class)
