@@ -76,19 +76,19 @@ public class OtlpTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void samplesFromJfr(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
         checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
     }
 
-    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=/workspaces/async-profiler/x.jfr")
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void samplesFromJfrNotAggregated(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
-        ProfilesData profilesData = profilesDataFromJfr("/workspaces/async-profiler/x.jfr", new Arguments("--cpu", "--output", "otlp"));
+        ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
         Map<String, List<Long>> map = toMap(getProfile(profilesData, 0), profilesData.getDictionary(), 0);
         for (Map.Entry<String, List<Long>> entry : map.entrySet()) {
             if (!entry.getKey().endsWith("test/otlp/CpuBurner.burn;java/lang/Long.toString;java/lang/Long.getChars")) continue;
