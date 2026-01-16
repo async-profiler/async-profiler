@@ -71,7 +71,8 @@ public class OtlpTests {
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
     public void samples(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
-        checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
+        Output collapsed = toCollapsed(getProfile(profilesData, 0), profilesData.getDictionary());
+        assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
@@ -80,24 +81,16 @@ public class OtlpTests {
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
-        checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
-    }
 
-    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
-    public void samplesFromJfrNotAggregated(TestProcess p) throws Exception {
-        p.waitForExit();
-        assert p.exitCode() == 0;
-
-        ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
-        Map<String, List<Long>> map = toMap(getProfile(profilesData, 0), profilesData.getDictionary(), 0);
-        for (Map.Entry<String, List<Long>> entry : map.entrySet()) {
+        // Check that samples are not aggregated
+        Map<String, List<Long>> profile = toMap(getProfile(profilesData, 0), profilesData.getDictionary(), 0);
+        for (Map.Entry<String, List<Long>> entry : profile.entrySet()) {
             if (!entry.getKey().endsWith("test/otlp/CpuBurner.burn;java/lang/Long.toString;java/lang/Long.getChars")) continue;
             assert entry.getValue().size() > 1 : entry;
+            break;
         }
-    }
 
-    private static void checkSamples(Profile profile, ProfilesDictionary dictionary) {
-        Output collapsed = toCollapsed(profile, dictionary);
+        Output collapsed = toCollapsed(profile);
         assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
     }
 
@@ -146,7 +139,11 @@ public class OtlpTests {
     }
 
     private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary, int valueIdx) {
-        Map<String, Long> stackTracesCount = toMap(profile, dictionary, valueIdx).entrySet().stream().collect(Collectors.toMap(
+        return toCollapsed(toMap(profile, dictionary, valueIdx));
+    }
+
+    private static Output toCollapsed(Map<String, List<Long>> profile) {
+        Map<String, Long> stackTracesCount = profile.entrySet().stream().collect(Collectors.toMap(
             Map.Entry::getKey,
             e -> e.getValue().stream().collect(Collectors.summingLong(Long::longValue))
         ));
