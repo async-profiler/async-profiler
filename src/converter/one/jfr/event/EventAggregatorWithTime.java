@@ -16,7 +16,7 @@ public class EventAggregatorWithTime implements EventCollector {
     // samples or values
     private long[][] contents;
     private long[][] timestamps;
-    private int[] timestampCount;
+    private int[] counts;
     private int size;
 
     public EventAggregatorWithTime(boolean threads, boolean total) {
@@ -35,14 +35,14 @@ public class EventAggregatorWithTime implements EventCollector {
         if (timestamps[i] == null) {
             timestamps[i] = new long[1];
             contents[i] = new long[1];
-        } else if (timestamps[i].length <= timestampCount[i]) {
+        } else if (timestamps[i].length <= counts[i]) {
             int newSize = timestamps[i].length * 2;
             timestamps[i] = Arrays.copyOf(timestamps[i], newSize);
             contents[i] = Arrays.copyOf(contents[i], newSize);
         }
-        timestamps[i][timestampCount[i]] = timestamp;
-        contents[i][timestampCount[i]] += content;
-        timestampCount[i] += 1;
+        timestamps[i][counts[i]] = timestamp;
+        contents[i][counts[i]] += content;
+        counts[i] += 1;
     }
 
     public void collect(Event e, long samples, long value) {
@@ -70,7 +70,7 @@ public class EventAggregatorWithTime implements EventCollector {
             keys = new Event[INITIAL_CAPACITY];
             contents = new long[INITIAL_CAPACITY][];
             timestamps = new long[INITIAL_CAPACITY][];
-            timestampCount = new int[INITIAL_CAPACITY];
+            counts = new int[INITIAL_CAPACITY];
             size = 0;
         }
     }
@@ -83,7 +83,7 @@ public class EventAggregatorWithTime implements EventCollector {
         keys = null;
         contents = null;
         timestamps = null;
-        timestampCount = null;
+        counts = null;
         return false;
     }
 
@@ -96,7 +96,7 @@ public class EventAggregatorWithTime implements EventCollector {
         if (size > 0) {
             for (int i = 0; i < keys.length; i++) {
                 if (keys[i] != null) {
-                    visitor.visit(keys[i], Arrays.copyOf(contents[i], timestampCount[i]), Arrays.copyOf(timestamps[i], timestampCount[i]));
+                    visitor.visit(keys[i], Arrays.copyOf(contents[i], counts[i]), Arrays.copyOf(timestamps[i], counts[i]));
                 }
             }
         }
@@ -125,7 +125,7 @@ public class EventAggregatorWithTime implements EventCollector {
                         newKeys[j] = keys[i];
                         newContents[j] = contents[i];
                         newTimestamps[j] = timestamps[i];
-                        newTimestampsCount[j] = timestampCount[i];
+                        newTimestampsCount[j] = counts[i];
                         break;
                     }
                 }
@@ -135,7 +135,7 @@ public class EventAggregatorWithTime implements EventCollector {
         keys = newKeys;
         contents = newContents;
         timestamps = newTimestamps;
-        timestampCount = newTimestampsCount;
+        counts = newTimestampsCount;
     }
 
     public static interface Visitor {
