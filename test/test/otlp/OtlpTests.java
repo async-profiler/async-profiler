@@ -83,6 +83,19 @@ public class OtlpTests {
         checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
     }
 
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=/workspaces/async-profiler/x.jfr")
+    public void samplesFromJfrNotAggregated(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        ProfilesData profilesData = profilesDataFromJfr("/workspaces/async-profiler/x.jfr", new Arguments("--cpu", "--output", "otlp"));
+        Map<String, List<Long>> map = toMap(getProfile(profilesData, 0), profilesData.getDictionary(), 0);
+        for (Map.Entry<String, List<Long>> entry : map.entrySet()) {
+            if (!entry.getKey().endsWith("test/otlp/CpuBurner.burn;java/lang/Long.toString;java/lang/Long.getChars")) continue;
+            assert entry.getValue().size() > 1 : entry;
+        }
+    }
+
     private static void checkSamples(Profile profile, ProfilesDictionary dictionary) {
         Output collapsed = toCollapsed(profile, dictionary);
         assert collapsed.containsExact("test/otlp/CpuBurner.lambda$main$0;test/otlp/CpuBurner.burn") : collapsed;
@@ -133,19 +146,28 @@ public class OtlpTests {
     }
 
     private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary, int valueIdx) {
-        Map<String, Long> stackTracesCount = new HashMap<>();
+        Map<String, Long> stackTracesCount = toMap(profile, dictionary, valueIdx).entrySet().stream().collect(Collectors.toMap(
+            Map.Entry::getKey,
+            e -> e.getValue().stream().collect(Collectors.summingLong(Long::longValue))
+        ));
+        List<String> lines = stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).collect(Collectors.toList());
+        return new Output(lines.toArray(new String[0]));
+    }
+
+    // Stacktrace to observed values
+    private static Map<String, List<Long>> toMap(Profile profile, ProfilesDictionary dictionary, int valueIdx) {
+        Map<String, List<Long>> map = new HashMap<>();
         for (Sample sample : profile.getSamplesList()) {
             List<Integer> locations = dictionary.getStackTable(sample.getStackIndex()).getLocationIndicesList();
             StringBuilder stackTrace = new StringBuilder();
             for (int i = locations.size() - 1; i > 0; --i) {
                 stackTrace.append(getFrameName(locations.get(i), dictionary)).append(';');
             }
-            stackTrace.append(getFrameName(locations.get(locations.size() - 1), dictionary));
-
-            stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValues(valueIdx) + (oldValue == null ? 0 : oldValue));
+            stackTrace.append(getFrameName(locations.get(0), dictionary));
+            List<Long> values = map.computeIfAbsent(stackTrace.toString(), key -> new ArrayList<>());
+            values.add(sample.getValues(valueIdx));
         }
-        List<String> lines = stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).collect(Collectors.toList());
-        return new Output(lines.toArray(new String[0]));
+        return map;
     }
 
     private static String getFrameName(int locationIndex, ProfilesDictionary dictionary) {
