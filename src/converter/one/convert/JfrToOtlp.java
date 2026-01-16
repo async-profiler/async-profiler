@@ -78,12 +78,12 @@ public class JfrToOtlp extends JfrConverter {
         proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
         proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
-        writeSamples(samplesInfo, args.total);
+        writeSamples(samplesInfo);
 
         proto.commitField(pMark);
     }
 
-    private void writeSamples(List<SampleInfo> samplesInfo, boolean samples) {
+    private void writeSamples(List<SampleInfo> samplesInfo) {
         for (SampleInfo si : samplesInfo) {
             long sMark = proto.startField(PROFILE_samples, MSG_LARGE);
             proto.field(SAMPLE_stack_index, si.stackIndex);
