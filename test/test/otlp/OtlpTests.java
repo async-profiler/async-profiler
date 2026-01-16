@@ -51,7 +51,7 @@ public class OtlpTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void threadNameFromJfr(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
@@ -111,7 +111,7 @@ public class OtlpTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void profileTimeFromJfr(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
 
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
