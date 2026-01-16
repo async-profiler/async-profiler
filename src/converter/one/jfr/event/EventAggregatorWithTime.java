@@ -10,7 +10,6 @@ import java.util.Arrays;
 public class EventAggregatorWithTime implements EventCollector {
     private static final int INITIAL_CAPACITY = 1024;
 
-    private final boolean threads;
     private final boolean total;
     private Event[] keys;
     // samples or values
@@ -19,8 +18,7 @@ public class EventAggregatorWithTime implements EventCollector {
     private int[] counts;
     private int size;
 
-    public EventAggregatorWithTime(boolean threads, boolean total) {
-        this.threads = threads;
+    public EventAggregatorWithTime(boolean total) {
         this.total = total;
 
         beforeChunk();
@@ -105,7 +103,7 @@ public class EventAggregatorWithTime implements EventCollector {
     }
 
     private int hashCode(Event e) {
-        return e.hashCode() + (threads ? e.tid * 31 : 0);
+        return e.hashCode() + e.tid * 31;
     }
 
     private boolean sameGroup(Event e1, Event e2) {
