@@ -96,7 +96,9 @@ public class EventAggregatorWithTime implements EventCollector {
         if (size > 0) {
             for (int i = 0; i < keys.length; i++) {
                 if (keys[i] != null) {
-                    visitor.visit(keys[i], Arrays.copyOf(contents[i], counts[i]), Arrays.copyOf(timestamps[i], counts[i]));
+                    long[] contentsCopy = Arrays.copyOf(contents[i], counts[i]);
+                    long[] timestampsCopy = Arrays.copyOf(timestamps[i], counts[i]);
+                    visitor.visit(keys[i], contentsCopy, timestampsCopy);
                 }
             }
         }
