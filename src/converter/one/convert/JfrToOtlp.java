@@ -11,6 +11,7 @@ import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.Event;
 import one.jfr.event.EventCollector;
+import one.jfr.event.EventAggregator;
 import one.proto.Proto;
 
 import java.io.FileOutputStream;
@@ -41,6 +42,11 @@ public class JfrToOtlp extends JfrConverter {
 
     public void dump(OutputStream out) throws IOException {
         out.write(proto.buffer(), 0, proto.size());
+    }
+
+    @Override
+    protected EventCollector createCollector(Arguments args) {
+        return new EventAggregator(args.threads, args.grain, true /* recordTimestamps */);
     }
 
     @Override
@@ -77,11 +83,15 @@ public class JfrToOtlp extends JfrConverter {
 
     private void writeSamples(List<SampleInfo> samplesInfo, boolean samples) {
         for (SampleInfo si : samplesInfo) {
-            long sMark = proto.startField(PROFILE_samples, MSG_SMALL);
+            long sMark = proto.startField(PROFILE_samples, MSG_LARGE);
             proto.field(SAMPLE_stack_index, si.stackIndex);
             proto.field(SAMPLE_values, samples ? si.samples : si.value);
             proto.field(SAMPLE_attribute_indices, si.threadNameAttributeIndex);
-            proto.fieldFixed64(SAMPLE_timestamps_unix_nano, si.timeNanos);
+            long tMark = proto.startField(SAMPLE_timestamps_unix_nano, si.timeNanos.length > 8 ? MSG_LARGE : MSG_SMALL);
+            for (long t : si.timeNanos) {
+                proto.writeFixed64(t);
+            }
+            proto.commitField(tMark);
             proto.commitField(sMark);
         }
     }
@@ -151,13 +161,13 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class SampleInfo {
-        final long timeNanos;
+        final long[] timeNanos;
         final int threadNameAttributeIndex;
         final int stackIndex;
         final long samples;
         final long value;
 
-        SampleInfo(long timeNanos, int threadNameAttributeIndex, int stackIndex, long samples, long value) {
+        SampleInfo(long[] timeNanos, int threadNameAttributeIndex, int stackIndex, long samples, long value) {
             this.timeNanos = timeNanos;
             this.threadNameAttributeIndex = threadNameAttributeIndex;
             this.stackIndex = stackIndex;
@@ -178,6 +188,11 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public void visit(Event event, long samples, long value) {
+            throw new IllegalStateException("Should not be called");
+        }
+
+        @Override
+        public void visit(Event event, long samples, long value, long[] timestamps) {
             if (excludeStack(event.stackTraceId, event.tid, 0)) {
                 return;
             }
@@ -185,9 +200,12 @@ public class JfrToOtlp extends JfrConverter {
             String threadName = getThreadName(event.tid);
             KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
             int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
-            long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
-            long timeNanos = jfr.chunkStartNanos + nanosFromStart;
-            SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, samples,
+
+            for (int i = 0; i < timestamps.length; ++i) {
+                long nanosFromStart = (long) ((timestamps[i] - jfr.chunkStartTicks) * jfr.nanosPerTick);
+                timestamps[i] = jfr.chunkStartNanos + nanosFromStart;
+            }
+            SampleInfo si = new SampleInfo(timestamps, attributesPool.index(threadNameKv), stackIndex, samples,
                                            factor == 1.0 ? value : (long) (value * factor));
             samplesInfo.add(si);
         }

@@ -5,20 +5,30 @@
 
 package one.jfr.event;
 
+import java.util.Arrays;
+
 public class EventAggregator implements EventCollector {
     private static final int INITIAL_CAPACITY = 1024;
 
     private final boolean threads;
     private final double grain;
+    private final boolean recordTimestamps;
     private Event[] keys;
     private long[] samples;
     private long[] values;
+    private long[][] timestamps;
+    private int[] timestampCount;
     private int size;
     private double fraction;
 
     public EventAggregator(boolean threads, double grain) {
+        this(threads, grain, false);
+    }
+
+    public EventAggregator(boolean threads, double grain, boolean recordTimestamps) {
         this.threads = threads;
         this.grain = grain;
+        this.recordTimestamps = recordTimestamps;
 
         beforeChunk();
     }
@@ -32,6 +42,16 @@ public class EventAggregator implements EventCollector {
         collect(e, e.samples(), e.value());
     }
 
+    private void doRecordTimestamp(int i, long timestamp) {
+        if (timestamps[i] == null) {
+            timestamps[i] = new long[1];
+        } else if (timestamps[i].length <= timestampCount[i]) {
+            timestamps[i] = Arrays.copyOf(timestamps[i], timestamps[i].length * 2);
+        }
+        timestamps[i][timestampCount[i]] = timestamp;
+        timestampCount[i] += 1;
+    }
+
     public void collect(Event e, long samples, long value) {
         int mask = keys.length - 1;
         int i = hashCode(e) & mask;
@@ -39,6 +59,9 @@ public class EventAggregator implements EventCollector {
             if (sameGroup(keys[i], e)) {
                 this.samples[i] += samples;
                 this.values[i] += value;
+                if (recordTimestamps) {
+                    doRecordTimestamp(i, e.time);
+                }
                 return;
             }
             i = (i + 1) & mask;
@@ -47,6 +70,9 @@ public class EventAggregator implements EventCollector {
         this.keys[i] = e;
         this.samples[i] = samples;
         this.values[i] = value;
+        if (recordTimestamps) {
+            doRecordTimestamp(i, e.time);
+        }
 
         if (++size * 2 > keys.length) {
             resize(keys.length * 2);
@@ -59,6 +85,10 @@ public class EventAggregator implements EventCollector {
             keys = new Event[INITIAL_CAPACITY];
             samples = new long[INITIAL_CAPACITY];
             values = new long[INITIAL_CAPACITY];
+            if (recordTimestamps) {
+                timestamps = new long[INITIAL_CAPACITY][];
+                timestampCount = new int[INITIAL_CAPACITY];
+            }
             size = 0;
         }
     }
@@ -83,7 +113,11 @@ public class EventAggregator implements EventCollector {
         if (size > 0) {
             for (int i = 0; i < keys.length; i++) {
                 if (keys[i] != null) {
-                    visitor.visit(keys[i], samples[i], values[i]);
+                    if (recordTimestamps) {
+                        visitor.visit(keys[i], samples[i], values[i], Arrays.copyOf(timestamps[i], timestampCount[i]));
+                    } else {
+                        visitor.visit(keys[i], samples[i], values[i]);
+                    }
                 }
             }
         }
@@ -127,6 +161,14 @@ public class EventAggregator implements EventCollector {
         Event[] newKeys = new Event[newCapacity];
         long[] newSamples = new long[newCapacity];
         long[] newValues = new long[newCapacity];
+        
+        long[][] newTimestamps = null;
+        int[] newTimestampsCount = null;
+        if (recordTimestamps) {
+            newTimestamps = new long[newCapacity][];
+            newTimestampsCount = new int[newCapacity];
+        }
+
         int mask = newKeys.length - 1;
 
         for (int i = 0; i < keys.length; i++) {
@@ -136,6 +178,10 @@ public class EventAggregator implements EventCollector {
                         newKeys[j] = keys[i];
                         newSamples[j] = samples[i];
                         newValues[j] = values[i];
+                        if (recordTimestamps) {
+                            newTimestamps[j] = timestamps[i];
+                            newTimestampsCount[j] = timestampCount[i];
+                        }
                         break;
                     }
                 }
@@ -145,5 +191,7 @@ public class EventAggregator implements EventCollector {
         keys = newKeys;
         samples = newSamples;
         values = newValues;
+        timestamps = newTimestamps;
+        timestampCount = newTimestampsCount;
     }
 }

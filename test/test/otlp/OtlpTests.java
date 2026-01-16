@@ -140,7 +140,7 @@ public class OtlpTests {
             for (int i = locations.size() - 1; i > 0; --i) {
                 stackTrace.append(getFrameName(locations.get(i), dictionary)).append(';');
             }
-            stackTrace.append(getFrameName(locations.get(locations.size() - 1), dictionary));
+            stackTrace.append(getFrameName(locations.get(0), dictionary));
 
             stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValues(valueIdx) + (oldValue == null ? 0 : oldValue));
         }
