@@ -47,10 +47,6 @@ public class JfrToOtlp extends JfrConverter {
         return new EventAggregatorWithTime(args.total);
     }
 
-    private EventAggregatorWithTime getCollector() {
-        return (EventAggregatorWithTime) collector;
-    }
-
     @Override
     public void convert() throws IOException {
         long rpMark = proto.startField(PROFILES_DATA_resource_profiles, MSG_LARGE);
@@ -65,7 +61,7 @@ public class JfrToOtlp extends JfrConverter {
     @Override
     protected void convertChunk() {
         List<SampleInfo> samplesInfo = new ArrayList<>();
-        getCollector().forEach(new OtlpEventParser(samplesInfo));
+        ((EventAggregatorWithTime) collector).forEach(new OtlpEventParser(samplesInfo));
 
         long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
