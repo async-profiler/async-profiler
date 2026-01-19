@@ -25,6 +25,10 @@
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
 
+static constexpr u32 JMETHOD_ID_LIMIT = 1024 * 1024 * 500 / 8; // 500 MiB memory, about 65 million methods
+static u32 _jmethod_id_count = 0;
+static bool _jmethod_id_count_warned = false;
+
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 
@@ -364,7 +368,13 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
     }
 }
 
-void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
+void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count) {
+    if (loadAcquire(_jmethod_id_count) > JMETHOD_ID_LIMIT) {
+        if (__sync_bool_compare_and_swap(&_jmethod_id_count_warned, false, true)) {
+            Log::warn("Total number of generated jmethod-ids exceeds %d, stop generating more", JMETHOD_ID_LIMIT);
+        }
+        return;
+    }
     if (VMStructs::hasClassLoaderData()) {
         VMKlass* vmklass = VMKlass::fromJavaClass(jni, klass);
         int method_count = vmklass->methodCount();
@@ -383,6 +393,9 @@ void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
     jint method_count;
     jmethodID* methods;
     if (jvmti->GetClassMethods(klass, &method_count, &methods) == 0) {
+        if (update_count) {
+            atomicInc(_jmethod_id_count, method_count);
+        }
         jvmti->Deallocate((unsigned char*)methods);
     }
 }
@@ -433,7 +446,7 @@ jvmtiError VM::RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmt
         JNIEnv* env = jni();
         for (int i = 0; i < class_count; i++) {
             if (class_definitions[i].klass != NULL) {
-                loadMethodIDs(jvmti, env, class_definitions[i].klass);
+                loadMethodIDs(jvmti, env, class_definitions[i].klass, false);
             }
         }
     }
@@ -449,7 +462,7 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
         JNIEnv* env = jni();
         for (int i = 0; i < class_count; i++) {
             if (classes[i] != NULL) {
-                loadMethodIDs(jvmti, env, classes[i]);
+                loadMethodIDs(jvmti, env, classes[i], false);
             }
         }
     }
