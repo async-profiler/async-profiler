@@ -142,7 +142,12 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeSample(int stackTraceId, int tid, AggregatedEvent ae) {
-        long sMark = proto.startField(PROFILE_samples, MSG_LARGE);
+        // 44 is the sum of:
+        // 4 tags: 1 byte
+        // 10 * 2: max size of thread name and stack idx
+        // 10 * 2: max size of timestamps/values arrays
+        int maxLengthBytes = varintSize(44 + ae.eventsCount * (8 /* fixed64 */ + 10 /* max varint */));
+        long sMark = proto.startField(PROFILE_samples, maxLengthBytes);
 
         proto.field(SAMPLE_stack_index, stacksIndexCache.computeIfAbsent(stackTraceId, key -> stacksPool.index(makeStack(key))));
 
@@ -150,21 +155,23 @@ public class JfrToOtlp extends JfrConverter {
         KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
         proto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameKv));
 
-        int maxLenByteCount = ae.eventsCount > 8 ? MSG_LARGE : MSG_SMALL;
-
-        long tMark = proto.startField(SAMPLE_timestamps_unix_nano, maxLenByteCount);
+        long tMark = proto.startField(SAMPLE_timestamps_unix_nano, varintSize(8 * ae.eventsCount));
         for (int i = 0; i < ae.eventsCount; ++i) {
             proto.writeFixed64(ae.timestamps[i]);
         }
         proto.commitField(tMark);
 
-        long vMark = proto.startField(SAMPLE_values, maxLenByteCount);
+        long vMark = proto.startField(SAMPLE_values, varintSize(10 * ae.eventsCount));
         for (int i = 0; i < ae.eventsCount; ++i) {
             proto.writeLong(ae.values[i]);
         }
         proto.commitField(vMark);
 
         proto.commitField(sMark);
+    }
+
+    private static int varintSize(long value) {
+        return (640 - Long.numberOfLeadingZeros(value | 1) * 9) / 64;
     }
 
     private void writeProfileDictionary() {
