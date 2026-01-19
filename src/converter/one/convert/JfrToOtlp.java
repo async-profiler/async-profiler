@@ -67,7 +67,7 @@ public class JfrToOtlp extends JfrConverter {
 
                 long key = ((long) e.tid) << 32 | e.stackTraceId;
                 long[] arr = aggregatedEvents.computeIfAbsent(key, k -> {
-                    long[] newArr = new long[VALUES_PER_EVENT + 1 /* free idx */];
+                    long[] newArr = new long[VALUES_PER_EVENT + 1 /* events count */];
                     newArr[newArr.length - 1] = 0;
                     return newArr;
                 });
