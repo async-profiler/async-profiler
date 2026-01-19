@@ -66,11 +66,7 @@ public class JfrToOtlp extends JfrConverter {
                 }
 
                 long key = ((long) e.tid) << 32 | e.stackTraceId;
-                long[] arr = aggregatedEvents.computeIfAbsent(key, k -> {
-                    long[] newArr = new long[VALUES_PER_EVENT + 1 /* events count */];
-                    newArr[newArr.length - 1] = 0;
-                    return newArr;
-                });
+                long[] arr = aggregatedEvents.computeIfAbsent(key, k -> new long[VALUES_PER_EVENT + 1 /* events count */]);
                 int eventsCount = (int) arr[arr.length - 1];
                 if (eventsCount == arr.length / 2) {
                     arr = Arrays.copyOf(arr, (arr.length - 1) * VALUES_PER_EVENT + 1);
