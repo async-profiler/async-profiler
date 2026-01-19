@@ -34,10 +34,7 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<IntArray> stacksPool = new Index<>(IntArray.class, IntArray.EMPTY);
     private final int threadNameIndex = stringPool.index(OTLP_THREAD_NAME);
 
-    // Written by the EventCollector. The value is an array which contains
-    // eventsCount * VALUES_PER_EVENT elements, with
-    // eventsCount == array[array.length - 1] <= array.length / 2
-    private final Dictionary<long[]> aggregatedEvents = new Dictionary<>();
+    private final Dictionary<AggregatedEvent> aggregatedEvents = new Dictionary<>();
     // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
     private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
     private double chunkCounterFactor;
@@ -67,22 +64,14 @@ public class JfrToOtlp extends JfrConverter {
                 }
 
                 long key = ((long) e.tid) << 32 | e.stackTraceId;
-                long[] arr = aggregatedEvents.get(key);
-                if (arr == null) {
-                    arr = new long[VALUES_PER_EVENT + 1 /* events count */];
-                    aggregatedEvents.put(key, arr);
-                }
-                int eventsCount = (int) arr[arr.length - 1];
-                if (eventsCount == arr.length / 2) {
-                    // Double the count of accomodated events
-                    int newSize = (eventsCount + 1) * 2 * VALUES_PER_EVENT;
-                    arr = Arrays.copyOf(arr, newSize + 1 /* events count */);
-                    aggregatedEvents.put(key, arr);
+                AggregatedEvent ec = aggregatedEvents.get(key);
+                if (ec == null) {
+                    ec = new AggregatedEvent();
+                    aggregatedEvents.put(key, ec);
                 }
 
-                arr[eventsCount] = getUnixTimestampNanos(e.time);
-                arr[arr.length / 2 + eventsCount] = !args.total ? e.samples() : chunkCounterFactor == 1.0 ? e.value() : (long) (e.value() * chunkCounterFactor);
-                arr[arr.length - 1] = eventsCount + 1;
+                long recordedValue = !args.total ? e.samples() : chunkCounterFactor == 1.0 ? e.value() : (long) (e.value() * chunkCounterFactor);
+                ec.recordEvent(getUnixTimestampNanos(e.time), recordedValue);
             }
 
             private long getUnixTimestampNanos(long jfrTimestamp) {
@@ -128,8 +117,8 @@ public class JfrToOtlp extends JfrConverter {
         proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
         proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
-        aggregatedEvents.forEach(new Dictionary.Visitor<long[]>() {
-            public void visit(long key, long[] value) {
+        aggregatedEvents.forEach(new Dictionary.Visitor<AggregatedEvent>() {
+            public void visit(long key, AggregatedEvent value) {
                 int stackTraceId = (int) key;
                 int tid = (int) (key >> 32);
                 writeSample(stackTraceId, tid, value);
@@ -155,7 +144,7 @@ public class JfrToOtlp extends JfrConverter {
         return new Line(functionIdx, lineNumber);
     }
 
-    private void writeSample(int stackTraceId, int tid, long[] contents) {
+    private void writeSample(int stackTraceId, int tid, AggregatedEvent ae) {
         long sMark = proto.startField(PROFILE_samples, MSG_LARGE);
 
         proto.field(SAMPLE_stack_index, stacksIndexCache.computeIfAbsent(stackTraceId, key -> stacksPool.index(makeStack(key))));
@@ -164,18 +153,17 @@ public class JfrToOtlp extends JfrConverter {
         KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
         proto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameKv));
 
-        int eventsCount = (int) contents[contents.length - 1];
-        int maxLenByteCount = eventsCount > 8 ? MSG_LARGE : MSG_SMALL;
+        int maxLenByteCount = ae.eventsCount > 8 ? MSG_LARGE : MSG_SMALL;
 
         long tMark = proto.startField(SAMPLE_timestamps_unix_nano, maxLenByteCount);
-        for (int i = 0; i < eventsCount; ++i) {
-            proto.writeFixed64(contents[i]);
+        for (int i = 0; i < ae.eventsCount; ++i) {
+            proto.writeFixed64(ae.timestamps[i]);
         }
         proto.commitField(tMark);
 
         long vMark = proto.startField(SAMPLE_values, maxLenByteCount);
-        for (int i = 0; i < eventsCount; ++i) {
-            proto.writeLong(contents[contents.length / 2 + i]);
+        for (int i = 0; i < ae.eventsCount; ++i) {
+            proto.writeLong(ae.values[i]);
         }
         proto.commitField(vMark);
 
@@ -320,6 +308,23 @@ public class JfrToOtlp extends JfrConverter {
         @Override
         public int hashCode() {
             return hash;
+        }
+    }
+
+    private static final class AggregatedEvent {
+        private long[] timestamps = new long[1];
+        private long[] values = new long[1];
+        private int eventsCount = 0;
+
+        public void recordEvent(long timestamp, long value) {
+            if (eventsCount == timestamps.length) {
+                int newSize = timestamps.length * 2;
+                timestamps = Arrays.copyOf(timestamps, newSize);
+                values = Arrays.copyOf(values, newSize);
+            }
+            timestamps[eventsCount] = timestamp;
+            values[eventsCount] = value;
+            ++eventsCount;
         }
     }
 }
