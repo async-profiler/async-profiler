@@ -142,29 +142,56 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeSample(int stackTraceId, int tid, AggregatedEvent ae) {
-        long sMark = proto.startField(PROFILE_samples, MSG_LARGE);
-
-        proto.field(SAMPLE_stack_index, stacksIndexCache.computeIfAbsent(stackTraceId, key -> stacksPool.index(makeStack(key))));
-
         String threadName = getThreadName(tid);
         KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
-        proto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameKv));
+        int threadNameAttributeIdx = attributesPool.index(threadNameKv);
+        int stackIndex = stacksIndexCache.computeIfAbsent(stackTraceId, key -> stacksPool.index(makeStack(key)));
 
-        int maxLenByteCount = ae.eventsCount > 8 ? MSG_LARGE : MSG_SMALL;
+        int timestampsByteCount = 0;
+        for (int i = 0; i < ae.eventsCount; ++i) {
+            timestampsByteCount += varintSize(ae.values[i]);
+        }
+        int valuesByteCount = ae.eventsCount * 8;
 
-        long tMark = proto.startField(SAMPLE_timestamps_unix_nano, maxLenByteCount);
+        int byteCount = 0;
+        // Sample::stack_index
+        byteCount += 1;
+        byteCount += varintSize(stackIndex);
+        // Sample::attribute_indices
+        byteCount += 1;
+        byteCount += varintSize(threadNameAttributeIdx);
+        // Sample::timestamps_unix_nano
+        byteCount += 1;
+        byteCount += varintSize(timestampsByteCount);
+        byteCount += timestampsByteCount;
+        // Sample::values
+        byteCount += 1;
+        byteCount += varintSize(valuesByteCount);
+        byteCount += valuesByteCount;
+
+        long sMark = proto.startField(PROFILE_samples, varintSize(byteCount));
+
+        proto.field(SAMPLE_stack_index, stackIndex);
+
+        proto.field(SAMPLE_attribute_indices, threadNameAttributeIdx);
+
+        long tMark = proto.startField(SAMPLE_timestamps_unix_nano, varintSize(valuesByteCount));
         for (int i = 0; i < ae.eventsCount; ++i) {
             proto.writeFixed64(ae.timestamps[i]);
         }
         proto.commitField(tMark);
 
-        long vMark = proto.startField(SAMPLE_values, maxLenByteCount);
+        long vMark = proto.startField(SAMPLE_values, varintSize(timestampsByteCount));
         for (int i = 0; i < ae.eventsCount; ++i) {
             proto.writeLong(ae.values[i]);
         }
         proto.commitField(vMark);
 
         proto.commitField(sMark);
+    }
+
+    private static int varintSize(long value) {
+        return (640 - Long.numberOfLeadingZeros(value | 1) * 9) / 64;
     }
 
     private void writeProfileDictionary() {
