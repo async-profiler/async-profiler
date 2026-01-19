@@ -25,7 +25,6 @@ public class JfrToOtlp extends JfrConverter {
     // Size in bytes to be allocated in the buffer to hold the varint containing the length of the message
     private static final int MSG_LARGE = 5;
     private static final int MSG_SMALL = 1;
-    private static final int VALUES_PER_EVENT = 2; /* time, samples/value */
 
     private final Index<String> stringPool = new Index<>(String.class, "");
     private final Index<String> functionPool = new Index<>(String.class, "");
