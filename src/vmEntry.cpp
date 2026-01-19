@@ -368,12 +368,12 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
     }
 }
 
-int VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count) {
+void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count) {
     if (loadAcquire(_jmethod_id_count) > JMETHOD_ID_LIMIT) {
         if (__sync_bool_compare_and_swap(&_jmethod_id_count_warned, false, true)) {
             Log::warn("Total number of generated jmethod-ids exceeds %d, stop generating more", JMETHOD_ID_LIMIT);
         }
-        return -1;
+        return;
     }
     if (VMStructs::hasClassLoaderData()) {
         VMKlass* vmklass = VMKlass::fromJavaClass(jni, klass);
@@ -397,9 +397,7 @@ int VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_co
             atomicInc(_jmethod_id_count, method_count);
         }
         jvmti->Deallocate((unsigned char*)methods);
-        return method_count;
     }
-    return -1;
 }
 
 void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
