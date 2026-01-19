@@ -69,7 +69,9 @@ public class JfrToOtlp extends JfrConverter {
                 long[] arr = aggregatedEvents.computeIfAbsent(key, k -> new long[VALUES_PER_EVENT + 1 /* events count */]);
                 int eventsCount = (int) arr[arr.length - 1];
                 if (eventsCount == arr.length / 2) {
-                    arr = Arrays.copyOf(arr, (arr.length - 1) * VALUES_PER_EVENT + 1);
+                    // Double the size
+                    int newSize = (eventsCount + 1) * 2 * VALUES_PER_EVENT;
+                    arr = Arrays.copyOf(arr, newSize + 1 /* events count */);
                     aggregatedEvents.put(key, arr);
                 }
 
