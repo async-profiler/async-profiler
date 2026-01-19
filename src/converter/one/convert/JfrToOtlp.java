@@ -33,8 +33,8 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<IntArray> stacksPool = new Index<>(IntArray.class, IntArray.EMPTY);
     private final int threadNameIndex = stringPool.index(OTLP_THREAD_NAME);
 
-    // Written by the EventCollector. The value is an array which contains 
-    // eventsCount * VALUES_PER_EVENT elements, with 
+    // Written by the EventCollector. The value is an array which contains
+    // eventsCount * VALUES_PER_EVENT elements, with
     // eventsCount == array[array.length - 1] <= array.length / 2
     private final Map<Long, long[]> aggregatedEvents = new HashMap<>();
     // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
