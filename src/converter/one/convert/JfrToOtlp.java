@@ -116,12 +116,10 @@ public class JfrToOtlp extends JfrConverter {
         proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
         proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
-        aggregatedEvents.forEach(new Dictionary.Visitor<AggregatedEvent>() {
-            public void visit(long key, AggregatedEvent value) {
-                int stackTraceId = (int) key;
-                int tid = (int) (key >> 32);
-                writeSample(stackTraceId, tid, value);
-            }
+        aggregatedEvents.forEach((key, value) -> {
+            int stackTraceId = (int) key;
+            int tid = (int) (key >> 32);
+            writeSample(stackTraceId, tid, value);
         });
 
         proto.commitField(pMark);
@@ -311,9 +309,9 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class AggregatedEvent {
-        private long[] timestamps = new long[1];
-        private long[] values = new long[1];
-        private int eventsCount = 0;
+        long[] timestamps = new long[1];
+        long[] values = new long[1];
+        int eventsCount = 0;
 
         public void recordEvent(long timestamp, long value) {
             if (eventsCount == timestamps.length) {
