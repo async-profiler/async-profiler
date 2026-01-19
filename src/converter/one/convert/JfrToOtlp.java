@@ -7,6 +7,7 @@ package one.convert;
 
 import static one.convert.OtlpConstants.*;
 
+import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.*;
@@ -36,7 +37,7 @@ public class JfrToOtlp extends JfrConverter {
     // Written by the EventCollector. The value is an array which contains
     // eventsCount * VALUES_PER_EVENT elements, with
     // eventsCount == array[array.length - 1] <= array.length / 2
-    private final Map<Long, long[]> aggregatedEvents = new HashMap<>();
+    private final Dictionary<long[]> aggregatedEvents = new Dictionary<>();
     // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
     private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
     private double chunkCounterFactor;
@@ -66,7 +67,11 @@ public class JfrToOtlp extends JfrConverter {
                 }
 
                 long key = ((long) e.tid) << 32 | e.stackTraceId;
-                long[] arr = aggregatedEvents.computeIfAbsent(key, k -> new long[VALUES_PER_EVENT + 1 /* events count */]);
+                long[] arr = aggregatedEvents.get(key);
+                if (arr == null) {
+                    arr = new long[VALUES_PER_EVENT + 1 /* events count */];
+                    aggregatedEvents.put(key, arr);
+                }
                 int eventsCount = (int) arr[arr.length - 1];
                 if (eventsCount == arr.length / 2) {
                     // Double the count of accomodated events
@@ -123,12 +128,13 @@ public class JfrToOtlp extends JfrConverter {
         proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
         proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
-        for (Map.Entry<Long, long[]> sampleEntry : aggregatedEvents.entrySet()) {
-            long key = sampleEntry.getKey();
-            int stackTraceId = (int) key;
-            int tid = (int) (key >> 32);
-            writeSample(stackTraceId, tid, sampleEntry.getValue());
-        }
+        aggregatedEvents.forEach(new Dictionary.Visitor<long[]>() {
+            public void visit(long key, long[] value) {
+                int stackTraceId = (int) key;
+                int tid = (int) (key >> 32);
+                writeSample(stackTraceId, tid, value);
+            }
+        });
 
         proto.commitField(pMark);
     }
