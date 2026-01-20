@@ -142,7 +142,7 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeSample(int stackTraceId, int tid, AggregatedEvent ae) {
-        // 34 is the sum of:
+        // 24 is the sum of:
         // 4 tags: 1 byte
         // 5 * 2: max size of thread name and stack idx
         // 5 * 2: max size of timestamps/values arrays
