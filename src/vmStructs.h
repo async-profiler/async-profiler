@@ -512,23 +512,57 @@ class NMethod : VMStructs {
     }
 
     bool isNMethod() {
+        static const char* ptr1 = nullptr;
+        static const char* ptr2 = nullptr;
+
         const char* n = name();
-        return n != NULL && (strcmp(n, "nmethod") == 0 || strcmp(n, "native nmethod") == 0);
+        if (ptr1 == n) return n != nullptr;
+        if (ptr2 == n) return n != nullptr;
+
+        if (strcmp(n, "nmethod") == 0) {
+            ptr1 = n;
+            return true;
+        }
+        if (strcmp(n, "native nmethod") == 0) {
+            ptr2 = n;
+            return true;
+        }
+        return false;
     }
 
     bool isInterpreter() {
+        static const char* ptr = nullptr;
         const char* n = name();
-        return n != NULL && strcmp(n, "Interpreter") == 0;
+        if (ptr == n) return n != nullptr;
+        if (strcmp(n, "Interpreter") == 0) {
+            ptr = n;
+            return true;
+        }
+        return false;
     }
 
     bool isStub() {
+        static const char* ptr = nullptr;
         const char* n = name();
-        return n != NULL && strncmp(n, "StubRoutines", 12) == 0;
+        if (ptr == n) return n != nullptr;
+        if (strncmp(n, "StubRoutines", 12) == 0) {
+            // There might be multiple pointers in use for this name,
+            // we just keep the last one seen as an optimization
+            ptr = n;
+            return true;
+        }
+        return false;
     }
 
     bool isVTableStub() {
+        static const char* ptr = nullptr;
         const char* n = name();
-        return n != NULL && strcmp(n, "vtable chunks") == 0;
+        if (ptr == n) return n != nullptr;
+        if (strcmp(n, "vtable chunks") == 0) {
+            ptr = n;
+            return true;
+        }
+        return false;
     }
 
     VMMethod* method() {
