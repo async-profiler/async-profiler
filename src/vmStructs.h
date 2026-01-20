@@ -516,8 +516,8 @@ class NMethod : VMStructs {
         static const char* ptr2 = nullptr;
 
         const char* n = name();
-        if (ptr1 == n) return n != nullptr;
-        if (ptr2 == n) return n != nullptr;
+        if (n == nullptr) return false;
+        if (ptr1 == n || ptr2 == n) return true;
 
         if (strcmp(n, "nmethod") == 0) {
             ptr1 = n;
@@ -533,7 +533,8 @@ class NMethod : VMStructs {
     bool isInterpreter() {
         static const char* ptr = nullptr;
         const char* n = name();
-        if (ptr == n) return n != nullptr;
+        if (n == nullptr) return false;
+        if (ptr == n) return true;
         if (strcmp(n, "Interpreter") == 0) {
             ptr = n;
             return true;
@@ -544,7 +545,8 @@ class NMethod : VMStructs {
     bool isStub() {
         static const char* ptr = nullptr;
         const char* n = name();
-        if (ptr == n) return n != nullptr;
+        if (n == nullptr) return false;
+        if (ptr == n) return true;
         if (strncmp(n, "StubRoutines", 12) == 0) {
             // There might be multiple pointers in use for this name,
             // we just keep the last one seen as an optimization
@@ -557,7 +559,8 @@ class NMethod : VMStructs {
     bool isVTableStub() {
         static const char* ptr = nullptr;
         const char* n = name();
-        if (ptr == n) return n != nullptr;
+        if (n == nullptr) return false;
+        if (ptr == n) return true;
         if (strcmp(n, "vtable chunks") == 0) {
             ptr = n;
             return true;
