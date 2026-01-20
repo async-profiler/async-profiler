@@ -796,8 +796,8 @@ Error PerfEvents::start(Arguments& args) {
                   "  sysctl kernel.perf_event_paranoid=1\n"
                   "  sysctl kernel.kptr_restrict=0");
         _kernel_stack = false;
-        // Automatically switch on alluser for non-CPU events, if kernel profiling is unavailable
-        _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
+        // Automatically switch on alluser if kernel profiling is unavailable
+        _alluser = !supported();
     }
     _use_perf_mmap = _kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _record_cpu;
 
