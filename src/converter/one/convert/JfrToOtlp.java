@@ -145,8 +145,8 @@ public class JfrToOtlp extends JfrConverter {
         // 34 is the sum of:
         // 4 tags: 1 byte
         // 5 * 2: max size of thread name and stack idx
-        // 10 * 2: max size of timestamps/values arrays
-        int maxLengthBytes = varintSize(34 + ae.eventsCount * (8 /* fixed64 */ + 10 /* max varint */));
+        // 5 * 2: max size of timestamps/values arrays
+        int maxLengthBytes = varintSize(24 + ae.eventsCount * (8 /* fixed64 */ + 10 /* max varint */));
         long sMark = proto.startField(PROFILE_samples, maxLengthBytes);
 
         proto.field(SAMPLE_stack_index, stacksIndexCache.computeIfAbsent(stackTraceId, key -> stacksPool.index(makeStack(key))));
