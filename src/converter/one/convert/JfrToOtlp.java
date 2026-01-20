@@ -7,10 +7,10 @@ package one.convert;
 
 import static one.convert.OtlpConstants.*;
 
+import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
-import one.jfr.event.Event;
-import one.jfr.event.EventCollector;
+import one.jfr.event.*;
 import one.proto.Proto;
 
 import java.io.FileOutputStream;
@@ -33,6 +33,11 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<IntArray> stacksPool = new Index<>(IntArray.class, IntArray.EMPTY);
     private final int threadNameIndex = stringPool.index(OTLP_THREAD_NAME);
 
+    private final Dictionary<AggregatedEvent> aggregatedEvents = new Dictionary<>();
+    // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
+    private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
+    private double chunkCounterFactor;
+
     private final Proto proto = new Proto(1024);
 
     public JfrToOtlp(JfrReader jfr, Arguments args) {
@@ -41,6 +46,50 @@ public class JfrToOtlp extends JfrConverter {
 
     public void dump(OutputStream out) throws IOException {
         out.write(proto.buffer(), 0, proto.size());
+    }
+
+    @Override
+    protected EventCollector createCollector(Arguments args) {
+        return new EventCollector() {
+            public void beforeChunk() {
+                chunkCounterFactor = counterFactor();
+                aggregatedEvents.clear();
+                stacksIndexCache.clear();
+            }
+
+            public void collect(Event e) {
+                if (excludeStack(e.stackTraceId, e.tid, 0)) {
+                    return;
+                }
+
+                long key = ((long) e.tid) << 32 | e.stackTraceId;
+                AggregatedEvent ec = aggregatedEvents.get(key);
+                if (ec == null) {
+                    ec = new AggregatedEvent();
+                    aggregatedEvents.put(key, ec);
+                }
+
+                long recordedValue = !args.total ? e.samples() : chunkCounterFactor == 1.0 ? e.value() : (long) (e.value() * chunkCounterFactor);
+                ec.recordEvent(getUnixTimestampNanos(e.time), recordedValue);
+            }
+
+            private long getUnixTimestampNanos(long jfrTimestamp) {
+                long nanosFromStart = (long) ((jfrTimestamp - jfr.chunkStartTicks) * jfr.nanosPerTick);
+                return jfr.chunkStartNanos + nanosFromStart;
+            }
+
+            public void afterChunk() {}
+
+            public boolean finish() {
+                aggregatedEvents.clear();
+                stacksIndexCache.clear();
+                return false;
+            }
+
+            public void forEach(Visitor visitor) {
+                throw new UnsupportedOperationException("Not supported");
+            }
+        };
     }
 
     @Override
@@ -56,9 +105,6 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     protected void convertChunk() {
-        List<SampleInfo> samplesInfo = new ArrayList<>();
-        collector.forEach(new OtlpEventToSampleVisitor(samplesInfo));
-
         long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
         long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
@@ -70,20 +116,62 @@ public class JfrToOtlp extends JfrConverter {
         proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
         proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
 
-        writeSamples(samplesInfo, !args.total /* samples */);
+        aggregatedEvents.forEach((key, value) -> {
+            int stackTraceId = (int) key;
+            int tid = (int) (key >> 32);
+            writeSample(stackTraceId, tid, value);
+        });
 
         proto.commitField(pMark);
     }
 
-    private void writeSamples(List<SampleInfo> samplesInfo, boolean samples) {
-        for (SampleInfo si : samplesInfo) {
-            long sMark = proto.startField(PROFILE_samples, MSG_SMALL);
-            proto.field(SAMPLE_stack_index, si.stackIndex);
-            proto.field(SAMPLE_values, samples ? si.samples : si.value);
-            proto.field(SAMPLE_attribute_indices, si.threadNameAttributeIndex);
-            proto.fieldFixed64(SAMPLE_timestamps_unix_nano, si.timeNanos);
-            proto.commitField(sMark);
+    private IntArray makeStack(int stackTraceId) {
+        StackTrace st = jfr.stackTraces.get(stackTraceId);
+        int[] stack = new int[st.methods.length];
+        for (int i = 0; i < st.methods.length; ++i) {
+            stack[i] = linePool.index(makeLine(st, i));
         }
+        return new IntArray(stack);
+    }
+
+    private Line makeLine(StackTrace stackTrace, int i) {
+        String methodName = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
+        int lineNumber = stackTrace.locations[i] >>> 16;
+        int functionIdx = functionPool.index(methodName);
+        return new Line(functionIdx, lineNumber);
+    }
+
+    private void writeSample(int stackTraceId, int tid, AggregatedEvent ae) {
+        // 24 is the sum of:
+        // 4 tags: 1 byte
+        // 5 * 2: max size of thread name and stack idx
+        // 5 * 2: max size of timestamps/values arrays
+        int maxLengthBytes = varintSize(24 + ae.eventsCount * (8 /* fixed64 */ + 10 /* max varint */));
+        long sMark = proto.startField(PROFILE_samples, maxLengthBytes);
+
+        proto.field(SAMPLE_stack_index, stacksIndexCache.computeIfAbsent(stackTraceId, key -> stacksPool.index(makeStack(key))));
+
+        String threadName = getThreadName(tid);
+        KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
+        proto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameKv));
+
+        long tMark = proto.startField(SAMPLE_timestamps_unix_nano, varintSize(8 * ae.eventsCount));
+        for (int i = 0; i < ae.eventsCount; ++i) {
+            proto.writeFixed64(ae.timestamps[i]);
+        }
+        proto.commitField(tMark);
+
+        long vMark = proto.startField(SAMPLE_values, varintSize(10 * ae.eventsCount));
+        for (int i = 0; i < ae.eventsCount; ++i) {
+            proto.writeLong(ae.values[i]);
+        }
+        proto.commitField(vMark);
+
+        proto.commitField(sMark);
+    }
+
+    private static int varintSize(long value) {
+        return (640 - Long.numberOfLeadingZeros(value | 1) * 9) / 64;
     }
 
     private void writeProfileDictionary() {
@@ -147,65 +235,6 @@ public class JfrToOtlp extends JfrConverter {
         }
         try (FileOutputStream out = new FileOutputStream(output)) {
             converter.dump(out);
-        }
-    }
-
-    private static final class SampleInfo {
-        final long timeNanos;
-        final int threadNameAttributeIndex;
-        final int stackIndex;
-        final long samples;
-        final long value;
-
-        SampleInfo(long timeNanos, int threadNameAttributeIndex, int stackIndex, long samples, long value) {
-            this.timeNanos = timeNanos;
-            this.threadNameAttributeIndex = threadNameAttributeIndex;
-            this.stackIndex = stackIndex;
-            this.samples = samples;
-            this.value = value;
-        }
-    }
-
-    private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
-        private final List<SampleInfo> samplesInfo;
-        // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
-        private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
-        private final double factor = counterFactor();
-
-        public OtlpEventToSampleVisitor(List<SampleInfo> samplesInfo) {
-            this.samplesInfo = samplesInfo;
-        }
-
-        @Override
-        public void visit(Event event, long samples, long value) {
-            if (excludeStack(event.stackTraceId, event.tid, 0)) {
-                return;
-            }
-
-            String threadName = getThreadName(event.tid);
-            KeyValue threadNameKv = new KeyValue(threadNameIndex, threadName);
-            int stackIndex = stacksIndexCache.computeIfAbsent(event.stackTraceId, key -> stacksPool.index(makeStack(key)));
-            long nanosFromStart = (long) ((event.time - jfr.chunkStartTicks) * jfr.nanosPerTick);
-            long timeNanos = jfr.chunkStartNanos + nanosFromStart;
-            SampleInfo si = new SampleInfo(timeNanos, attributesPool.index(threadNameKv), stackIndex, samples,
-                                           factor == 1.0 ? value : (long) (value * factor));
-            samplesInfo.add(si);
-        }
-
-        private IntArray makeStack(int stackTraceId) {
-            StackTrace st = jfr.stackTraces.get(stackTraceId);
-            int[] stack = new int[st.methods.length];
-            for (int i = 0; i < st.methods.length; ++i) {
-                stack[i] = linePool.index(makeLine(st, i));
-            }
-            return new IntArray(stack);
-        }
-
-        private Line makeLine(StackTrace stackTrace, int i) {
-            String methodName = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
-            int lineNumber = stackTrace.locations[i] >>> 16;
-            int functionIdx = functionPool.index(methodName);
-            return new Line(functionIdx, lineNumber);
         }
     }
 
@@ -283,6 +312,23 @@ public class JfrToOtlp extends JfrConverter {
         @Override
         public int hashCode() {
             return hash;
+        }
+    }
+
+    private static final class AggregatedEvent {
+        long[] timestamps = new long[1];
+        long[] values = new long[1];
+        int eventsCount = 0;
+
+        public void recordEvent(long timestamp, long value) {
+            if (eventsCount == timestamps.length) {
+                int newSize = timestamps.length * 2;
+                timestamps = Arrays.copyOf(timestamps, newSize);
+                values = Arrays.copyOf(values, newSize);
+            }
+            timestamps[eventsCount] = timestamp;
+            values[eventsCount] = value;
+            ++eventsCount;
         }
     }
 }
