@@ -2,7 +2,7 @@
 
 async-profiler provides `jfrconv` utility to convert between different profile output formats.
 `jfrconv` can be found at the same location as the `asprof` binary. Converter is also available
-as a standalone Java application: [`jfr-converter.jar`](https://github.com/async-profiler/async-profiler/releases/download/v4.2.1/jfr-converter.jar).
+as a standalone Java application: [`jfr-converter.jar`](https://github.com/async-profiler/async-profiler/releases/latest/download/jfr-converter.jar).
 
 ## Supported conversions
 
