@@ -58,6 +58,24 @@ enum {
     HW_BREAKPOINT_X  = 4
 };
 
+struct PerfCounter {
+    u64 value;
+    u64 time_enabled; /* PERF_FORMAT_TOTAL_TIME_ENABLED */
+    u64 time_running; /* PERF_FORMAT_TOTAL_TIME_RUNNING */
+};
+
+// Per-FD struct for storing perf-event multiplexing data
+struct MultiplexState {
+    u64 time_enabled; /* stores previous time_enabled */
+    u64 time_running; /* stores previous time_running */
+};
+
+static const unsigned int MAX_MULTIPLEXED_FD = 65536;
+
+static MultiplexState multiplex_state[MAX_MULTIPLEXED_FD];
+
+static bool multiplex_state_dirty = false;
+
 static int fetchInt(const char* file_name) {
     int fd = open(file_name, O_RDONLY);
     if (fd == -1) {
@@ -613,6 +631,9 @@ int PerfEvents::createForThread(int tid) {
         attr.sample_type |= PERF_SAMPLE_CPU;
     }
 
+    // flags for multiplexing support
+    attr.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
+
     int fd;
     if (FdTransferClient::hasPeer()) {
         fd = FdTransferClient::requestPerfFd(&tid, _target_cpu, &attr, PerfEventType::probe_func);
@@ -647,6 +668,11 @@ int PerfEvents::createForThread(int tid) {
     _events[tid].reset();
     _events[tid]._fd = fd;
     _events[tid]._page = (struct perf_event_mmap_page*)page;
+
+    if (multiplex_state_dirty && fd < MAX_MULTIPLEXED_FD) {
+        multiplex_state[fd].time_enabled = 0;
+        multiplex_state[fd].time_running = 0;
+    }
 
     struct f_owner_ex ex;
     ex.type = F_OWNER_TID;
@@ -700,8 +726,37 @@ u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
         case 3: return StackFrame(ucontext).arg2();
         case 4: return StackFrame(ucontext).arg3();
         default: {
-            u64 counter;
-            return read(siginfo->si_fd, &counter, sizeof(counter)) == sizeof(counter) ? counter : 1;
+            // Read counter with multiplexing metadata for accurate scaling
+            struct PerfCounter counter;
+            size_t num_of_bytes = read(siginfo->si_fd, &counter, sizeof(counter));
+            if (num_of_bytes == sizeof(counter)) {
+                u64 current_val = counter.value;
+                if (counter.time_enabled > counter.time_running) {
+                    int fd = siginfo->si_fd;
+                    if (fd < MAX_MULTIPLEXED_FD) {
+                        u64 delta_enabled = counter.time_enabled -  multiplex_state[fd].time_enabled;
+                        u64 delta_running = counter.time_running -  multiplex_state[fd].time_running;
+
+                        multiplex_state[fd].time_enabled = counter.time_enabled;
+                        multiplex_state[fd].time_running = counter.time_running;
+
+                        if (!multiplex_state_dirty) {
+                            multiplex_state_dirty = true;
+                        }
+
+                        if (delta_running > 0 && delta_enabled > delta_running) {
+                            // scaled counter = (counter) * (delta_enabled / delta_running)
+                            double ratio = (double) delta_enabled / delta_running;
+                            return (u64)(current_val * ratio);
+                        }
+                    } else if (counter.time_running > 0) {
+                        double ratio = (double) counter.time_enabled / counter.time_running;
+                        return (u64)(current_val * ratio);
+                    }
+                }
+                return current_val;
+            }
+            return 1;
         }
     }
 }
