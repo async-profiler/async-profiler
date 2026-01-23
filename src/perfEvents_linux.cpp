@@ -73,7 +73,6 @@ struct MultiplexState {
 static const unsigned int MAX_MULTIPLEXED_FD = 65536;
 
 static MultiplexState multiplex_state[MAX_MULTIPLEXED_FD];
-
 static bool multiplex_state_dirty = false;
 
 static int fetchInt(const char* file_name) {
@@ -605,6 +604,9 @@ int PerfEvents::createForThread(int tid) {
     attr.disabled = 1;
     attr.wakeup_events = 1;
 
+    // flags for multiplexing support
+    attr.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
+
     if (_alluser) {
         attr.exclude_kernel = 1;
     }
@@ -630,9 +632,6 @@ int PerfEvents::createForThread(int tid) {
     if (_record_cpu) {
         attr.sample_type |= PERF_SAMPLE_CPU;
     }
-
-    // flags for multiplexing support
-    attr.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
 
     int fd;
     if (FdTransferClient::hasPeer()) {
@@ -728,8 +727,7 @@ u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
         default: {
             // Read counter with multiplexing metadata for accurate scaling
             struct PerfCounter counter;
-            size_t num_of_bytes = read(siginfo->si_fd, &counter, sizeof(counter));
-            if (num_of_bytes == sizeof(counter)) {
+            if (read(siginfo->si_fd, &counter, sizeof(counter)) == sizeof(counter)) {
                 u64 current_val = counter.value;
                 if (counter.time_enabled > counter.time_running) {
                     int fd = siginfo->si_fd;
@@ -746,11 +744,11 @@ u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
 
                         if (delta_running > 0 && delta_enabled > delta_running) {
                             // scaled counter = (counter) * (delta_enabled / delta_running)
-                            double ratio = (double) delta_enabled / delta_running;
+                            double ratio = (double)delta_enabled / delta_running;
                             return (u64)(current_val * ratio);
                         }
                     } else if (counter.time_running > 0) {
-                        double ratio = (double) counter.time_enabled / counter.time_running;
+                        double ratio = (double)counter.time_enabled / counter.time_running;
                         return (u64)(current_val * ratio);
                     }
                 }
