@@ -732,8 +732,8 @@ u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
                 if (counter.time_enabled > counter.time_running) {
                     int fd = siginfo->si_fd;
                     if (fd < MAX_MULTIPLEXED_FD) {
-                        u64 delta_enabled = counter.time_enabled -  multiplex_state[fd].time_enabled;
-                        u64 delta_running = counter.time_running -  multiplex_state[fd].time_running;
+                        u64 delta_enabled = counter.time_enabled - multiplex_state[fd].time_enabled;
+                        u64 delta_running = counter.time_running - multiplex_state[fd].time_running;
 
                         multiplex_state[fd].time_enabled = counter.time_enabled;
                         multiplex_state[fd].time_running = counter.time_running;
