@@ -53,6 +53,13 @@ void ProtoBuffer::field(protobuf_index_t index, u64 n) {
     putVarInt(n);
 }
 
+void ProtoBuffer::fieldFixed64(protobuf_index_t index, u64 n) {
+    tag(index, I64);
+    ensureCapacity(sizeof(u64));
+    *(u64*)(_data + _offset) = n;
+    _offset += 8;
+}
+
 void ProtoBuffer::field(protobuf_index_t index, const char* s) {
     field(index, s, strlen(s));
 }

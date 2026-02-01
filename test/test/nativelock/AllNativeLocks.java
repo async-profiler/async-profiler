@@ -12,10 +12,10 @@ public class AllNativeLocks {
 
     public static void main(String[] args) throws InterruptedException {
         final boolean once = args.length > 0 && args[0].equals("once");
-        
+
         NativeLock.class.getName();
         Thread.sleep(500);
-        
+
         if (once) {
             runAllLockTypesOnce();
         } else {
@@ -25,28 +25,28 @@ public class AllNativeLocks {
             }
         }
     }
-    
+
     private static void runAllLockTypesOnce() throws InterruptedException {
         List<Thread> threads = new ArrayList<>();
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 2; i++) {
             Thread t = new Thread(() -> NativeLock.mutexContentionThread());
             threads.add(t);
             t.start();
         }
-         
-        for (int i = 0; i < 6; i++) {
+
+        for (int i = 0; i < 2; i++) {
             Thread t = new Thread(() -> NativeLock.rdlockContentionThread());
             threads.add(t);
             t.start();
         }
-        
+
         for (int i = 0; i < 2; i++) {
             Thread t = new Thread(() -> NativeLock.wrlockContentionThread());
             threads.add(t);
             t.start();
         }
-        
+
         for (Thread t : threads) {
             t.join();
         }

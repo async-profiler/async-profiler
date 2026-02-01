@@ -69,7 +69,7 @@ void preloadOrderTest() {
 
 void apiTest(char* filename) {
     initAsyncProfiler();
-    
+
     char start_cmd[2048] = {0};
     snprintf(start_cmd, sizeof(start_cmd), "start,nativemem,file=%s", filename);
     executeAsyncProfilerCommand(start_cmd);

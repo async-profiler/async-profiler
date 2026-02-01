@@ -401,7 +401,7 @@ class BytecodeRewriter {
     }
 
     // Return the new offset delta
-    static u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new, 
+    static u16 updateCurrentFrame(int32_t& current_frame_old, int32_t& current_frame_new,
                                   u16 offset_delta_old, const u16* relocation_table) {
         current_frame_old += offset_delta_old + 1;
         long previous_frame_new = current_frame_new;
@@ -746,7 +746,7 @@ Result BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, int n
 
         if (frame_type <= 127) {
             // same_frame and same_locals_1_stack_item_frame
-            u16 new_offset_delta = updateCurrentFrame(current_frame_old, current_frame_new, 
+            u16 new_offset_delta = updateCurrentFrame(current_frame_old, current_frame_new,
                                                       frame_type % 64, relocation_table);
 
             u8 new_frame_type;
@@ -1059,7 +1059,7 @@ Latency Instrument::_interval;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
-Error Instrument::check(Arguments& args) {
+Error Instrument::initialize() {
     if (!_instrument_class_loaded) {
         if (!VM::loaded()) {
             return Error("Profiling event is not supported with non-Java processes");
@@ -1083,7 +1083,7 @@ Error Instrument::check(Arguments& args) {
 }
 
 Error Instrument::start(Arguments& args) {
-    Error error = check(args);
+    Error error = initialize();
     if (error) return error;
 
     error = setupTargetClassAndMethod(args);
@@ -1164,7 +1164,7 @@ Error addTarget(Targets& targets, const char* s, Latency default_latency) {
 
 Error Instrument::setupTargetClassAndMethod(const Arguments& args) {
     _targets.clear();
-    
+
     if (args._trace.empty()) {
         Error error = addTarget(_targets, args._event, NO_LATENCY);
         if (error) return error;

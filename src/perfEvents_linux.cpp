@@ -19,6 +19,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/utsname.h>
 #include <linux/perf_event.h>
 #include "arch.h"
 #include "fdtransferClient.h"
@@ -56,6 +57,23 @@ enum {
     HW_BREAKPOINT_RW = 3,
     HW_BREAKPOINT_X  = 4
 };
+
+struct PerfCounter {
+    u64 value;
+    u64 time_enabled; /* PERF_FORMAT_TOTAL_TIME_ENABLED */
+    u64 time_running; /* PERF_FORMAT_TOTAL_TIME_RUNNING */
+};
+
+// Per-FD struct for storing perf-event multiplexing data
+struct MultiplexState {
+    u64 time_enabled; /* stores previous time_enabled */
+    u64 time_running; /* stores previous time_running */
+};
+
+static const unsigned int MAX_MULTIPLEXED_FD = 65536;
+
+static MultiplexState multiplex_state[MAX_MULTIPLEXED_FD];
+static bool multiplex_state_dirty = false;
 
 static int fetchInt(const char* file_name) {
     int fd = open(file_name, O_RDONLY);
@@ -153,6 +171,17 @@ static void adjustFDLimit() {
     }
 }
 
+// Workaround for the kernel bug: PERF_EVENT_IOC_REFRESH can hang
+// the entire system on Linux 6.16.x and 6.17.x.
+// See https://github.com/async-profiler/async-profiler/issues/1578
+static bool hasPerfEventRefreshBug() {
+    static struct utsname u{};
+    if (u.release[0] == 0 && uname(&u) != 0) {
+        return false;
+    }
+    return strncmp(u.release, "6.16.", 5) == 0 || strncmp(u.release, "6.17.", 5) == 0;
+}
+
 struct FunctionWithCounter {
     const char* name;
     int counter_arg;
@@ -169,7 +198,7 @@ struct PerfEventType {
 
     enum {
         IDX_CPU = 0,
-        IDX_PREDEFINED = 12,
+        IDX_PREDEFINED = 13,
         IDX_RAW,
         IDX_PMU,
         IDX_BREAKPOINT,
@@ -460,6 +489,7 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"branch-instructions",   1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
     {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
     {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
+    {"ref-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU_CYCLES},
 
     {"L1-dcache-load-misses", 1000000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D)},
     {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
@@ -532,6 +562,7 @@ class PerfEvent : public SpinLock {
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
+int PerfEvents::_ioc_enable;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
 bool PerfEvents::_use_perf_mmap;
@@ -572,6 +603,9 @@ int PerfEvents::createForThread(int tid) {
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     attr.wakeup_events = 1;
+
+    // flags for multiplexing support
+    attr.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
 
     if (_alluser) {
         attr.exclude_kernel = 1;
@@ -634,6 +668,11 @@ int PerfEvents::createForThread(int tid) {
     _events[tid]._fd = fd;
     _events[tid]._page = (struct perf_event_mmap_page*)page;
 
+    if (multiplex_state_dirty && fd < MAX_MULTIPLEXED_FD) {
+        multiplex_state[fd].time_enabled = 0;
+        multiplex_state[fd].time_running = 0;
+    }
+
     struct f_owner_ex ex;
     ex.type = F_OWNER_TID;
     ex.pid = tid;
@@ -642,7 +681,7 @@ int PerfEvents::createForThread(int tid) {
     if (fcntl(fd, F_SETFL, O_ASYNC) < 0 || fcntl(fd, F_SETSIG, _signal) < 0 || fcntl(fd, F_SETOWN_EX, &ex) < 0) {
         err = errno;
         Log::warn("perf_event fcntl failed: %s", strerror(err));
-    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 || ioctl(fd, PERF_EVENT_IOC_REFRESH, 1) < 0) {
+    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 || ioctl(fd, _ioc_enable, 1) < 0) {
         err = errno;
         Log::warn("perf_event ioctl failed: %s", strerror(err));
     } else {
@@ -686,8 +725,36 @@ u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
         case 3: return StackFrame(ucontext).arg2();
         case 4: return StackFrame(ucontext).arg3();
         default: {
-            u64 counter;
-            return read(siginfo->si_fd, &counter, sizeof(counter)) == sizeof(counter) ? counter : 1;
+            // Read counter with multiplexing metadata for accurate scaling
+            struct PerfCounter counter;
+            if (read(siginfo->si_fd, &counter, sizeof(counter)) == sizeof(counter)) {
+                u64 current_val = counter.value;
+                if (counter.time_enabled > counter.time_running) {
+                    int fd = siginfo->si_fd;
+                    if (fd < MAX_MULTIPLEXED_FD) {
+                        u64 delta_enabled = counter.time_enabled - multiplex_state[fd].time_enabled;
+                        u64 delta_running = counter.time_running - multiplex_state[fd].time_running;
+
+                        multiplex_state[fd].time_enabled = counter.time_enabled;
+                        multiplex_state[fd].time_running = counter.time_running;
+
+                        if (!multiplex_state_dirty) {
+                            multiplex_state_dirty = true;
+                        }
+
+                        if (delta_running > 0 && delta_enabled > delta_running) {
+                            // scaled counter = (counter) * (delta_enabled / delta_running)
+                            double ratio = (double)delta_enabled / delta_running;
+                            return (u64)(current_val * ratio);
+                        }
+                    } else if (counter.time_running > 0) {
+                        double ratio = (double)counter.time_enabled / counter.time_running;
+                        return (u64)(current_val * ratio);
+                    }
+                }
+                return current_val;
+            }
+            return 1;
         }
     }
 }
@@ -696,6 +763,10 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (siginfo->si_code <= 0) {
         // Looks like an external signal; don't treat as a profiling event
         return;
+    }
+
+    if (_ioc_enable == PERF_EVENT_IOC_ENABLE) {
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_DISABLE, 0);
     }
 
     if (_enabled) {
@@ -707,13 +778,17 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    ioctl(siginfo->si_fd, _ioc_enable, 1);
 }
 
 void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (siginfo->si_code <= 0) {
         // Looks like an external signal; don't treat as a profiling event
         return;
+    }
+
+    if (_ioc_enable == PERF_EVENT_IOC_ENABLE) {
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_DISABLE, 0);
     }
 
     if (_enabled) {
@@ -727,7 +802,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    ioctl(siginfo->si_fd, _ioc_enable, 1);
 }
 
 const char* PerfEvents::title() {
@@ -742,59 +817,6 @@ const char* PerfEvents::title() {
 
 const char* PerfEvents::units() {
     return _event_type == NULL || strcmp(_event_type->name, "cpu-clock") == 0 ? "ns" : "total";
-}
-
-Error PerfEvents::check(Arguments& args) {
-    PerfEventType* event_type = PerfEventType::forName(args._event);
-    if (event_type == NULL) {
-        return Error("Unsupported event type");
-    } else if (event_type->counter_arg > 4) {
-        return Error("Only arguments 1-4 can be counted");
-    }
-
-    if (!setupThreadHook()) {
-        return Error("Could not set pthread hook");
-    }
-
-    struct perf_event_attr attr = {0};
-    attr.size = sizeof(attr);
-    attr.type = event_type->type;
-
-    if (attr.type == PERF_TYPE_BREAKPOINT) {
-        attr.bp_type = event_type->config;
-    } else {
-        attr.config = event_type->config;
-    }
-    attr.config1 = event_type->config1;
-    attr.config2 = event_type->config2;
-
-    attr.sample_period = event_type->default_interval;
-    attr.sample_type = PERF_SAMPLE_CALLCHAIN;
-    attr.disabled = 1;
-
-    if (args._alluser) {
-        attr.exclude_kernel = 1;
-    }
-
-#ifdef PERF_ATTR_SIZE_VER5
-    if (args._cstack == CSTACK_LBR) {
-        attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
-        attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
-        attr.sample_regs_user = 1ULL << PERF_REG_PC;
-    }
-#endif
-
-    if (args._record_cpu) {
-        attr.sample_type |= PERF_SAMPLE_CPU;
-    }
-
-    int fd = syscall(__NR_perf_event_open, &attr, 0, args._target_cpu, -1, 0);
-    if (fd == -1) {
-        return Error(strerror(errno));
-    }
-
-    close(fd);
-    return Error::OK;
 }
 
 Error PerfEvents::start(Arguments& args) {
@@ -831,6 +853,13 @@ Error PerfEvents::start(Arguments& args) {
         _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
     }
     _use_perf_mmap = _kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _record_cpu;
+
+    if (strcmp(_event_type->name, "cpu-clock") == 0 && hasPerfEventRefreshBug()) {
+        Log::debug("Enable workaround for PERF_EVENT_IOC_REFRESH bug");
+        _ioc_enable = PERF_EVENT_IOC_ENABLE;   // opt-in for manual enable/disable
+    } else {
+        _ioc_enable = PERF_EVENT_IOC_REFRESH;  // autodisable perf_event on counter overflow
+    }
 
     adjustFDLimit();
 

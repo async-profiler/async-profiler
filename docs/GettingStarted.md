@@ -10,6 +10,10 @@ process requires setting two kernel parameters. You can set them using sysctl as
 # sysctl kernel.kptr_restrict=0
 ```
 
+For better profiling accuracy, it is [recommended](Troubleshooting.md#known-limitations)
+to start the JVM with `-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints` flags,
+unless async-profiler is loaded at JVM startup.
+
 ## Find a process to profile
 
 Common ways to find the target process include using

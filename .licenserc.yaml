@@ -14,6 +14,7 @@ header:
     paths-ignore:
       - 'src/jattach'
       - 'src/res'
+      - '**/MANIFEST.MF'
     license:
       content: |
         Copyright The async-profiler authors

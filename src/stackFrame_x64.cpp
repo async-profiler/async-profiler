@@ -247,40 +247,6 @@ void StackFrame::adjustSP(const void* entry, const void* pc, uintptr_t& sp) {
     // Not needed
 }
 
-// Skip failed MOV instruction by writing 0 to destination register
-bool StackFrame::skipFaultInstruction() {
-    unsigned int insn = *(unsigned int*)pc();
-    if ((insn & 0x80fff8) == 0x008b48) {
-        // mov r64, [r64 + offs]
-        unsigned int reg = ((insn << 1) & 8) | ((insn >> 19) & 7);
-        switch (reg) {
-            case 0x0: REG(RAX, rax) = 0; break;
-            case 0x1: REG(RCX, rcx) = 0; break;
-            case 0x2: REG(RDX, rdx) = 0; break;
-            case 0x3: REG(RBX, rbx) = 0; break;
-            case 0x4: return false;  // Do not modify RSP
-            case 0x5: REG(RBP, rbp) = 0; break;
-            case 0x6: REG(RSI, rsi) = 0; break;
-            case 0x7: REG(RDI, rdi) = 0; break;
-            case 0x8: REG(R8 , r8 ) = 0; break;
-            case 0x9: REG(R9 , r9 ) = 0; break;
-            case 0xa: REG(R10, r10) = 0; break;
-            case 0xb: REG(R11, r11) = 0; break;
-            case 0xc: REG(R12, r12) = 0; break;
-            case 0xd: REG(R13, r13) = 0; break;
-            case 0xe: REG(R14, r14) = 0; break;
-            case 0xf: REG(R15, r15) = 0; break;
-        }
-
-        unsigned int insn_size = 3;
-        if ((insn & 0x070000) == 0x040000) insn_size++;
-        if ((insn & 0x400000) == 0x400000) insn_size++;
-        pc() += insn_size;
-        return true;
-    }
-    return false;
-}
-
 bool StackFrame::checkInterruptedSyscall() {
 #ifdef __APPLE__
     // We are not interested in syscalls that do not check error code, e.g. semaphore_wait_trap

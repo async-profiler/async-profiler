@@ -35,9 +35,8 @@ static const char USAGE_STRING[] =
     "  resume              resume profiling without resetting collected data\n"
     "  stop                stop profiling\n"
     "  dump                dump collected data without stopping profiling session\n"
-    "  check               check if the specified profiling event is available\n"
     "  status              print profiling status\n"
-    "  meminfo             print profiler memory stats\n"
+    "  metrics             print profiler metrics in Prometheus format\n"
     "  list                list profiling events supported by the target JVM\n"
     "  load                load agent library (jattach action)\n"
     "  jcmd                run JVM diagnostic command (jattach action)\n"
@@ -414,7 +413,7 @@ int main(int argc, const char** argv) {
         String arg = args.next();
 
         if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" || arg == "check" ||
-            arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect") {
+            arg == "status" || arg == "metrics" || arg == "list" || arg == "collect") {
             action = arg;
 
         } else if (arg == "load" || arg == "jcmd" || arg == "threaddump" || arg == "dumpheap" || arg == "inspectheap") {
@@ -589,12 +588,13 @@ int main(int argc, const char** argv) {
         signal(SIGTERM, sigint_handler);
 
         while (time_micros() < end_time) {
+            sleep(1);
+
             if (kill(pid, 0) != 0) {
                 fprintf(stderr, "Process exited\n");
                 if (use_tmp_file) print_file(file, STDOUT_FILENO);
                 return 0;
             }
-            sleep(1);
         }
 
         fprintf(stderr, end_time != 0 ? "Done\n" : "Interrupted\n");

@@ -36,8 +36,8 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("test/stackwalker/StackGenerator.main[^;]*;" +
-                "test/stackwalker/StackGenerator.deepFrame[^;]*;" +
+        // Cannot reach stack bottom because of the MAX_WALK_SIZE hard limit
+        assert output.contains("^break_[^;]+;" +
                 "Java_test_stackwalker_StackGenerator_deepFrame;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
@@ -64,7 +64,7 @@ public class StackwalkerTests {
                 "jni_CallStaticVoidMethod;" +
                 "jni_invoke_static;" +
                 "JavaCalls::call_helper;" +
-                "call_stub;" +
+                FRAME +
                 "test/stackwalker/StackGenerator.main_\\[0\\];" +
                 "test/stackwalker/StackGenerator.leafFrame_\\[0\\];" +
                 "Java_test_stackwalker_StackGenerator_leafFrame;" +

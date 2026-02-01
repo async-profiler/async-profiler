@@ -35,7 +35,7 @@ enum SHORT_ENUM Action {
     ACTION_DUMP,
     ACTION_CHECK,
     ACTION_STATUS,
-    ACTION_MEMINFO,
+    ACTION_METRICS,
     ACTION_LIST,
     ACTION_VERSION
 };
@@ -176,6 +176,7 @@ class Arguments {
     const char* _event;
     std::vector<const char*> _trace;
     int _timeout;
+    int _loop;
     long _interval;
     long _alloc;
     long _nativemem;
@@ -195,7 +196,6 @@ class Arguments {
     std::vector<const char*> _include;
     std::vector<const char*> _exclude;
     unsigned char _mcache;
-    bool _loop;
     bool _preloaded;
     bool _quiet;
     bool _threads;
@@ -237,6 +237,7 @@ class Arguments {
         _event(NULL),
         _trace(),
         _timeout(0),
+        _loop(0),
         _interval(0),
         _alloc(-1),
         _nativemem(-1),
@@ -256,7 +257,6 @@ class Arguments {
         _include(),
         _exclude(),
         _mcache(0),
-        _loop(false),
         _preloaded(false),
         _quiet(false),
         _threads(false),

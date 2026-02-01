@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <string.h>
 #include "codeCache.h"
 #include "nativeLockTracer.h"
 #include "profiler.h"

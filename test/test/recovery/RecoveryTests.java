@@ -5,6 +5,7 @@
 
 package test.recovery;
 
+import one.profiler.test.Jvm;
 import one.profiler.test.Output;
 import one.profiler.test.Assert;
 import one.profiler.test.Test;
@@ -29,6 +30,7 @@ public class RecoveryTests {
         mainClass = StringBuilderTest.class,
         debugNonSafepoints = true,
         arch = {Arch.ARM64, Arch.ARM32},
+        jvm = Jvm.HOTSPOT,
         // C2 often loses PcDesc mapping from arraycopy intrinsic to the original bytecode
         // For now the test is disabled until a solution is found, JDK-8368867
         jvmVer = {8, 17}
@@ -42,10 +44,10 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
-    @Test(mainClass = Numbers.class, debugNonSafepoints = true)
+    @Test(mainClass = Numbers.class, jvm = Jvm.HOTSPOT, debugNonSafepoints = true)
     public void numbers(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        Assert.isGreater(out.ratio("vtable stub"), 0.01);
+        if (p.currentJvm() == Jvm.HOTSPOT_C2) Assert.isGreater(out.ratio("vtable stub"), 0.01);
         Assert.isGreater(out.ratio("Numbers.loop"), 0.8);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
@@ -54,10 +56,10 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
-    @Test(mainClass = Suppliers.class, debugNonSafepoints = true)
+    @Test(mainClass = Suppliers.class, jvm = Jvm.HOTSPOT, debugNonSafepoints = true)
     public void suppliers(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        Assert.isGreater(out.ratio("itable stub"), 0.01);
+        if (p.currentJvm() == Jvm.HOTSPOT_C2) Assert.isGreater(out.ratio("itable stub"), 0.01);
         Assert.isGreater(out.ratio("Suppliers.loop"), 0.5);
 
         out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
@@ -70,5 +72,15 @@ public class RecoveryTests {
         Output out = p.profile("-d 3 -e cpu -i 1ms -o collapsed");
         Assert.isLess(out.ratio("^\\[unknown"), 0.01, "No more than 1% of unknown frames");
         Assert.isLess(out.ratio("^[^ ;]+(;[^ ;]+)? "), 0.01, "No more than 1% of short stacks");
+    }
+
+    // Verify that System.currentTimeMillis() intrinsic is unwound correctly
+    // TODO: Enable test on JDK 11 after fixing #1653
+    @Test(mainClass = TimeLoop.class, jvm = Jvm.HOTSPOT, jvmVer = {17, Integer.MAX_VALUE}, debugNonSafepoints = true)
+    public void currentTimeMillis(TestProcess p) throws Exception {
+        Output out = p.profile("-d 3 -e cpu -o collapsed");
+        Assert.isLess(out.ratio("^\\[unknown"), 0.01, "No more than 1% of unknown frames");
+        Assert.isLess(out.ratio("^\\[break_"), 0.01, "No more than 1% of broken stacks");
+        Assert.isLess(out.ratio("^\\[vdso]"), 0.01, "vDSO should have symbol information");
     }
 }

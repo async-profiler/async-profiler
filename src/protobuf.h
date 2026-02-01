@@ -11,6 +11,7 @@
 
 typedef const u32 protobuf_t;
 protobuf_t VARINT = 0;
+protobuf_t I64 = 1;
 protobuf_t LEN = 2;
 
 typedef u32 protobuf_index_t;
@@ -42,6 +43,7 @@ class ProtoBuffer {
     void reset() { _offset = 0; }
 
     void field(protobuf_index_t index, u64 n);
+    void fieldFixed64(protobuf_index_t index, u64 n);
     // LEN
     void field(protobuf_index_t index, const char* s);
     void field(protobuf_index_t index, const char* s, size_t len);

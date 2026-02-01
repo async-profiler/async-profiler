@@ -237,7 +237,8 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("sampledThread", T_THREAD, "Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
-                << field("samples", T_INT, "Samples", F_UNSIGNED))
+                << field("samples", T_INT, "Samples", F_UNSIGNED)
+                << field("timeSpan", T_LONG, "Time Span", F_DURATION_TICKS))
 
             << (type("profiler.Malloc", T_MALLOC, "malloc")
                 << category("Java Virtual Machine", "Native Memory")
@@ -253,7 +254,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("address", T_LONG, "Address", F_ADDRESS))
-            
+
             << (type("profiler.NativeLock", T_NATIVE_LOCK, "Native Lock Sample")
                 << category("Java Virtual Machine", "Native Lock")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)

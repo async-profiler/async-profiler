@@ -42,7 +42,6 @@ class VMStructs {
     static int _thread_anchor_offset;
     static int _thread_state_offset;
     static int _thread_vframe_offset;
-    static int _thread_exception_offset;
     static int _osthread_id_offset;
     static int _call_wrapper_anchor_offset;
     static int _comp_env_offset;
@@ -112,8 +111,6 @@ class VMStructs {
     static unsigned char _unsigned5_base;
     static const void** _call_stub_return_addr;
     static const void* _call_stub_return;
-    static const void* _interpreted_frame_valid_start;
-    static const void* _interpreted_frame_valid_end;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -130,7 +127,6 @@ class VMStructs {
     static void initOffsets();
     static void resolveOffsets();
     static void patchSafeFetch();
-    static void initJvmFunctions();
     static void initTLS(void* vm_thread);
     static void initThreadBridge();
 
@@ -182,10 +178,6 @@ class VMStructs {
 
     static bool hasJavaThreadId() {
         return _tid != NULL;
-    }
-
-    static bool isInterpretedFrameValidFunc(const void* pc) {
-        return pc >= _interpreted_frame_valid_start && pc < _interpreted_frame_valid_end;
     }
 };
 
@@ -335,13 +327,30 @@ class JavaFrameAnchor : VMStructs {
     }
 
     bool getFrame(const void*& pc, uintptr_t& sp, uintptr_t& fp) {
-        if (lastJavaPC() != NULL && lastJavaSP() != 0) {
-            pc = lastJavaPC();
-            sp = lastJavaSP();
-            fp = lastJavaFP();
-            return true;
+        if (lastJavaPC() == NULL || lastJavaSP() == 0) {
+            return false;
         }
-        return false;
+        pc = lastJavaPC();
+        sp = lastJavaSP();
+        fp = lastJavaFP();
+        return true;
+    }
+
+    // Similar to getFrame, but handles partially saved frames.
+    // Relevant for allocation hooks executed in _thread_in_vm state.
+    bool restoreFrame(const void*& pc, uintptr_t& sp, uintptr_t& fp) {
+        if (lastJavaSP() == 0) {
+            return false;
+        }
+
+        sp = lastJavaSP();
+        if ((fp = lastJavaFP()) == 0) {
+            fp = sp;
+        }
+        if ((pc = lastJavaPC()) == NULL) {
+            pc = ((const void**)sp)[-1];
+        }
+        return true;
     }
 };
 
@@ -391,10 +400,6 @@ class VMThread : VMStructs {
 
     bool inDeopt() {
         return *(void**) at(_thread_vframe_offset) != NULL;
-    }
-
-    void*& exception() {
-        return *(void**) at(_thread_exception_offset);
     }
 
     JavaFrameAnchor* anchor() {

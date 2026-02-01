@@ -1,5 +1,49 @@
 # Changelog
 
+## [4.3]
+
+### Features
+
+ - #1547: Native lock profiling
+ - #1566: Filter cpu/wall profiles by latency
+ - #1568: Expose async-profiler metrics in Prometheus format
+ - #1628: async-profiler.jar as Java agent; remote control via JMX
+
+### Improvements
+
+ - #1140: FlameGraph improvements: legend, hot keys, new toolbar icons
+ - #1530: Timezone switcher between Local and UTC time in Heatmaps
+ - #1582: Support `--include`/`--exclude` options for JFR to Heatmap/OTLP/pprof conversion
+ - #1624: Compatibility with OTLP v1.9.0
+ - #1629: Harden crash protection in StackWalker
+
+### Breaking changes
+
+ - #1277: New `timeSpan` field in WallClockSample events
+ - #1518: Deprecate `check` command
+ - #1590: Support compilation on modern JDKs. Drop JDK 7 support
+
+### Bug fixes
+
+ - #1599: Workaround for the kernel PERF_EVENT_IOC_REFRESH bug
+ - #1596: Do not block any signals during execution of a custom crash handler
+ - #1584: JfrReader loops on corrupted recordings
+ - #1555: Parse FlameGraph title from HTML input
+ - #1621: `loop` and `timeout` options do not work together
+ - #1641: Unwind vDSO correctly on Linux-ARM64
+ - #1648: Fix stop sequence in Profiler::start
+ - #1575: Fix CodeCache memory leak in lock profiling while looping
+ - #1558: Fix record-cpu bug when kernel stacks are not available
+ - #1651: Do not record CPU frame for non-perf samples
+ - #1614, #1615, #1617, #1623: Fix races related to VM termination
+
+## [4.2.1] - 2025-11-22
+
+### Bug fixes
+
+ - #1599: Workaround for the kernel PERF_EVENT_IOC_REFRESH bug
+ - #1596: Do not block any signals during execution of a custom crash handler
+
 ## [4.2] - 2025-10-20
 
 ### Features
@@ -31,7 +75,7 @@
 
  - #1515: Fix UnsatisfiedLinkError when tmpdir is set to a relative path
  - #1500: Detect if `calloc` calls `malloc` for nativemem profiling
- - #1427: Re-implement SafeAccess crash protection 
+ - #1427: Re-implement SafeAccess crash protection
  - #1417: Two wall-clock profilers interfere with each other
 
 ### Project Infrastructure
@@ -421,7 +465,7 @@
 ### Features
  - Converters between different output formats:
    - JFR -> nflx (FlameScope)
-   - Collapsed stacks -> HTML 5 Flame Graph 
+   - Collapsed stacks -> HTML 5 Flame Graph
 
 ### Improvements
  - `profiler.sh` no longer requires bash (contributed by @cfstras)
@@ -505,7 +549,7 @@
 ### Features
  - Interactive Call tree and Backtrace tree in HTML format (contributed by @rpulle)
  - Experimental support for Java Flight Recorder (JFR) compatible output
- 
+
 ### Improvements
  - Added units: `ms`, `us`, `s` and multipliers: `K`, `M`, `G` for interval argument
  - API and command-line option `-v` for profiler version
@@ -519,7 +563,7 @@
 
 ### Features
  - Profiling of native functions, e.g. malloc
- 
+
 ### Improvements
  - JDK 9, 10, 11 support for heap profiling with accurate stack traces
  - `root` can now profile Java processes of any user
@@ -531,7 +575,7 @@
  - Produce SVG files out of the box; flamegraph.pl is no longer needed
  - Profile ReentrantLock contention
  - Java API
- 
+
 ### Improvements
  - Allocation and Lock profiler now works on JDK 7, too
  - Faster dumping of results

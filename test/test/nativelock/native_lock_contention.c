@@ -47,28 +47,28 @@ int main(int argc, char* argv[]) {
     printf("Testing mutex contention...\n");
     const int mutex_threads = 4;
     pthread_t mutex_thread_array[mutex_threads];
-    
+
     for (int i = 0; i < mutex_threads; i++) {
         pthread_create(&mutex_thread_array[i], NULL, mutex_contention_thread, NULL);
     }
-    
+
     for (int i = 0; i < mutex_threads; i++) {
         pthread_join(mutex_thread_array[i], NULL);
     }
-    
+
     printf("Testing rwlock contention...\n");
     const int num_readers = 4;
     const int num_writers = 2;
     pthread_t rwlock_threads[num_readers + num_writers];
-    
+
     for (int i = 0; i < num_readers; i++) {
         pthread_create(&rwlock_threads[i], NULL, rwlock_reader_thread, NULL);
     }
-    
+
     for (int i = 0; i < num_writers; i++) {
         pthread_create(&rwlock_threads[num_readers + i], NULL, rwlock_writer_thread, NULL);
     }
-    
+
     for (int i = 0; i < num_readers + num_writers; i++) {
         pthread_join(rwlock_threads[i], NULL);
     }

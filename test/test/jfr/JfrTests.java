@@ -42,6 +42,18 @@ public class JfrTests {
         assert out.contains(normalLoadPattern);
     }
 
+    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,alluser,wall,record-cpu,file=%profile.jfr", os = Os.LINUX)
+    public void recordCpuMultiEngine(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        Output out = Output.convertJfrToCollapsed(p.getFilePath("%profile"), "--wall");
+        assert !out.contains("^CPU-\\d+;");
+
+        out = Output.convertJfrToCollapsed(p.getFilePath("%profile"), "--cpu");
+        assert out.contains("^CPU-\\d+;");
+    }
+
     /**
      * Test to validate JDK APIs to parse Cpu profiling JFR output
      *

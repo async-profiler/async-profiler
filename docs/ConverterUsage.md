@@ -2,7 +2,7 @@
 
 async-profiler provides `jfrconv` utility to convert between different profile output formats.
 `jfrconv` can be found at the same location as the `asprof` binary. Converter is also available
-as a standalone Java application: [`jfr-converter.jar`](https://github.com/async-profiler/async-profiler/releases/download/v4.2/jfr-converter.jar).
+as a standalone Java application: [`jfr-converter.jar`](https://github.com/async-profiler/async-profiler/releases/latest/download/jfr-converter.jar).
 
 ## Supported conversions
 
@@ -53,7 +53,9 @@ JFR options:
     --nativemem        Generate native memory allocation profile
     --leak             Only include memory leaks in nativemem
     --tail RATIO       Ignore tail allocations for leak profiling (10% by default)
-    --lock             Generate only Lock contention profile during conversion
+    --lock             Generate only lock contention profile during conversion
+    --nativelock       Generate only native (pthread) lock contention profile
+    --trace            Convert only MethodTrace events
  -t --threads          Split stack traces by threads
  -s --state LIST       Filter thread states: runnable, sleeping, default. State name is case insensitive
                        and can be abbreviated, e.g. -s r
@@ -73,6 +75,7 @@ JFR options:
                        # an absolute time in hh:mm:ss or yyyy-MM-dd'T'hh:mm:ss format;
                        # a relative time from the beginning of recording;
                        # a relative time from the end of recording (a negative number).
+    --latency MS       Retain only samples within MethodTraces of at least MS milliseconds
 
 Flame Graph options:
     --title STRING     Convert to Flame Graph with provided title

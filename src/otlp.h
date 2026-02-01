@@ -6,7 +6,14 @@
 #ifndef _OTLP_H
 #define _OTLP_H
 
+#include "engine.h"
+#include "frameName.h"
+#include "index.h"
 #include "protobuf.h"
+#include "writer.h"
+#include <vector>
+
+struct CallTraceSample;
 
 namespace Otlp {
 
@@ -20,6 +27,7 @@ namespace ProfilesDictionary {
     const protobuf_index_t function_table = 3;
     const protobuf_index_t string_table = 5;
     const protobuf_index_t attribute_table = 6;
+    const protobuf_index_t stack_table = 7;
 }
 
 namespace ProfilesData {
@@ -37,12 +45,9 @@ namespace ScopeProfiles {
 
 namespace Profile {
     const protobuf_index_t sample_type = 1;
-    const protobuf_index_t sample = 2;
-    const protobuf_index_t location_indices = 3;
-    const protobuf_index_t time_nanos = 4;
-    const protobuf_index_t duration_nanos = 5;
-    const protobuf_index_t period_type = 6;
-    const protobuf_index_t period = 7;
+    const protobuf_index_t samples = 2;
+    const protobuf_index_t time_unix_nano = 3;
+    const protobuf_index_t duration_nano = 4;
 }
 
 namespace ValueType {
@@ -52,15 +57,18 @@ namespace ValueType {
 }
 
 namespace Sample {
-    const protobuf_index_t locations_start_index = 1;
-    const protobuf_index_t locations_length = 2;
-    const protobuf_index_t value = 3;
-    const protobuf_index_t attribute_indices = 4;
+    const protobuf_index_t stack_index = 1;
+    const protobuf_index_t values = 2;
+    const protobuf_index_t attribute_indices = 3;
+}
+
+namespace Stack {
+    const protobuf_index_t location_indices = 1;
 }
 
 namespace Location {
     const protobuf_index_t mapping_index = 1;
-    const protobuf_index_t line = 3;
+    const protobuf_index_t lines = 3;
 }
 
 namespace Function {
@@ -72,20 +80,61 @@ namespace Line {
     const protobuf_index_t function_index = 1;
 }
 
-namespace AggregationTemporality {
-    const u64 unspecified = 0;
-    const u64 delta = 1;
-    const u64 cumulative = 2;
-}
-
-namespace Key {
-    const u64 key = 1;
-    const u64 value = 2;
+namespace KeyValueAndUnit {
+    const protobuf_index_t key_strindex = 1;
+    const protobuf_index_t value = 2;
 }
 
 namespace AnyValue {
-    const u64 string_value = 1;
+    const protobuf_index_t string_value = 1;
 }
+
+struct SampleInfo {
+    u64 samples;
+    u64 counter;
+    size_t thread_name_index;
+};
+
+class Recorder {
+  private:
+    ProtoBuffer _otlp_buffer;
+    FrameName& _fn;
+    Index _thread_names;
+    Index _functions;
+    Index _strings;
+    std::vector<SampleInfo> _samples_info;
+    const u64 _start_nanos;
+    const u64 _duration_nanos;
+    const size_t _engine_type_strindex;
+    const size_t _engine_unit_strindex;
+    const size_t _count_strindex;
+
+    // Record a profile with a specified sample type
+    void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples);
+    void recordSampleType(size_t type_strindex, size_t unit_strindex);
+    void recordStacks(const std::vector<CallTraceSample*>& call_trace_samples);
+    void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);
+
+  public:
+    Recorder(Engine* engine, FrameName& fn, u64 start_nanos, u64 duration_nanos) :
+        _otlp_buffer(Otlp::OTLP_BUFFER_INITIAL_SIZE),
+        _fn(fn),
+        _thread_names(),
+        _functions(),
+        _strings(),
+        _samples_info(),
+        _engine_type_strindex(_strings.indexOf(engine->type())),
+        _engine_unit_strindex(_strings.indexOf(engine->units())),
+        _count_strindex(_strings.indexOf("count")),
+        _start_nanos(start_nanos),
+        _duration_nanos(duration_nanos) {}
+
+    void record(const std::vector<CallTraceSample*>& call_trace_samples, bool samples);
+
+    void write(Writer& out) {
+        out.write((const char*) _otlp_buffer.data(), _otlp_buffer.offset());
+    }
+};
 
 }
 

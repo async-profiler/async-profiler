@@ -20,6 +20,7 @@ class PerfEvents : public CpuEngine {
     static int _max_events;
     static PerfEvent* _events;
     static PerfEventType* _event_type;
+    static int _ioc_enable;
     static bool _alluser;
     static bool _kernel_stack;
     static bool _use_perf_mmap;
@@ -34,7 +35,6 @@ class PerfEvents : public CpuEngine {
     void destroyForThread(int tid);
 
   public:
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 
@@ -58,10 +58,6 @@ class StackContext;
 
 class PerfEvents : public CpuEngine {
   public:
-    Error check(Arguments& args) {
-        return Error("PerfEvents are not supported on this platform");
-    }
-
     Error start(Arguments& args) {
         return Error("PerfEvents are not supported on this platform");
     }
