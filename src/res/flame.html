@@ -116,7 +116,7 @@
 	function getDiffColor(diff) {
 		if (diff === U) return '#ffdd33';
 		if (diff === 0) return '#e0e0e0';
-		const v = Math.round(210 * (maxdiff - Math.abs(diff)) / maxdiff);
+		const v = Math.round(160 * (maxdiff - Math.abs(diff)) / maxdiff) + 60;
 		return diff > 0 ? 'rgb(255,' + v + ',' + v + ')' : 'rgb(' + v + ',' + v + ',255)';
 	}
 
