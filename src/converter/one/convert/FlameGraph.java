@@ -115,12 +115,10 @@ public class FlameGraph implements Comparator<Frame> {
 
                 int titleIndex = nameAndType >>> 3;
                 byte type = (byte) (nameAndType & 7);
-                if (st.hasMoreTokens() && (type <= TYPE_INLINED || type >= TYPE_C1_COMPILED)) {
-                    type = TYPE_JIT_COMPILED;
-                }
+                byte normalizedType = type <= TYPE_INLINED || type >= TYPE_C1_COMPILED ? TYPE_JIT_COMPILED : type;
 
-                Frame f = level > 0 || needRebuild ? new Frame(titleIndex, type) : root;
-                f.self = f.total = total;
+                Frame f = level > 0 || needRebuild ? new Frame(titleIndex, normalizedType) : root;
+                fillFrameCounters(f, type, total);
                 if (st.hasMoreTokens()) f.inlined = Long.parseLong(st.nextToken());
                 if (st.hasMoreTokens()) f.c1 = Long.parseLong(st.nextToken());
                 if (st.hasMoreTokens()) f.interpreted = Long.parseLong(st.nextToken());
@@ -368,6 +366,21 @@ public class FlameGraph implements Comparator<Frame> {
         }
 
         return include != null;
+    }
+
+    private static void fillFrameCounters(Frame frame, byte type, long ticks) {
+        frame.self = frame.total = ticks;
+        switch (type) {
+            case TYPE_INTERPRETED:
+                frame.interpreted = ticks;
+                break;
+            case TYPE_INLINED:
+                frame.inlined = ticks;
+                break;
+            case TYPE_C1_COMPILED:
+                frame.c1 = ticks;
+                break;
+        }
     }
 
     private Frame addChild(Frame frame, String title, byte type, long ticks) {
