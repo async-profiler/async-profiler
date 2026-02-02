@@ -43,6 +43,8 @@ Conversion options:
 
   # otlp: OpenTelemetry profile format.
 
+Differential Flame Graph:
+  --diff <base-profile> <new-profile>
 
 JFR options:
     --cpu              Generate only CPU profile during conversion
@@ -120,13 +122,45 @@ jfrconv --cpu foo.jfr
 
 for HTML output as HTML is the default format for conversion from JFR.
 
-#### Flame Graph options
+### Flame Graph options
 
 To add a custom title to the generated Flame Graph, use `--title`, which has the default value `Flame Graph`:
 
 ```
 jfrconv --cpu foo.jfr foo.html -r --title "Custom Title"
 ```
+
+### Differential Flame Graph
+
+To find performance regressions, it may be useful to compare current profile
+to a previous one that serves as a baseline. Differential Flame Graph
+visualizes such a comparsion with a special color scheme:
+
+- Red color denotes frames with more samples comparing to the baseline (i.e. regression);
+- Blue is for frames with less samples;
+- Yellow are new frames that were absent in the baseline.
+
+The more intense the color, the larger the delta.
+For each different frame, the delta value is displayed in a tooltip.
+
+![](/.assets/images/flamegraph_diff.png)
+
+Differential Flame Graph takes the shape of the current profile:
+all frames have exactly the same size as in the normal Flame Graph.
+This means, frames that exist only in the base profile will not be visible.
+To see such frames, create another differential Flame Graph,
+swapping the base and the current input file.
+
+To create differential Flame Graph, run `jfrconv --diff` with two input files:
+basline profile and new profile. Both files can be in JFR, HTML, or collapsed format.
+Other converter options work as usual.
+
+```
+jfrconv --cpu --diff baseline.jfr new.jfr diff.html
+```
+
+Output file name is optional. If omitted, `jfrconv` takes the name
+of the second input file, replacing its extension with `.diff.html`.
 
 ### Other formats
 
