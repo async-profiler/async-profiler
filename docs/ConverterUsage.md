@@ -162,10 +162,6 @@ jfrconv --cpu --diff baseline.jfr new.jfr diff.html
 Output file name is optional. If omitted, `jfrconv` takes the name
 of the second input file, replacing its extension with `.diff.html`.
 
-### Other formats
-
-`jfrconv` supports converting a JFR file to `collapsed`, `pprof`, `pb.gz` and `heatmap` formats as well.
-
 ## Standalone converter examples
 
 Standalone converter jar is provided in
