@@ -18,7 +18,6 @@ const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU        = "cpu";
 const char* const EVENT_ALLOC      = "alloc";
-const char* const EVENT_ALLOC_TLAB = "alloc-tlab";
 const char* const EVENT_NATIVEMEM  = "nativemem";
 const char* const EVENT_LOCK       = "lock";
 const char* const EVENT_NATIVELOCK = "nativelock";

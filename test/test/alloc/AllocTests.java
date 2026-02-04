@@ -65,7 +65,7 @@ public class AllocTests {
 
     @Test(mainClass = MapReaderOpt.class)
     public void tlabAllocSampler(TestProcess p) throws Exception {
-        p.profile("-e alloc --alloc-tlab -d 3 -f %profile.jfr");
+        p.profile("-e alloc --tlab -d 3 -f %profile.jfr");
         boolean tlabEvent = false;
 
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%profile").toPath())) {

@@ -69,6 +69,7 @@ static const char USAGE_STRING[] =
     "\n"
     "  --loop time         run profiler in a loop\n"
     "  --alloc bytes       allocation profiling interval in bytes\n"
+    "  --tlab              In allocation profiling use TLAB events\n"
     "  --live              build allocation profile from live objects only\n"
     "  --nativemem bytes   native allocation profiling interval in bytes\n"
     "  --nofree            do not collect free calls in native allocation profiling\n"
@@ -502,7 +503,7 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--reverse" || arg == "--inverted" || arg == "--samples" || arg == "--total" ||
                    arg == "--sched" || arg == "--live" || arg == "--nofree" || arg == "--record-cpu" ||
-                   arg == "--alloc-tlab") {
+                   arg == "--tlab") {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||
