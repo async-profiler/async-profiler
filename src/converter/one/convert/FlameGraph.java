@@ -329,7 +329,7 @@ public class FlameGraph implements Comparator<Frame> {
             if (frame.self > 0) {
                 int tmpLength = sb.length();
                 if (maxdiff >= 0) {
-                    sb.append(' ').append(frame.self - frame.diff);
+                    sb.append(' ').append(frame.diff == NEW_FRAME_DIFF ? 0 : frame.self - frame.diff);
                 }
                 out.print(sb.append(' ').append(frame.self).append('\n'));
                 sb.setLength(tmpLength);
