@@ -206,7 +206,7 @@ build/$(API_JAR): $(API_SOURCES) $(JAR_MANIFEST)
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	mkdir -p build/converter
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
-	$(JAR) cfe $@ Main -C build/converter . -C src/res .
+	$(JAR) cfe $@ one.convert.Main -C build/converter . -C src/res .
 	$(RM) -r build/converter
 
 %.class: %.java
