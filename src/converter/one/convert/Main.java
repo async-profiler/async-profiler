@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import one.convert.*;
+package one.convert;
 
 import java.io.File;
 import java.io.FileInputStream;

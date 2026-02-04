@@ -57,7 +57,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>Main</mainClass>
+                            <mainClass>one.convert.Main</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
