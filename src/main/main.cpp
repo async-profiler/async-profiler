@@ -501,7 +501,8 @@ int main(int argc, const char** argv) {
             format << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--reverse" || arg == "--inverted" || arg == "--samples" || arg == "--total" ||
-                   arg == "--sched" || arg == "--live" || arg == "--nofree" || arg == "--record-cpu") {
+                   arg == "--sched" || arg == "--live" || arg == "--nofree" || arg == "--record-cpu" ||
+                   arg == "--alloc-tlab") {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||

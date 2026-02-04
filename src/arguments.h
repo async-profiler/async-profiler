@@ -18,6 +18,7 @@ const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU        = "cpu";
 const char* const EVENT_ALLOC      = "alloc";
+const char* const EVENT_ALLOC_TLAB = "alloc-tlab";
 const char* const EVENT_NATIVEMEM  = "nativemem";
 const char* const EVENT_LOCK       = "lock";
 const char* const EVENT_NATIVELOCK = "nativelock";
@@ -207,6 +208,7 @@ class Arguments {
     bool _nostop;
     bool _alluser;
     bool _fdtransfer;
+    bool _tlab;
     const char* _fdtransfer_path;
     int _target_cpu;
     int _style;
@@ -269,6 +271,7 @@ class Arguments {
         _alluser(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
+        _tlab(false),
         _target_cpu(-1),
         _style(0),
         _features{1, 1, 1, 1, 1, 1},

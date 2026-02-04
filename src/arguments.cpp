@@ -230,6 +230,9 @@ Error Arguments::parse(const char* args) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
                 } else if (strcmp(value, EVENT_NATIVELOCK) == 0) {
                     if (_nativelock < 0) _nativelock = DEFAULT_LOCK_INTERVAL;
+                } else if (strcmp(value, EVENT_ALLOC_TLAB) == 0) {
+                    _tlab = true;
+                    if (_alloc < 0) _alloc = 0;
                 } else if (_event != NULL && !_all) {
                     msg = "Duplicate event argument";
                 } else {
@@ -248,6 +251,10 @@ Error Arguments::parse(const char* args) {
 
             CASE("alloc")
                 _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
+
+            CASE("alloc-tlab")
+                _tlab = true;
+                if (_alloc < 0) _alloc = 0;
 
             CASE("nativemem")
                 _nativemem = value == NULL ? 0 : parseUnits(value, BYTES);
