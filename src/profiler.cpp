@@ -1328,11 +1328,6 @@ Error Profiler::stop(bool restart) {
     return Error::OK;
 }
 
-Error Profiler::check(Arguments& args) {
-    Log::warn("The 'check' command is deprecated and will be removed in the next release");
-    return Error::OK;
-}
-
 Error Profiler::flushJfr() {
     MutexLocker ml(_state_lock);
     if (_state != RUNNING) {
@@ -1786,14 +1781,6 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             if (error) {
                 return error;
             }
-            break;
-        }
-        case ACTION_CHECK: {
-            Error error = check(args);
-            if (error) {
-                return error;
-            }
-            out << "OK\n";
             break;
         }
         case ACTION_STATUS: {

@@ -33,7 +33,6 @@ enum SHORT_ENUM Action {
     ACTION_RESUME,
     ACTION_STOP,
     ACTION_DUMP,
-    ACTION_CHECK,
     ACTION_STATUS,
     ACTION_METRICS,
     ACTION_LIST,
@@ -302,7 +301,7 @@ class Arguments {
 
     bool hasOutputFile() const {
         return _file != NULL &&
-            (_action == ACTION_STOP || _action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_CHECK);
+            (_action == ACTION_STOP || _action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
     }
 
     bool hasOption(JfrOption option) const {

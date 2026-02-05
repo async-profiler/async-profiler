@@ -412,7 +412,7 @@ int main(int argc, const char** argv) {
     while (args.count() > 0 && !(jattach_action && pid)) {
         String arg = args.next();
 
-        if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" || arg == "check" ||
+        if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" ||
             arg == "status" || arg == "metrics" || arg == "list" || arg == "collect") {
             action = arg;
 
