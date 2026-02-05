@@ -17,7 +17,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class Server extends Thread implements Executor, HttpHandler {
-    private static final String[] COMMANDS = "start,resume,stop,dump,check,status,metrics,list,version".split(",");
+    private static final String[] COMMANDS = "start,resume,stop,dump,status,metrics,list,version".split(",");
 
     private final HttpServer server;
     private final AtomicInteger threadNum = new AtomicInteger();
