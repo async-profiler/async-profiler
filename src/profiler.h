@@ -123,7 +123,7 @@ class Profiler {
     void updateNativeThreadNames();
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(Arguments& args);
-    Engine* selectAllocEngine(long alloc_interval, bool live);
+    Engine* selectAllocEngine(bool tlab);
     Engine* activeEngine();
     Error checkJvmCapabilities();
 

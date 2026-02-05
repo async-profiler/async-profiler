@@ -991,8 +991,8 @@ Engine* Profiler::selectEngine(Arguments& args) {
     }
 }
 
-Engine* Profiler::selectAllocEngine(long alloc_interval, bool live) {
-    if (VM::addSampleObjectsCapability()) {
+Engine* Profiler::selectAllocEngine(bool tlab) {
+    if (!tlab && VM::addSampleObjectsCapability()) {
         return &object_sampler;
     } else if (VM::isOpenJ9()) {
         return &j9_object_sampler;
@@ -1204,7 +1204,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (_event_mask & EM_ALLOC) {
-        _alloc_engine = selectAllocEngine(args._alloc, args._live);
+        _alloc_engine = selectAllocEngine(args._tlab);
         error = _alloc_engine->start(args);
         if (error) {
             goto error2;

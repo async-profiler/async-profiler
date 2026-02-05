@@ -50,6 +50,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     version                 - display the agent version
 //     event=EVENT             - which event to trace (cpu, wall, cache-misses, etc.)
 //     alloc[=BYTES]           - profile allocations with BYTES interval
+//     tlab                    - use TLAB events for allocation profiling
 //     live                    - build allocation profile from live objects only
 //     nativemem[=BYTES]       - profile native allocations with BYTES interval
 //     nofree                  - do not collect free calls in native allocation profiling
@@ -245,6 +246,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("alloc")
                 _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
+
+            CASE("tlab")
+                _tlab = true;
 
             CASE("nativemem")
                 _nativemem = value == NULL ? 0 : parseUnits(value, BYTES);

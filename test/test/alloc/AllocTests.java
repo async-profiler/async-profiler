@@ -5,6 +5,8 @@
 
 package test.alloc;
 
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordingFile;
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.AllocationSample;
@@ -59,6 +61,25 @@ public class AllocTests {
         Output out = p.profile("stop -o collapsed");
         assert out.contains("java/io/ByteArrayOutputStream.toByteArray;");
         assert out.contains("G1CollectedHeap::humongous_obj_allocate");
+    }
+
+    @Test(mainClass = MapReaderOpt.class)
+    public void tlabAllocSampler(TestProcess p) throws Exception {
+        p.profile("-e alloc --tlab -d 3 -f %profile.jfr");
+        boolean tlabEvent = false;
+
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%profile").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                String eventName = event.getEventType().getName();
+                if (eventName != null && eventName.equals("jdk.ObjectAllocationOutsideTLAB")) {
+                    tlabEvent = true;
+                    break;
+                }
+            }
+        }
+
+        assert tlabEvent : "No jdk.ObjectAllocationOutsideTLAB event was found";
     }
 
     @Test(mainClass = MapReaderOpt.class, jvmVer = {11, Integer.MAX_VALUE})

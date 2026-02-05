@@ -200,6 +200,7 @@ class Arguments {
     bool _threads;
     bool _sched;
     bool _record_cpu;
+    bool _tlab;
     bool _live;
     bool _nofree;
     bool _nobatch;
@@ -261,6 +262,7 @@ class Arguments {
         _threads(false),
         _sched(false),
         _record_cpu(false),
+        _tlab(false),
         _live(false),
         _nofree(false),
         _nobatch(false),
