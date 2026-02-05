@@ -15,6 +15,7 @@ header:
       - 'src/jattach'
       - 'src/res'
       - '**/MANIFEST.MF'
+      - 'test/**/*.collapsed'
     license:
       content: |
         Copyright The async-profiler authors

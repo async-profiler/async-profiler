@@ -1,0 +1,17 @@
+BusyClient.run_[j] 1
+BusyClient.run_[j];InputStream.read_[j] 1
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j] 2
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j] 1
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j] 1
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j] 3
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.beginRead_[i] 3
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.beginRead_[i];NativeThread.current_[i];NativeThread.current0_[j] 4
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.endRead_[i] 4
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.tryRead_[j];ByteBuffer.get_[i];ByteBuffer.getArray_[i] 1
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.tryRead_[j];ByteBuffer.get_[i];Buffer.position_[i] 1
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.tryRead_[j];Util.getTemporaryDirectBuffer_[i];CarrierThreadLocal.get_[i];System$2.getCarrierThreadLocal_[i];ThreadLocal.getCarrierThreadLocal_[i];jlong_disjoint_arraycopy 6
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.tryRead_[j];SocketDispatcher.read_[i];SocketDispatcher.read0_[j] 4
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.tryRead_[j];SocketDispatcher.read_[i];SocketDispatcher.read0_[j];Java_sun_nio_ch_SocketDispatcher_read0 1
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];NioSocketImpl.implRead_[j];NioSocketImpl.tryRead_[j];SocketDispatcher.read_[i];SocketDispatcher.read0_[j];Java_sun_nio_ch_SocketDispatcher_read0;read 151
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];ReentrantLock.lock_[i] 1
+BusyClient.run_[j];InputStream.read_[j];Socket$SocketInputStream.read_[j];NioSocketImpl$1.read_[j];NioSocketImpl.read_[j];ReentrantLock.unlock_[i];AbstractQueuedSynchronizer.release_[i];ReentrantLock$Sync.tryRelease_[i];AbstractQueuedSynchronizer.setState_[i] 3

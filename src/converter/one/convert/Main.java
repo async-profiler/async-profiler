@@ -7,6 +7,7 @@ package one.convert;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class Main {
@@ -18,7 +19,7 @@ public class Main {
             return;
         }
 
-        if (args.files.size() == 1) {
+        if (args.files.size() == (args.diff ? 2 : 1)) {
             args.files.add(".");
         }
 
@@ -33,6 +34,34 @@ public class Main {
             } else {
                 args.output = "html";
             }
+        }
+
+        if (args.diff) {
+            if (fileCount != 2) {
+                throw new IllegalArgumentException("--diff option requires two input files");
+            }
+            if (!"html".equals(args.output) && !"collapsed".equals(args.output)) {
+                throw new IllegalArgumentException("--diff option requires html or collapsed output format");
+            }
+
+            args.norm = true;  // don't let random IDs in class names spoil comparison
+
+            String input1 = args.files.get(0);
+            String input2 = args.files.get(1);
+            String output = isDirectory ? new File(lastFile, replaceExt(input2, "diff." + args.output)).getPath() : lastFile;
+
+            System.out.print("Converting " + getFileName(input2) + " vs " + getFileName(input1) + " -> " + getFileName(output) + " ");
+            System.out.flush();
+
+            long startTime = System.nanoTime();
+            FlameGraph base = parseFlameGraph(input1, args);
+            FlameGraph current = parseFlameGraph(input2, args);
+            current.diff(base);
+            current.dump(new FileOutputStream(output));
+            long endTime = System.nanoTime();
+
+            System.out.print("# " + (endTime - startTime) / 1000000 / 1000.0 + " s\n");
+            return;
         }
 
         for (int i = 0; i < fileCount; i++) {
@@ -106,6 +135,7 @@ public class Main {
                 "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap, otlp\n" +
                 "  -I --include REGEX    Include only stacks with the specified frames\n" +
                 "  -X --exclude REGEX    Exclude stacks with the specified frames\n" +
+                "     --diff             Create differential Flame Graph from two input files\n" +
                 "\n" +
                 "JFR options:\n" +
                 "     --cpu              CPU profile (ExecutionSample)\n" +
