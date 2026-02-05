@@ -69,7 +69,7 @@ static const char USAGE_STRING[] =
     "\n"
     "  --loop time         run profiler in a loop\n"
     "  --alloc bytes       allocation profiling interval in bytes\n"
-    "  --tlab              In allocation profiling use TLAB events\n"
+    "  --tlab              use TLAB events for allocation profiling\n"
     "  --live              build allocation profile from live objects only\n"
     "  --nativemem bytes   native allocation profiling interval in bytes\n"
     "  --nofree            do not collect free calls in native allocation profiling\n"

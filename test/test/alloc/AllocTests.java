@@ -72,10 +72,10 @@ public class AllocTests {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
-                    if (eventName != null && eventName.equals("jdk.ObjectAllocationOutsideTLAB")) {
-                        tlabEvent = true;
-                        break;
-                    }
+                if (eventName != null && eventName.equals("jdk.ObjectAllocationOutsideTLAB")) {
+                    tlabEvent = true;
+                    break;
+                }
             }
         }
 
