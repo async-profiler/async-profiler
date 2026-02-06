@@ -54,6 +54,7 @@ static const char USAGE_STRING[] =
     "  -g, --sig           print method signatures\n"
     "  -a, --ann           annotate Java methods\n"
     "  -l, --lib           prepend library names\n"
+    "  --dot               dotted class names\n"
     "  -o fmt              output format: flat|traces|collapsed|flamegraph|tree|jfr|otlp\n"
     "  -I include          output only stack traces containing the specified pattern\n"
     "  -X exclude          exclude stack traces with the specified pattern\n"
@@ -77,6 +78,7 @@ static const char USAGE_STRING[] =
     "  --lock time         lock profiling threshold in nanoseconds\n"
     "  --nativelock time   pthread mutex/rwlock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
+    "  --nobatch           legacy wall clock sampling without batch events\n"
     "  --proc interval     process sampling interval (default: 30s)\n"
     "  --all               shorthand for enabling cpu, wall, alloc, live,\n"
     "                      nativemem and lock profiling simultaneously\n"
@@ -501,9 +503,7 @@ int main(int argc, const char** argv) {
         } else if (arg == "--width" || arg == "--height" || arg == "--minwidth") {
             format << "," << (arg.str() + 2) << "=" << args.next();
 
-        } else if (arg == "--reverse" || arg == "--inverted" || arg == "--samples" || arg == "--total" ||
-                   arg == "--sched" || arg == "--live" || arg == "--nofree" || arg == "--record-cpu" ||
-                   arg == "--tlab") {
+        } else if (arg == "--reverse" || arg == "--inverted" || arg == "--samples" || arg == "--total") {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||
@@ -512,14 +512,9 @@ int main(int argc, const char** argv) {
                    arg == "--target-cpu" || arg == "--proc") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
-        } else if (arg == "--ttsp") {
-            params << ",ttsp";
-
-        } else if (arg == "--nostop") {
-            params << ",nostop";
-
-        } else if (arg == "--all") {
-            params << ",all";
+        } else if (arg == "--all" || arg == "--live" || arg == "--nobatch" || arg == "--nofree" || arg == "--nostop" ||
+                   arg == "--record-cpu" || arg == "--sched" || arg == "--tlab" || arg == "--ttsp") {
+            params << "," << (arg.str() + 2);
 
         } else if (arg == "--all-user") {
             params << ",alluser";

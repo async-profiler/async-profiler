@@ -177,7 +177,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     /**
      * Execute an agent-compatible profiling command -
-     * the comma-separated list of arguments described in arguments.cpp
+     * the comma-separated list of arguments defined in arguments.cpp
      *
      * @param command Profiling command
      * @return The command result

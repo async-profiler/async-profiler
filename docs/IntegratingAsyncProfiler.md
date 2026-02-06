@@ -12,9 +12,14 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 On macOS, the library name is `libasyncProfiler.dylib` instead of `libasyncProfiler.so`.
 
 Agent library is configured through the JVMTI argument interface.
-The format of the arguments string is described
-[in the source code](https://github.com/async-profiler/async-profiler/blob/v4.3/src/arguments.cpp#L39).
-`asprof` actually converts command line arguments to that format.
+The argument string is a comma-separated list of [profiler options](ProfilerOptions.md):
+
+```
+option[=value],option[=value]...
+```
+
+`asprof` internally converts command line arguments to the above format and attaches
+`libasyncProfiler.so` agent to a running process.
 
 Another important use of attaching async-profiler as an agent is for continuous profiling.
 
