@@ -332,7 +332,6 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
 
 int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type) {
     int depth = 0;
-    jmethodID prev_method = NULL;
 
     for (int i = 0; i < native_frames; i++) {
         const char* current_method_name = findNativeMethod(callchain[i]);
@@ -360,15 +359,9 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
             }
         }
 
-        jmethodID current_method = (jmethodID)current_method_name;
-        if (current_method == prev_method && _cstack == CSTACK_LBR) {
-            // Skip duplicates in LBR stack, where branch_stack[N].from == branch_stack[N+1].to
-            prev_method = NULL;
-        } else {
-            frames[depth].bci = BCI_NATIVE_FRAME;
-            frames[depth].method_id = prev_method = current_method;
-            depth++;
-        }
+        frames[depth].bci = BCI_NATIVE_FRAME;
+        frames[depth].method_id = (jmethodID)current_method_name;
+        depth++;
     }
 
     return depth;
@@ -1160,8 +1153,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     _cstack = args._cstack;
     if (_cstack == CSTACK_DWARF && !DWARF_SUPPORTED) {
         return Error("DWARF unwinding is not supported on this platform");
-    } else if (_cstack == CSTACK_LBR && _engine != &perf_events) {
-        return Error("Branch stack is supported only with PMU events");
     } else if (_cstack == CSTACK_VM && VM::loaded() && !VMStructs::hasStackStructs()) {
         return Error("VMStructs stack walking is not supported on this JVM/platform");
     }
