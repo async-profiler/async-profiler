@@ -60,7 +60,7 @@ static jmethodID _stop_method;
 static jmethodID _box_method;
 static bool _jfr_starting = false;
 
-static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
+static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "vm"};
 
 
 struct CpuTime {

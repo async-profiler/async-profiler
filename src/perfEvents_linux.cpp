@@ -619,16 +619,6 @@ int PerfEvents::createForThread(int tid) {
         attr.exclude_callchain_user = 1;
     }
 
-#ifdef PERF_ATTR_SIZE_VER5
-    if (_cstack == CSTACK_LBR) {
-        attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
-        attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
-        attr.sample_regs_user = 1ULL << PERF_REG_PC;
-    }
-#else
-#warning "Compiling without LBR support. Kernel headers 4.1+ required"
-#endif
-
     if (_record_cpu) {
         attr.sample_type |= PERF_SAMPLE_CPU;
     }
@@ -852,7 +842,7 @@ Error PerfEvents::start(Arguments& args) {
         // Automatically switch on alluser for non-CPU events, if kernel profiling is unavailable
         _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
     }
-    _use_perf_mmap = _kernel_stack || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR || _record_cpu;
+    _use_perf_mmap = _kernel_stack || _cstack == CSTACK_DEFAULT || _record_cpu;
 
     if (strcmp(_event_type->name, "cpu-clock") == 0 && hasPerfEventRefreshBug()) {
         Log::debug("Enable workaround for PERF_EVENT_IOC_REFRESH bug");
@@ -941,36 +931,6 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
                             goto stack_complete;
                         }
                         callchain[depth++] = iptr;
-                    }
-                }
-
-                if (_cstack == CSTACK_LBR) {
-                    u64 bnr = ring.next();
-
-                    // Last userspace PC is stored right after branch stack
-                    const void* pc = (const void*)ring.peek(bnr * 3 + 2);
-                    if (CodeHeap::contains(pc) || depth >= max_depth) {
-                        java_ctx->pc = pc;
-                        goto stack_complete;
-                    }
-                    callchain[depth++] = pc;
-
-                    while (bnr-- > 0) {
-                        const void* from = (const void*)ring.next();
-                        const void* to = (const void*)ring.next();
-                        ring.next();
-
-                        if (CodeHeap::contains(to) || depth >= max_depth) {
-                            java_ctx->pc = to;
-                            goto stack_complete;
-                        }
-                        callchain[depth++] = to;
-
-                        if (CodeHeap::contains(from) || depth >= max_depth) {
-                            java_ctx->pc = from;
-                            goto stack_complete;
-                        }
-                        callchain[depth++] = from;
                     }
                 }
 

@@ -60,7 +60,6 @@ enum SHORT_ENUM CStack {
     CSTACK_NO,       // do not collect native frames
     CSTACK_FP,       // walk stack using Frame Pointer links
     CSTACK_DWARF,    // use DWARF unwinding info from .eh_frame section
-    CSTACK_LBR,      // Last Branch Record hardware capability
     CSTACK_VM        // unwind using HotSpot VMStructs
 };
 

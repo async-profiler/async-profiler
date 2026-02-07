@@ -332,8 +332,6 @@ Error Arguments::parse(const char* args) {
                         _cstack = CSTACK_FP;
                     } else if (strcmp(value, "dwarf") == 0) {
                         _cstack = CSTACK_DWARF;
-                    } else if (strcmp(value, "lbr") == 0) {
-                        _cstack = CSTACK_LBR;
                     } else if (strcmp(value, "vm") == 0) {
                         _cstack = CSTACK_VM;
                     } else if (strcmp(value, "vmx") == 0) {
