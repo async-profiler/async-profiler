@@ -322,10 +322,6 @@ class JavaFrameAnchor : VMStructs {
         return *(const void**) at(_anchor_pc_offset);
     }
 
-    void setLastJavaPC(const void* pc) {
-        *(const void**) at(_anchor_pc_offset) = pc;
-    }
-
     bool getFrame(const void*& pc, uintptr_t& sp, uintptr_t& fp) {
         if (lastJavaPC() == NULL || lastJavaSP() == 0) {
             return false;
@@ -394,10 +390,6 @@ class VMThread : VMStructs {
         return _thread_state_offset >= 0 ? *(int*) at(_thread_state_offset) : 0;
     }
 
-    bool inJava() {
-        return state() == 8;
-    }
-
     bool inDeopt() {
         return *(void**) at(_thread_vframe_offset) != NULL;
     }
@@ -453,15 +445,6 @@ class NMethod : VMStructs {
 
     short frameCompleteOffset() {
         return *(short*) at(_frame_complete_offset);
-    }
-
-    void setFrameCompleteOffset(int offset) {
-        if (_nmethod_immutable_offset > 0) {
-            // _frame_complete_offset is short on JDK 23+
-            *(short*) at(_frame_complete_offset) = offset;
-        } else {
-            *(int*) at(_frame_complete_offset) = offset;
-        }
     }
 
     const char* immutableDataAt(int offset) {
@@ -537,10 +520,6 @@ class NMethod : VMStructs {
 
     char state() {
         return *at(_nmethod_state_offset);
-    }
-
-    bool isAlive() {
-        return state() >= 0 && state() <= 1;
     }
 
     int level() {

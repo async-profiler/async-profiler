@@ -249,23 +249,11 @@ Error Arguments::parse(const char* args) {
                 if (value != NULL) {
                     if (strstr(value, "stats"))    _features.stats = 1;
                     if (strstr(value, "jnienv"))   _features.jnienv = 1;
-                    if (strstr(value, "probesp"))  _features.probe_sp = 1;
                     if (strstr(value, "mixed"))    _features.mixed = 1;
                     if (strstr(value, "vtable"))   _features.vtable_target = 1;
                     if (strstr(value, "comptask")) _features.comp_task = 1;
                     if (strstr(value, "pcaddr"))   _features.pc_addr = 1;
                 }
-
-            CASE("safemode") {
-                // Left for compatibility purpose; will be eventually migrated to 'features'
-                int bits = value == NULL ? INT_MAX : (int)strtol(value, NULL, 0);
-                _features.unknown_java  = (bits & 1) ? 0 : 1;
-                _features.unwind_stub   = (bits & 2) ? 0 : 1;
-                _features.unwind_comp   = (bits & 4) ? 0 : 1;
-                _features.unwind_native = (bits & 8) ? 0 : 1;
-                _features.java_anchor   = (bits & 16) ? 0 : 1;
-                _features.gc_traces     = (bits & 32) ? 0 : 1;
-            }
 
             CASE("file")
                 if (value == NULL || value[0] == 0) {

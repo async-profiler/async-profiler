@@ -16,13 +16,9 @@ public class RecoveryTests {
 
     @Test(mainClass = StringBuilderTest.class, jvmArgs = "-XX:UseAVX=2", arch = {Arch.X64, Arch.X86}, debugNonSafepoints = true)
     public void stringBuilder(TestProcess p) throws Exception {
-        Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        Assert.isGreater(out.ratio("StringBuilder.delete;"), 0.8);
-        Assert.isGreater(out.ratio("arraycopy"), 0.8);
-        Assert.isLess(out.ratio("unknown_Java"), 0.01);
-
-        out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
+        Output out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("StringBuilderTest.main;java/lang/StringBuilder.delete;"), 0.8);
+        Assert.isGreater(out.ratio("arraycopy"), 0.8);
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
@@ -36,35 +32,27 @@ public class RecoveryTests {
         jvmVer = {8, 17}
     )
     public void stringBuilderArm(TestProcess p) throws Exception {
-        Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        Assert.isGreater(out.ratio("(forward|foward|backward)_copy_longs"), 0.8); // there's a typo on some JDK versions
-
-        out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
+        Output out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("StringBuilderTest.main;java/lang/StringBuilder.delete;"), 0.8);
+        Assert.isGreater(out.ratio("(forward|foward|backward)_copy_longs"), 0.8); // there's a typo on some JDK versions
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
     }
 
     @Test(mainClass = Numbers.class, jvm = Jvm.HOTSPOT, debugNonSafepoints = true)
     public void numbers(TestProcess p) throws Exception {
-        Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        if (p.currentJvm() == Jvm.HOTSPOT_C2) Assert.isGreater(out.ratio("vtable stub"), 0.01);
-        Assert.isGreater(out.ratio("Numbers.loop"), 0.8);
-
-        out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
+        Output out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop"), 0.8);
         Assert.isGreater(out.ratio("Numbers.main;test/recovery/Numbers.loop;test/recovery/Numbers.avg"), 0.5);
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
+        if (p.currentJvm() == Jvm.HOTSPOT_C2) Assert.isGreater(out.ratio("vtable stub"), 0.01);
     }
 
     @Test(mainClass = Suppliers.class, jvm = Jvm.HOTSPOT, debugNonSafepoints = true)
     public void suppliers(TestProcess p) throws Exception {
-        Output out = p.profile("-d 3 -e cpu --cstack fp -o collapsed");
-        if (p.currentJvm() == Jvm.HOTSPOT_C2) Assert.isGreater(out.ratio("itable stub"), 0.01);
-        Assert.isGreater(out.ratio("Suppliers.loop"), 0.5);
-
-        out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
+        Output out = p.profile("-d 2 -e cpu -i 1ms -o collapsed");
         Assert.isGreater(out.ratio("Suppliers.main;test/recovery/Suppliers.loop"), 0.5);
         Assert.isLess(out.ratio("unknown|break_compiled"), 0.005);
+        if (p.currentJvm() == Jvm.HOTSPOT_C2) Assert.isGreater(out.ratio("itable stub"), 0.01);
     }
 
     @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64})

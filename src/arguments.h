@@ -105,25 +105,13 @@ enum EventMask {
 constexpr int EVENT_MASK_SIZE = 7;
 
 struct StackWalkFeatures {
-    // Deprecated stack recovery techniques used to workaround AsyncGetCallTrace flaws
-    unsigned short unknown_java  : 1;
-    unsigned short unwind_stub   : 1;
-    unsigned short unwind_comp   : 1;
-    unsigned short unwind_native : 1;
-    unsigned short java_anchor   : 1;
-    unsigned short gc_traces     : 1;
-
-    // Common features
-    unsigned short stats         : 1;  // collect stack walking duration statistics
-
-    // Additional HotSpot-specific features
-    unsigned short jnienv        : 1;  // verify JNIEnv* obtained using VMStructs
-    unsigned short probe_sp      : 1;  // when AsyncGetCallTrace fails, adjust SP and retry
-    unsigned short mixed         : 1;  // mixed stack traces with Java and native frames interleaved
-    unsigned short vtable_target : 1;  // show receiver classes of vtable/itable stubs
-    unsigned short comp_task     : 1;  // display current compilation task for JIT threads
-    unsigned short pc_addr       : 1;  // record exact PC address for each sample
-    unsigned short _padding      : 3;  // pad structure to 16 bits
+    unsigned short stats         : 1;   // collect stack walking duration statistics
+    unsigned short jnienv        : 1;   // verify JNIEnv* obtained using VMStructs
+    unsigned short mixed         : 1;   // mixed stack traces with Java and native frames interleaved
+    unsigned short vtable_target : 1;   // show receiver classes of vtable/itable stubs
+    unsigned short comp_task     : 1;   // display current compilation task for JIT threads
+    unsigned short pc_addr       : 1;   // record exact PC address for each sample
+    unsigned short _padding      : 10;  // pad structure to 16 bits
 };
 
 
@@ -271,7 +259,7 @@ class Arguments {
         _fdtransfer_path(NULL),
         _target_cpu(-1),
         _style(0),
-        _features{1, 1, 1, 1, 1, 1},
+        _features{},
         _cstack(CSTACK_DEFAULT),
         _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),
