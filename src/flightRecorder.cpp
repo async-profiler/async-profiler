@@ -539,15 +539,15 @@ class Recording {
         return true;
     }
 
-    static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures& f) {
-        snprintf(str, size, "%s %s %s %s %s %s",
-                 f.stats         ? "stats"         : "-",
-                 f.jnienv        ? "jnienv"        : "-",
-                 f.mixed         ? "mixed"         : "-",
-                 f.vtable_target ? "vtable"        : "-",
-                 f.comp_task     ? "comptask"      : "-",
-                 f.pc_addr       ? "pcaddr"        : "-");
-        return str;
+    static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
+        int chars = snprintf(str, size, "%s%s%s%s%s%s",
+            f.stats         ? ",stats"    : "",
+            f.jnienv        ? ",jnienv"   : "",
+            f.mixed         ? ",mixed"    : "",
+            f.vtable_target ? ",vtable"   : "",
+            f.comp_task     ? ",comptask" : "",
+            f.pc_addr       ? ",pcaddr"   : "");
+        return chars > 0 ? str + 1 : "";
     }
 
     void flush(Buffer* buf) {
