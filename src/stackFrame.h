@@ -28,14 +28,6 @@ class StackFrame {
         _ucontext = (ucontext_t*)ucontext;
     }
 
-    void restore(uintptr_t saved_pc, uintptr_t saved_sp, uintptr_t saved_fp) {
-        if (_ucontext != nullptr) {
-            pc() = saved_pc;
-            sp() = saved_sp;
-            fp() = saved_fp;
-        }
-    }
-
     uintptr_t stackAt(int slot) {
         return ((uintptr_t*)sp())[slot];
     }
@@ -56,19 +48,8 @@ class StackFrame {
 
     void ret();
 
-    bool unwindStub(instruction_t* entry, const char* name) {
-        return unwindStub(entry, name, pc(), sp(), fp());
-    }
-
-    bool unwindCompiled(NMethod* nm) {
-        return unwindCompiled(nm, pc(), sp(), fp());
-    }
-
     bool unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
     bool unwindAtomicStub(const void*& pc);
-
-    // TODO: this function will be removed once `vm` becomes the default stack walking mode
-    bool unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
 
     bool unwindPrologue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
     bool unwindEpilogue(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);

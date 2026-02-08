@@ -92,8 +92,6 @@ class Profiler {
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
     CodeCacheArray _native_libs;
-    const void* _call_stub_begin;
-    const void* _call_stub_end;
 
     // dlopen() hook support
     void** _dlopen_entry;
@@ -112,11 +110,9 @@ class Profiler {
 
     const char* asgctError(int code);
     u32 getLockIndex(int tid);
-    jmethodID getCurrentCompileTask();
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
-    void fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod);
     void setThreadInfo(int tid, const char* name, jlong java_thread_id);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
@@ -170,8 +166,6 @@ class Profiler {
         _stubs_lock(),
         _runtime_stubs("[stubs]"),
         _native_libs(),
-        _call_stub_begin(NULL),
-        _call_stub_end(NULL),
         _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
@@ -218,7 +212,6 @@ class Profiler {
     CodeCache* findLibraryByAddress(const void* address);
     const char* findNativeMethod(const void* address);
     CodeBlob* findRuntimeStub(const void* address);
-    bool isAddressInCode(const void* pc);
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void crashHandler(int signo, siginfo_t* siginfo, void* ucontext);

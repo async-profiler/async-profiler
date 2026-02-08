@@ -191,39 +191,6 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
     return false;
 }
 
-static inline bool isEntryBarrier(instruction_t* ip) {
-    // ldr  w9, [x28, #32]
-    // cmp  x8, x9
-    return ip[0] == 0xb9402389 && ip[1] == 0xeb09011f;
-}
-
-bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
-    instruction_t* ip = (instruction_t*)pc;
-    instruction_t* entry = (instruction_t*)nm->entry();
-    if ((*ip & 0xffe07fff) == 0xa9007bfd) {
-        // stp  x29, x30, [sp, #offset]
-        // SP has been adjusted, but FP not yet stored in a new frame
-        unsigned int offset = (*ip >> 12) & 0x1f8;
-        sp += offset + 16;
-        pc = link();
-    } else if (ip > entry && ip[0] == 0x910003fd && ip[-1] == 0xa9bf7bfd) {
-        // stp  x29, x30, [sp, #-16]!
-        // mov  x29, sp
-        sp += 16;
-        pc = ((uintptr_t*)sp)[-1];
-    } else if (ip > entry + 3 && !nm->isFrameCompleteAt(ip) &&
-               (isEntryBarrier(ip) || isEntryBarrier(ip + 1))) {
-        // Frame should be complete at this point
-        sp += nm->frameSize() * sizeof(void*);
-        fp = ((uintptr_t*)sp)[-2];
-        pc = ((uintptr_t*)sp)[-1];
-    } else {
-        // Just try
-        pc = link();
-    }
-    return true;
-}
-
 static inline bool isFrameComplete(instruction_t* entry, instruction_t* ip) {
     // Frame is fully constructed after sp is decremented by the frame size.
     // Check if there is such an instruction anywhere between

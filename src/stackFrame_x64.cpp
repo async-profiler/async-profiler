@@ -102,48 +102,6 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
     return false;
 }
 
-bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
-    instruction_t* ip = (instruction_t*)pc;
-    instruction_t* entry = (instruction_t*)nm->entry();
-    if (ip <= entry
-        || *ip == 0xc3                                                          // ret
-        || *ip == 0x55                                                          // push rbp
-        || ip[-1] == 0x5d                                                       // after pop rbp
-        || (ip[0] == 0x41 && ip[1] == 0x85 && ip[2] == 0x02 && ip[3] == 0xc3))  // poll return
-    {
-        // Subtract 1 for PC to point to the call instruction,
-        // otherwise it may be attributed to a wrong bytecode
-        pc = ((uintptr_t*)sp)[0] - 1;
-        sp += 8;
-        return true;
-    } else if (*ip == 0x5d) {
-        // pop rbp
-        fp = ((uintptr_t*)sp)[0];
-        pc = ((uintptr_t*)sp)[1] - 1;
-        sp += 16;
-        return true;
-    } else if (ip <= entry + 15 && ((uintptr_t)ip & 0xfff) && ip[-1] == 0x55) {
-        // push rbp
-        pc = ((uintptr_t*)sp)[1] - 1;
-        sp += 16;
-        return true;
-    } else if (ip <= entry + 7 && ip[0] == 0x48 && ip[1] == 0x89 && ip[2] == 0x6c && ip[3] == 0x24) {
-        // mov [rsp + #off], rbp
-        sp += ip[4] + 16;
-        pc = ((uintptr_t*)sp)[-1] - 1;
-        return true;
-    } else if ((ip[0] == 0x41 && ip[1] == 0x81 && ip[2] == 0x7f && *(u32*)(ip + 4) == 1) ||
-               (ip >= entry + 8 && ip[-8] == 0x41 && ip[-7] == 0x81 && ip[-6] == 0x7f && *(u32*)(ip - 4) == 1)) {
-        // cmp [r15 + #off], 1
-        // nmethod_entry_barrier: frame is fully constructed here
-        sp += nm->frameSize() * sizeof(void*);
-        fp = ((uintptr_t*)sp)[-2];
-        pc = ((uintptr_t*)sp)[-1];
-        return true;
-    }
-    return false;
-}
-
 static inline bool isFrameComplete(instruction_t* entry, instruction_t* ip) {
     // Frame is fully constructed after rsp is decremented by the frame size.
     // Check if there is such an instruction anywhere between
