@@ -294,9 +294,9 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
     } else if (_cstack == CSTACK_VM) {
         return 0;
     } else if (_cstack == CSTACK_DWARF) {
-        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES);
     } else {
-        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES);
     }
 
     return convertNativeTrace(native_frames, callchain, frames, event_type);
@@ -331,7 +331,7 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
     return depth;
 }
 
-int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx) {
+int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
     // Workaround for JDK-8132510: it's not safe to call GetEnv() inside a signal handler
     // since JDK 9, so we do it only for threads already registered in ThreadLocalStorage
     VMThread* vm_thread = VMThread::current();
@@ -433,14 +433,14 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         if (_cstack == CSTACK_VM) {
             num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, _features, event_type);
         } else {
-            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
+            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
         }
     } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
         if (VMStructs::hasStackStructs()) {
             StackWalkFeatures no_features{};
             num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, no_features, event_type);
         } else {
-            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
+            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
         }
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.

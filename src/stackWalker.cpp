@@ -62,7 +62,7 @@ static jmethodID getMethodId(VMMethod* method) {
 }
 
 
-int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -83,8 +83,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
-        if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
-            java_ctx->set(pc, sp, fp);
+        if (CodeHeap::contains(pc)) {
             break;
         }
 
@@ -112,7 +111,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
     return depth;
 }
 
-int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -134,10 +133,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
-        if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
-            // Don't dereference pc as it may point to unreadable memory
-            // frame.adjustSP(page_start, pc, sp);
-            java_ctx->set(pc, sp, fp);
+        if (CodeHeap::contains(pc)) {
             break;
         }
 
