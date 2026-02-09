@@ -896,7 +896,7 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* stack_ctx) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -917,7 +917,7 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
 
             if (hdr->type == PERF_RECORD_SAMPLE) {
                 if (_record_cpu) {
-                    java_ctx->cpu = ring.next();
+                    stack_ctx->cpu = ring.next();
                 }
 
                 u64 nr = ring.next();
@@ -927,7 +927,6 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
                         const void* iptr = (const void*)ip;
                         if (CodeHeap::contains(iptr) || depth >= max_depth) {
                             // Stop at the first Java frame
-                            java_ctx->pc = iptr;
                             goto stack_complete;
                         }
                         callchain[depth++] = iptr;
@@ -946,9 +945,9 @@ stack_complete:
     event->unlock();
 
     if (_cstack == CSTACK_FP) {
-        depth += StackWalker::walkFP(ucontext, callchain + depth, max_depth - depth, java_ctx);
+        depth += StackWalker::walkFP(ucontext, callchain + depth, max_depth - depth);
     } else if (_cstack == CSTACK_DWARF) {
-        depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth, java_ctx);
+        depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth);
     }
 
     return depth;
