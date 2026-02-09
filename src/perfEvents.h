@@ -45,7 +45,7 @@ class PerfEvents : public CpuEngine {
     const char* title();
     const char* units();
 
-    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
+    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, u64* cpu);
     static void resetBuffer(int tid);
 
     static bool supported();
@@ -62,7 +62,7 @@ class PerfEvents : public CpuEngine {
         return Error("PerfEvents are not supported on this platform");
     }
 
-    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, u64* cpu) {
         return 0;
     }
 
