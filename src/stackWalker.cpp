@@ -252,6 +252,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
         }
     }
 
+    CodeCache* cc = NULL;
+
     unwind_loop:
     uintptr_t prev_sp = sp;
     while (depth < max_depth) {
@@ -405,9 +407,12 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                     pc = ((const void**)sp)[-FRAME_PC_SLOT];
                     continue;
                 }
+
+                cc = profiler->findLibraryByAddress(pc);
             }
         } else {
-            const char* method_name = profiler->findNativeMethod(pc);
+            cc = profiler->findLibraryByAddress(pc);
+            const char* method_name = cc != NULL ? cc ->binarySearch(pc) : NULL;
             char mark;
             if (method_name != NULL && (mark = NativeFunc::mark(method_name)) != 0) {
                 if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
@@ -425,7 +430,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
         }
 
-        CodeCache* cc = profiler->findLibraryByAddress(pc);
         FrameDesc* f = cc != NULL ? cc->findFrameDesc(pc) : &FrameDesc::default_frame;
 
         u8 cfa_reg = (u8)f->cfa;
