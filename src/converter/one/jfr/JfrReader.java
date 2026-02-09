@@ -27,8 +27,8 @@ import java.util.Map;
  */
 public class JfrReader implements Closeable {
     private static final int BUFFER_SIZE = 2 * 1024 * 1024;
-    private static final int CHUNK_HEADER_SIZE = 68;
-    private static final int CHUNK_SIGNATURE = 0x464c5200;
+    protected static final int CHUNK_HEADER_SIZE = 68;
+    protected static final int CHUNK_SIGNATURE = 0x464c5200;
 
     private static final byte STATE_NEW_CHUNK = 0;
     private static final byte STATE_READING = 1;
@@ -36,9 +36,9 @@ public class JfrReader implements Closeable {
     private static final byte STATE_INCOMPLETE = 3;
 
     private final FileChannel ch;
-    private ByteBuffer buf;
+    protected ByteBuffer buf;
     private final long fileSize;
-    private long filePosition;
+    protected long filePosition;
     private byte state;
 
     public long startNanos = Long.MAX_VALUE;
@@ -182,6 +182,11 @@ public class JfrReader implements Closeable {
                 return null;
             }
 
+            E hook = doReadEvent(type, cls);
+            if (hook != null) {
+                return hook;
+            }
+
             if (type == executionSample || type == nativeMethodSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(false);
             } else if (type == wallClockSample) {
@@ -225,6 +230,10 @@ public class JfrReader implements Closeable {
         }
 
         state = STATE_EOF;
+        return null;
+    }
+
+    protected <E extends Event> E doReadEvent(int type, Class<E> cls) throws IOException {
         return null;
     }
 
@@ -319,7 +328,7 @@ public class JfrReader implements Closeable {
         settings.put(name, value);
     }
 
-    private boolean readChunk(int pos) throws IOException {
+    protected boolean readChunk(int pos) throws IOException {
         if (pos + CHUNK_HEADER_SIZE > buf.limit() || buf.getInt(pos) != CHUNK_SIGNATURE) {
             throw new IOException("Not a valid JFR file");
         }
@@ -404,9 +413,9 @@ public class JfrReader implements Closeable {
         switch (name) {
             case "class": {
                 JfrClass type = new JfrClass(attributes);
-                if (!attributes.containsKey("superType")) {
+                // if (!attributes.containsKey("superType")) {
                     types.put(type.id, type);
-                }
+                // }
                 typesByName.put(type.name, type);
                 return type;
             }
@@ -439,7 +448,7 @@ public class JfrReader implements Closeable {
         } while (delta != 0 && (cpOffset += delta) > 0);
     }
 
-    private void readConstants(JfrClass type) {
+    protected void readConstants(JfrClass type) throws IOException {
         switch (type.name) {
             case "jdk.types.ChunkHeader":
                 buf.position(buf.position() + (CHUNK_HEADER_SIZE + 3));
@@ -597,7 +606,7 @@ public class JfrReader implements Closeable {
         }
     }
 
-    private void cacheEventTypes() {
+    protected void cacheEventTypes() {
         executionSample = getTypeId("jdk.ExecutionSample");
         nativeMethodSample = getTypeId("jdk.NativeMethodSample");
         wallClockSample = getTypeId("profiler.WallClockSample");
@@ -714,7 +723,7 @@ public class JfrReader implements Closeable {
         return bytes;
     }
 
-    private void seek(long pos) throws IOException {
+    protected void seek(long pos) throws IOException {
         long bufPosition = pos - filePosition;
         if (bufPosition >= 0 && bufPosition <= buf.limit()) {
             buf.position((int) bufPosition);
@@ -731,7 +740,7 @@ public class JfrReader implements Closeable {
         ensureBytes(CHUNK_HEADER_SIZE);
     }
 
-    private boolean ensureBytes(int needed) throws IOException {
+    protected boolean ensureBytes(int needed) throws IOException {
         if (buf.remaining() >= needed) {
             return true;
         }

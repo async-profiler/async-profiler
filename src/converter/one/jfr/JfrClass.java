@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 public class JfrClass extends Element {
-    final int id;
-    final boolean simpleType;
-    final String name;
-    final List<JfrField> fields;
+    public final int id;
+    public final boolean simpleType;
+    public final String name;
+    public final List<JfrField> fields;
 
     JfrClass(Map<String, String> attributes) {
         this.id = Integer.parseInt(attributes.get("id"));

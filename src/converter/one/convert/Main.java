@@ -89,6 +89,8 @@ public class Main {
                 JfrToHeatmap.convert(input, output, args);
             } else if ("otlp".equals(args.output)) {
                 JfrToOtlp.convert(input, output, args);
+            } else if ("clickhouse".equals(args.output)) {
+                JfrToClickHouse.convert(input, output, args);
             } else {
                 throw new IllegalArgumentException("Unrecognized output format: " + args.output);
             }
@@ -132,7 +134,7 @@ public class Main {
         System.out.print("Usage: jfrconv [options] <input> [<input>...] <output>\n" +
                 "\n" +
                 "Conversion options:\n" +
-                "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap, otlp\n" +
+                "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap, otlp, clickhouse\n" +
                 "  -I --include REGEX    Include only stacks with the specified frames\n" +
                 "  -X --exclude REGEX    Exclude stacks with the specified frames\n" +
                 "     --diff             Create differential Flame Graph from two input files\n" +
