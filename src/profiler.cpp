@@ -284,13 +284,13 @@ CodeBlob* Profiler::findRuntimeStub(const void* address) {
     return _runtime_stubs.findBlobByAddress(address);
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, u64* cpu) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
-        native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, cpu);
     } else if (_cstack == CSTACK_VM) {
         return 0;
     } else if (_cstack == CSTACK_DWARF) {
@@ -417,13 +417,13 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         }
     }
 
-    StackContext java_ctx = {0};
+    u64 cpu = 0;
     if (hasNativeStack(event_type)) {
         if (_features.pc_addr && event_type <= WALL_CLOCK_SAMPLE) {
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
         if (_cstack != CSTACK_NO) {
-            num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
+            num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &cpu);
         }
     }
 

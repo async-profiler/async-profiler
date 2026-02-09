@@ -896,7 +896,7 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* stack_ctx) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, u64* cpu) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -917,7 +917,7 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
 
             if (hdr->type == PERF_RECORD_SAMPLE) {
                 if (_record_cpu) {
-                    stack_ctx->cpu = ring.next();
+                    *cpu = ring.next();
                 }
 
                 u64 nr = ring.next();

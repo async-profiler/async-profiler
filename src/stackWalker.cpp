@@ -83,7 +83,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
-        if (CodeHeap::contains(pc)) {
+        if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
             break;
         }
 
@@ -133,7 +133,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
-        if (CodeHeap::contains(pc)) {
+        if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
             break;
         }
 

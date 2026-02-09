@@ -14,10 +14,6 @@
 
 class JavaFrameAnchor;
 
-struct StackContext {
-    u64 cpu;
-};
-
 class StackWalker {
   public:
     static int walkFP(void* ucontext, const void** callchain, int max_depth);
