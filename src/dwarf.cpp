@@ -5,10 +5,6 @@
 
 #include <stdlib.h>
 #include "dwarf.h"
-
-#include <cstring>
-#include <stdio.h>
-
 #include "log.h"
 
 
