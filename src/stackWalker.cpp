@@ -408,7 +408,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                     continue;
                 }
 
-                cc = profiler->findLibraryByAddress(pc);
+                cc = NULL;
             }
         } else {
             cc = profiler->findLibraryByAddress(pc);
