@@ -409,7 +409,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             }
         } else {
             native_lib = profiler->findLibraryByAddress(pc);
-            const char* method_name = native_lib != NULL ? native_lib ->binarySearch(pc) : NULL;
+            const char* method_name = native_lib != NULL ? native_lib->binarySearch(pc) : NULL;
             char mark;
             if (method_name != NULL && (mark = NativeFunc::mark(method_name)) != 0) {
                 if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
