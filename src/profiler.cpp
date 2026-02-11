@@ -117,6 +117,10 @@ void Profiler::addJavaMethod(const void* address, int length, jmethodID method) 
 }
 
 void Profiler::addRuntimeStub(const void* address, int length, const char* name) {
+    if (name[0] == 'S' && strncmp(name, "Stub Generator ", 15) == 0) {
+        name += 15;  // useless prefix introduced with JDK-8336658
+    }
+
     _stubs_lock.lock();
     _runtime_stubs.add(address, length, name, true);
     _stubs_lock.unlock();
