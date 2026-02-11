@@ -245,11 +245,12 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
                 continue;
             }
 
-            // Increment the table size, and if the load factor exceeds 0.75, reserve a new table
+            // Increment the table size, and if the load factor exceeds 0.75, reserve a new table.
+            // This condition can be hit only once per table, so the below allocation is race-free.
             if (table->incSize() == capacity * 3 / 4) {
                 LongHashTable* new_table = LongHashTable::allocate(table, capacity * 2);
                 if (new_table != NULL) {
-                    __sync_bool_compare_and_swap(&_current_table, table, new_table);
+                    __atomic_store_n(&_current_table, new_table, __ATOMIC_RELEASE);
                 }
             }
 
