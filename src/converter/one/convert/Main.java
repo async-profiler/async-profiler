@@ -64,15 +64,33 @@ public class Main {
             return;
         }
 
-        for (int i = 0; i < fileCount; i++) {
-            String input = args.files.get(i);
-            String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
+        if (isDirectory) {
+            for (int i = 0; i < fileCount; i++) {
+                String input = args.files.get(i);
+                String output = new File(lastFile, replaceExt(input, args.output)).getPath();
 
-            System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
+                System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
+                System.out.flush();
+
+                long startTime = System.nanoTime();
+                convert(input, output, args);
+                long endTime = System.nanoTime();
+
+                System.out.print("# " + (endTime - startTime) / 1000000 / 1000.0 + " s\n");
+            }
+        } else {
+            String[] inputs = args.files.subList(0, fileCount).toArray(new String[0]);
+
+            System.out.print("Converting ");
+            for (int i = 0; i < inputs.length; i++) {
+                if (i > 0) System.out.print(" + ");
+                System.out.print(getFileName(inputs[i]));
+            }
+            System.out.print(" -> " + getFileName(lastFile) + " ");
             System.out.flush();
 
             long startTime = System.nanoTime();
-            convert(input, output, args);
+            convert(inputs, lastFile, args);
             long endTime = System.nanoTime();
 
             System.out.print("# " + (endTime - startTime) / 1000000 / 1000.0 + " s\n");
@@ -80,20 +98,24 @@ public class Main {
     }
 
     public static void convert(String input, String output, Arguments args) throws IOException {
-        if (isJfr(input)) {
+        convert(new String[]{input}, output, args);
+    }
+
+    public static void convert(String[] inputs, String output, Arguments args) throws IOException {
+        if (isJfr(inputs[0])) {
             if ("html".equals(args.output) || "collapsed".equals(args.output)) {
-                JfrToFlame.convert(input, output, args);
+                JfrToFlame.convert(inputs, output, args);
             } else if ("pprof".equals(args.output) || "pb".equals(args.output) || args.output.endsWith("gz")) {
-                JfrToPprof.convert(input, output, args);
+                JfrToPprof.convert(inputs, output, args);
             } else if ("heatmap".equals(args.output)) {
-                JfrToHeatmap.convert(input, output, args);
+                JfrToHeatmap.convert(inputs, output, args);
             } else if ("otlp".equals(args.output)) {
-                JfrToOtlp.convert(input, output, args);
+                JfrToOtlp.convert(inputs, output, args);
             } else {
                 throw new IllegalArgumentException("Unrecognized output format: " + args.output);
             }
         } else {
-            FlameGraph.convert(input, output, args);
+            FlameGraph.convert(inputs[0], output, args);
         }
     }
 

@@ -144,8 +144,12 @@ public class JfrToPprof extends JfrConverter {
     }
 
     public static void convert(String input, String output, Arguments args) throws IOException {
+        convert(new String[]{input}, output, args);
+    }
+
+    public static void convert(String[] inputs, String output, Arguments args) throws IOException {
         JfrToPprof converter;
-        try (JfrReader jfr = new JfrReader(input)) {
+        try (JfrReader jfr = new JfrReader(inputs)) {
             converter = new JfrToPprof(jfr, args);
             converter.convert();
         }

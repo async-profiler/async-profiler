@@ -35,7 +35,9 @@ public class JfrReader implements Closeable {
     private static final byte STATE_EOF = 2;
     private static final byte STATE_INCOMPLETE = 3;
 
-    private final FileChannel ch;
+    private final FileChannel[] channels;
+    private final long[] channelOffsets;
+    private int currentChannel;
     private ByteBuffer buf;
     private final long fileSize;
     private long filePosition;
@@ -82,10 +84,18 @@ public class JfrReader implements Closeable {
     private int nativeLock;
     private boolean hasWallTimeSpan;
 
-    public JfrReader(String fileName) throws IOException {
-        this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
+    public JfrReader(String... fileNames) throws IOException {
+        this.channels = new FileChannel[fileNames.length];
+        this.channelOffsets = new long[fileNames.length + 1];
+        long totalSize = 0;
+        for (int i = 0; i < fileNames.length; i++) {
+            channels[i] = FileChannel.open(Paths.get(fileNames[i]), StandardOpenOption.READ);
+            channelOffsets[i] = totalSize;
+            totalSize += channels[i].size();
+        }
+        channelOffsets[fileNames.length] = totalSize;
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
-        this.fileSize = ch.size();
+        this.fileSize = totalSize;
 
         buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
@@ -95,7 +105,8 @@ public class JfrReader implements Closeable {
     }
 
     public JfrReader(ByteBuffer buf) throws IOException {
-        this.ch = null;
+        this.channels = null;
+        this.channelOffsets = null;
         this.buf = buf;
         this.fileSize = buf.limit();
 
@@ -107,8 +118,10 @@ public class JfrReader implements Closeable {
 
     @Override
     public void close() throws IOException {
-        if (ch != null) {
-            ch.close();
+        if (channels != null) {
+            for (FileChannel ch : channels) {
+                ch.close();
+            }
         }
     }
 
@@ -718,11 +731,21 @@ public class JfrReader implements Closeable {
         long bufPosition = pos - filePosition;
         if (bufPosition >= 0 && bufPosition <= buf.limit()) {
             buf.position((int) bufPosition);
-        } else {
+        } else if (channels != null) {
             filePosition = pos;
-            ch.position(pos);
+            currentChannel = findChannel(pos);
+            channels[currentChannel].position(pos - channelOffsets[currentChannel]);
             buf.rewind().flip();
         }
+    }
+
+    private int findChannel(long pos) {
+        for (int i = 0; i < channels.length; i++) {
+            if (pos < channelOffsets[i + 1]) {
+                return i;
+            }
+        }
+        return channels.length - 1;
     }
 
     public void rewind() throws IOException {
@@ -736,7 +759,7 @@ public class JfrReader implements Closeable {
             return true;
         }
 
-        if (ch == null) {
+        if (channels == null) {
             return false;
         }
 
@@ -750,8 +773,16 @@ public class JfrReader implements Closeable {
             buf.compact();
         }
 
-        while (ch.read(buf) > 0 && buf.position() < needed) {
-            // keep reading
+        while (buf.position() < needed) {
+            int n = channels[currentChannel].read(buf);
+            if (n <= 0) {
+                if (currentChannel + 1 < channels.length) {
+                    currentChannel++;
+                    channels[currentChannel].position(0);
+                } else {
+                    break;
+                }
+            }
         }
         buf.flip();
         return buf.limit() > 0;

@@ -76,7 +76,11 @@ public class JfrToFlame extends JfrConverter {
     }
 
     public static FlameGraph parse(String input, Arguments args) throws IOException {
-        try (JfrReader jfr = new JfrReader(input)) {
+        return parse(new String[]{input}, args);
+    }
+
+    public static FlameGraph parse(String[] inputs, Arguments args) throws IOException {
+        try (JfrReader jfr = new JfrReader(inputs)) {
             JfrToFlame converter = new JfrToFlame(jfr, args);
             converter.convert();
             return converter.fg;
@@ -84,7 +88,11 @@ public class JfrToFlame extends JfrConverter {
     }
 
     public static void convert(String input, String output, Arguments args) throws IOException {
-        FlameGraph fg = parse(input, args);
+        convert(new String[]{input}, output, args);
+    }
+
+    public static void convert(String[] inputs, String output, Arguments args) throws IOException {
+        FlameGraph fg = parse(inputs, args);
         try (PrintStream out = new PrintStream(output, "UTF-8")) {
             fg.dump(out);
         }

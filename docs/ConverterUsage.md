@@ -122,6 +122,13 @@ jfrconv --cpu foo.jfr
 
 for HTML output as HTML is the default format for conversion from JFR.
 
+Multiple JFR files can also be specified as input, and:
+1. If the output is a filename, a single flamegraph will be generated from a merged version of the
+   input JFR files.
+   **NOTE**: Overlapping time windows for JFR files could result in duplicated events, skewing results.
+   Therefore, make sure you are recording *disjoint* sets of JFR events.
+2. If the output is a directory, one flamegraph per input JFR file will be generated.
+
 ### Flame Graph options
 
 To add a custom title to the generated Flame Graph, use `--title`, which has the default value `Flame Graph`:
@@ -173,3 +180,4 @@ Below is an example usage:
 ```
 java -jar jfr-converter.jar --cpu foo.jfr --reverse --title "Application CPU profile"
 ```
+
