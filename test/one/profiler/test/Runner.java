@@ -12,6 +12,13 @@ import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
+
 
 public class Runner {
     private static final Logger log = Logger.getLogger(Runner.class.getName());
@@ -110,7 +117,7 @@ public class Runner {
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
-    private static TestResult run(RunnableTest rt, TestDeclaration decl) {
+    private static TestResult runTest(RunnableTest rt, TestDeclaration decl) {
         if (!rt.test().enabled() || decl.skips(rt.method())) {
             return TestResult.skipDisabled();
         }
@@ -156,7 +163,7 @@ public class Runner {
         }
     }
 
-    private static void printSummary(EnumMap<TestStatus, Integer> statusCounts, List<String> failedTests, long totalTestDuration, int testCount) {
+    private static void printSummary(Map<TestStatus, Integer> statusCounts, List<String> failedTests, long totalTestDuration, long executionDuration, int testCount) {
         int fail = statusCounts.getOrDefault(TestStatus.FAIL, 0);
         if (fail > 0) {
             System.out.println("\nFailed tests:");
@@ -165,8 +172,10 @@ public class Runner {
 
         int pass = statusCounts.getOrDefault(TestStatus.PASS, 0);
         String totalDuration = String.format("%.3f s", totalTestDuration / 1e9);
+        String actualExecutionDuration = String.format("%.3f s", executionDuration / 1e9);
 
         System.out.println("\nTotal test duration: " + totalDuration);
+        System.out.println("\nActual execution duration: " + actualExecutionDuration);
         System.out.println("Results Summary:");
         System.out.printf("PASS: %d (%.1f%%)\n", pass, 100.0 * pass / (pass + fail));
         System.out.println("FAIL: " + fail);
@@ -176,6 +185,21 @@ public class Runner {
         System.out.println("TOTAL: " + testCount);
     }
 
+    private static void waitForExecutorTermination(ThreadPoolExecutor executor) {
+        executor.shutdown(); // Initiate orderly shutdown
+        try {
+            // Wait indefinitely (or a specific time) for all tasks to finish
+            boolean terminated = executor.awaitTermination(5 * 60L, TimeUnit.SECONDS);
+            if (terminated) {
+                System.out.println("All tasks finished and executor is terminated.");
+            } else {
+                System.out.println("Timeout occurred before all tasks finished.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // Restore the interrupt flag
+            System.err.println("Main thread interrupted while waiting for termination.");
+        }
+    }
     public static void main(String[] args) throws Exception {
         configureLogging();
 
@@ -183,38 +207,65 @@ public class Runner {
         List<RunnableTest> allTests = decl.getRunnableTests();
         final int testCount = allTests.size();
         final int retryCount = Integer.parseInt(System.getProperty("retryCount", "0"));
+        final int threadCount = Integer.parseInt(System.getProperty("threadCount", "8"));
 
-        int i = 1;
-        long totalTestDuration = 0;
-        List<String> failedTests = new ArrayList<>();
-        EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
+        log.log(Level.INFO, "Running with " + threadCount + " test threads.");
+
+        AtomicLong i = new AtomicLong(1);
+        AtomicLong totalTestDuration = new AtomicLong();
+        List<String> failedTests = Collections.synchronizedList(new ArrayList<>());
+        Map<TestStatus, Integer> statusCounts = Collections.synchronizedMap(new EnumMap<>(TestStatus.class));
+        BlockingQueue<Runnable> multiThreadWorkQueue = new ArrayBlockingQueue<>(testCount);
+
+        final ThreadPoolExecutor executor = new ThreadPoolExecutor(threadCount, threadCount, 60L, TimeUnit.SECONDS, multiThreadWorkQueue);
+        BlockingQueue<Runnable> singleThreadWorkQueue = new ArrayBlockingQueue<>(testCount);
+
+        long startTime = System.nanoTime();
         for (RunnableTest rt : allTests) {
-            long start = System.nanoTime();
-            TestResult result = run(rt, decl);
+            Runnable task = new Runnable() {
+                public void run() {
+                    long start = System.nanoTime();
+                    TestResult result = runTest(rt, decl);
 
-            int attempt = 1;
-            while (result.status() == TestStatus.FAIL && attempt <= retryCount) {
-                log.log(Level.WARNING, "Test failed, retrying (attempt " + attempt + "/" + retryCount + ")...");
-                result = run(rt, decl);
-                attempt++;
+                    int attempt = 1;
+                    while (result.status() == TestStatus.FAIL && attempt <= retryCount) {
+                        log.log(Level.WARNING, "Test failed, retrying (attempt " + attempt + "/" + retryCount + ")...");
+                        result = runTest(rt, decl);
+                        attempt++;
+                    }
+
+                    long durationNs = System.nanoTime() - start;
+
+                    totalTestDuration.addAndGet(durationNs);
+                    statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
+                    if (result.status() == TestStatus.FAIL) {
+                        failedTests.add(rt.testInfo());
+                    }
+
+                    System.out.printf("tid[%d] %s [%d/%d] %s took %.3f s\n", Thread.currentThread().getId(), result.status(), i.incrementAndGet(), testCount, rt.testInfo(), durationNs / 1e9);
+                    if (result.throwable() != null) {
+                        result.throwable().printStackTrace(System.out);
+                    }
+                }
+            };
+            if (rt.test().runIsolated()) {
+                singleThreadWorkQueue.add(task);
+            } else {
+                executor.execute(task);
             }
-
-            long durationNs = System.nanoTime() - start;
-
-            totalTestDuration += durationNs;
-            statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
-            if (result.status() == TestStatus.FAIL) {
-                failedTests.add(rt.testInfo());
-            }
-
-            System.out.printf("%s [%d/%d] %s took %.3f s\n", result.status(), i, testCount, rt.testInfo(), durationNs / 1e9);
-            if (result.throwable() != null) {
-                result.throwable().printStackTrace(System.out);
-            }
-            i++;
         }
 
-        printSummary(statusCounts, failedTests, totalTestDuration, testCount);
+        waitForExecutorTermination(executor);
+
+        // Create the Single thread executor and execute all single-threaded tasks
+        log.log(Level.INFO, "Starting single threaded tests...");
+        final ThreadPoolExecutor singleExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS, singleThreadWorkQueue);
+        singleExecutor.prestartAllCoreThreads();
+        waitForExecutorTermination(singleExecutor);
+
+
+        long endTime = System.nanoTime();
+        printSummary(statusCounts, failedTests, totalTestDuration.get(), endTime - startTime, testCount);
 
         if (!logDir.isEmpty()) {
             log.log(Level.INFO, "Test output and profiles are available in " + logDir + " directory");
