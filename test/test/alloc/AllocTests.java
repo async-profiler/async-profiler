@@ -55,7 +55,7 @@ public class AllocTests {
         assert out.contains("int\\[]");
     }
 
-    @Test(mainClass = MapReaderOpt.class, agentArgs = "start,event=G1CollectedHeap::humongous_obj_allocate", jvmArgs = "-XX:+UseG1GC -XX:G1HeapRegionSize=1M -Xmx4g -Xms4g", os = Os.LINUX)
+    @Test(mainClass = MapReaderOpt.class, agentArgs = "start,event=G1CollectedHeap::humongous_obj_allocate", jvmArgs = "-XX:+UseG1GC -XX:G1HeapRegionSize=1M -Xmx4g -Xms4g", os = Os.LINUX, runIsolated = true)
     public void humongous(TestProcess p) throws Exception {
         Thread.sleep(1000);
         Output out = p.profile("stop -o collapsed");
