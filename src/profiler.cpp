@@ -938,7 +938,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (VMStructs::hasStackStructs() && !_features.agct) {
-        _cstack = CSTACK_VM;
+        _cstack = args._cstack = CSTACK_VM;
     } else if (_cstack == CSTACK_DEFAULT && VM::isOpenJ9() && DWARF_SUPPORTED) {
         // OpenJ9 libs are compiled with frame pointers omitted
         _cstack = args._cstack = CSTACK_DWARF;
