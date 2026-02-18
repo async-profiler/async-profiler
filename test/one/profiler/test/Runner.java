@@ -242,7 +242,7 @@ public class Runner {
                         failedTests.add(rt.testInfo());
                     }
 
-                    System.out.printf("tid[%d] %s [%d/%d] %s took %.3f s\n", Thread.currentThread().getId(), result.status(), i.incrementAndGet(), testCount, rt.testInfo(), durationNs / 1e9);
+                    System.out.printf("tid[%d] %s [%d/%d] %s took %.3f s\n", Thread.currentThread().getId(), result.status(), i.getAndIncrement(), testCount, rt.testInfo(), durationNs / 1e9);
                     if (result.throwable() != null) {
                         result.throwable().printStackTrace(System.out);
                     }
