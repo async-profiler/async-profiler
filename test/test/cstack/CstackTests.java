@@ -17,11 +17,11 @@ public class CstackTests {
 
     @Test(mainClass = LongInitializer.class)
     public void asyncGetCallTrace(TestProcess p) throws Exception {
-        Output out = p.profile(PROFILE_COMMAND + "--cstack no");
+        Output out = p.profile(PROFILE_COMMAND + "--cstack no --features agct");
         assert !out.contains(";readBytes");
         assert out.contains("LongInitializer.main_\\[j]");
 
-        out = p.profile(PROFILE_COMMAND + "--cstack fp");
+        out = p.profile(PROFILE_COMMAND + "--cstack fp --features agct");
         assert out.contains(";readBytes");
         assert out.contains("LongInitializer.main_\\[j]");
     }
