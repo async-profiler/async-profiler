@@ -59,8 +59,8 @@ public class AllocTests {
     public void humongous(TestProcess p) throws Exception {
         Thread.sleep(1000);
         Output out = p.profile("stop -o collapsed");
-        assert out.contains("java/io/ByteArrayOutputStream.toByteArray;");
-        assert out.contains("G1CollectedHeap::humongous_obj_allocate");
+        assert out.contains("java/io/ByteArrayOutputStream.toByteArray;") : out;
+        assert out.contains("G1CollectedHeap::humongous_obj_allocate") : out;
     }
 
     @Test(mainClass = MapReaderOpt.class)
