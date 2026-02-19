@@ -26,6 +26,16 @@ public class CstackTests {
         assert out.contains("LongInitializer.main_\\[j]");
     }
 
+    @Test(mainClass = LongInitializer.class, jvm = Jvm.HOTSPOT)
+    public void noNative(TestProcess p) throws Exception {
+        Output out = p.profile(PROFILE_COMMAND + "--cstack no");
+        assert !out.contains(";readBytes");
+        assert out.contains("LongInitializer.main_\\[0]");
+        assert !out.contains("InstanceKlass::initialize");
+        assert !out.contains("call_stub");
+        assert !out.contains("JavaMain");
+    }
+
     @Test(mainClass = LongInitializer.class, jvm = Jvm.HOTSPOT, os = Os.LINUX)
     public void vmStructs(TestProcess p) throws Exception {
         Output out = p.profile(PROFILE_COMMAND + "--cstack vm");

@@ -426,7 +426,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         if (_features.pc_addr && event_type <= WALL_CLOCK_SAMPLE) {
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
-        if (_cstack != CSTACK_NO) {
+        if (!_features.no_native || _cstack != CSTACK_NO) {
             num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &cpu);
         }
     }
@@ -869,6 +869,18 @@ Error Profiler::start(Arguments& args, bool reset) {
     // Save the arguments for shutdown or restart
     args.save();
 
+    _features = args._features;
+    if (!VMStructs::hasClassNames()) {
+        _features.vtable_target = 0;
+    }
+    if (!VMStructs::hasCompilerStructs()) {
+        _features.comp_task = 0;
+    }
+
+    if (args._cstack == CSTACK_NO) {
+        _features.no_native = 1;
+    }
+
     if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
@@ -884,7 +896,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         _add_event_frame = args._output != OUTPUT_JFR;
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
         _add_sched_frame = args._sched;
-        _add_cpu_frame = args._record_cpu;
+        _add_cpu_frame = args._record_cpu && !_features.no_native;
         unlockAll();
 
         // Reset thread names and IDs
@@ -906,14 +918,6 @@ Error Profiler::start(Arguments& args, bool reset) {
                 return Error("Not enough memory to allocate stack trace buffers (try smaller jstackdepth)");
             }
         }
-    }
-
-    _features = args._features;
-    if (!VMStructs::hasClassNames()) {
-        _features.vtable_target = 0;
-    }
-    if (!VMStructs::hasCompilerStructs()) {
-        _features.comp_task = 0;
     }
 
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
