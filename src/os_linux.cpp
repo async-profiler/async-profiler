@@ -213,7 +213,7 @@ ThreadState OS::threadState(int thread_id) {
 
     ThreadState state = THREAD_UNKNOWN;
     if (read(fd, buf, sizeof(buf)) > 0) {
-        char* s = strchr(buf, ')');
+        char* s = strrchr(buf, ')');
         state = s != NULL && (s[2] == 'R' || s[2] == 'D') ? THREAD_RUNNING : THREAD_SLEEPING;
     }
 
