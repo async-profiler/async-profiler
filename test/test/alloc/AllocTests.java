@@ -32,7 +32,7 @@ public class AllocTests {
         assert out.contains("java\\.lang\\.String\\[]");
     }
 
-    @Test(mainClass = MapReaderOpt.class, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", jvm = {Jvm.HOTSPOT, Jvm.ZING})
+    @Test(mainClass = MapReaderOpt.class, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", jvm = {Jvm.HOTSPOT, Jvm.ZING}, runIsolated = true)
     public void allocTotal(TestProcess p) throws Exception {
         Output out = p.profile("-e alloc -d 3 -o collapsed --total");
         assert out.samples("java.util.HashMap\\$Node\\[]") > 1_000_000;
@@ -43,7 +43,7 @@ public class AllocTests {
         assert out.contains("java\\.util\\.HashMap\\$Node\\[]");
     }
 
-    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
+    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB", runIsolated = true)
     public void startup(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         out = out.convertFlameToCollapsed();
@@ -55,12 +55,12 @@ public class AllocTests {
         assert out.contains("int\\[]");
     }
 
-    @Test(mainClass = MapReaderOpt.class, agentArgs = "start,event=G1CollectedHeap::humongous_obj_allocate", jvmArgs = "-XX:+UseG1GC -XX:G1HeapRegionSize=1M -Xmx4g -Xms4g", os = Os.LINUX)
+    @Test(mainClass = MapReaderOpt.class, agentArgs = "start,event=G1CollectedHeap::humongous_obj_allocate", jvmArgs = "-XX:+UseG1GC -XX:G1HeapRegionSize=1M -Xmx4g -Xms4g", os = Os.LINUX, runIsolated = true)
     public void humongous(TestProcess p) throws Exception {
         Thread.sleep(1000);
         Output out = p.profile("stop -o collapsed");
-        assert out.contains("java/io/ByteArrayOutputStream.toByteArray;");
-        assert out.contains("G1CollectedHeap::humongous_obj_allocate");
+        assert out.contains("java/io/ByteArrayOutputStream.toByteArray;") : out;
+        assert out.contains("G1CollectedHeap::humongous_obj_allocate") : out;
     }
 
     @Test(mainClass = MapReaderOpt.class)

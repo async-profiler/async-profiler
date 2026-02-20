@@ -108,7 +108,7 @@ jobs:
           make build/test.jar
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
-          make test-java RETRY_COUNT=${{ inputs.retry-count }} -j
+          make test-java THREAD_COUNT=2 RETRY_COUNT=${{ inputs.retry-count }} -j
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
         if: always()
