@@ -721,7 +721,7 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     fclose(f);
 }
 
-static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count) {
+static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count, bool only_lib_jvm) {
     FILE* f = fopen("/proc/self/maps", "r");
     if (f == NULL) {
         return;
@@ -733,12 +733,20 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     size_t str_size = 0;
     ssize_t len;
 
-    while (max_count > 0 && (len = getline(&str, &str_size, f)) > 0) {
+    while ((len = getline(&str, &str_size, f)) > 0) {
         str[len - 1] = 0;
 
         MemoryMapDesc map(str);
         if (!map.isReadable() || map.file() == NULL || map.file()[0] == 0) {
             continue;
+        }
+
+        if (only_lib_jvm) {
+            const char* current_file = strrchr(map.file(), '/');
+            current_file = current_file ? current_file + 1 : map.file();
+            if (strcmp(current_file, "libjvm.so") != 0) {
+                continue;
+            }
         }
 
         u64 inode = u64(map.dev()) << 32 | map.inode();
@@ -757,6 +765,9 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
         }
 
         if (map.isExecutable()) {
+            if (libs.find(inode) == libs.end() && libs.size() == max_count) {
+                break;
+            }
             SharedLibrary& lib = libs[inode];
             if (lib.file == nullptr) {
                 lib.file = strdup(map.file());
@@ -775,7 +786,7 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     fclose(f);
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, bool only_lib_jvm) {
     MutexLocker ml(_parse_lock);
 
     if (_in_parse_libraries || array->count() >= MAX_NATIVE_LIBS) {
@@ -796,7 +807,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     }
 
     std::unordered_map<u64, SharedLibrary> libs;
-    collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
+    collectSharedLibraries(libs, only_lib_jvm ? 1 : MAX_NATIVE_LIBS - array->count(), only_lib_jvm);
 
     for (auto& it : libs) {
         u64 inode = it.first;

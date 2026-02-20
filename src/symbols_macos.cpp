@@ -181,29 +181,34 @@ static std::unordered_set<const void*> _parsed_libraries;
 void Symbols::parseKernelSymbols(CodeCache* cc) {
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, bool only_lib_jvm) {
     MutexLocker ml(_parse_lock);
-    uint32_t images = _dyld_image_count();
 
+    if (array->count() >= MAX_NATIVE_LIBS) {
+        return;
+    }
+
+
+    uint32_t images = _dyld_image_count();
     for (uint32_t i = 0; i < images; i++) {
+        const char* path = _dyld_get_image_name(i);
+
+        if (only_lib_jvm) {
+            const char* current_file = strrchr(path, '/');
+            current_file = current_file ? current_file + 1 : path;
+            if (strcmp(current_file, "libjvm.dylib") != 0) {
+                continue;
+            }
+        }
+
         const mach_header* image_base = _dyld_get_image_header(i);
         if (image_base == NULL || !_parsed_libraries.insert(image_base).second) {
             continue;  // the library was already parsed
         }
 
-        int count = array->count();
-        if (count >= MAX_NATIVE_LIBS) {
-            if (!_libs_limit_reported) {
-                Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
-                _libs_limit_reported = true;
-            }
-            break;
-        }
-
-        const char* path = _dyld_get_image_name(i);
         const char* vmaddr_slide = (const char*)_dyld_get_image_vmaddr_slide(i);
 
-        CodeCache* cc = new CodeCache(path, count);
+        CodeCache* cc = new CodeCache(path, array->count());
         cc->setTextBase(vmaddr_slide);
 
         UnloadProtection handle(cc);
@@ -216,6 +221,14 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             array->add(cc);
         } else {
             delete cc;
+        }
+
+        if (array->count() >= MAX_NATIVE_LIBS) {
+            if (!_libs_limit_reported) {
+                Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
+                _libs_limit_reported = true;
+            }
+            break;
         }
     }
 }
