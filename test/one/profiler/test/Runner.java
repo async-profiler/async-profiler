@@ -8,6 +8,7 @@ package one.profiler.test;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.util.HashSet;
 import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -163,7 +164,7 @@ public class Runner {
         }
     }
 
-    private static void printSummary(Map<TestStatus, Integer> statusCounts, List<String> failedTests, long totalTestDuration, long executionDuration, int testCount) {
+    private static void printSummary(Map<TestStatus, Integer> statusCounts, Set<String> failedTests, long totalTestDuration, long executionDuration, int testCount) {
         int fail = statusCounts.getOrDefault(TestStatus.FAIL, 0);
         if (fail > 0) {
             System.out.println("\nFailed tests:");
@@ -213,16 +214,19 @@ public class Runner {
 
         AtomicLong i = new AtomicLong(1);
         AtomicLong totalTestDuration = new AtomicLong();
-        List<String> failedTests = Collections.synchronizedList(new ArrayList<>());
+        Set<String> failedTests = Collections.synchronizedSet(new HashSet<>());
         Map<TestStatus, Integer> statusCounts = Collections.synchronizedMap(new EnumMap<>(TestStatus.class));
         BlockingQueue<Runnable> multiThreadWorkQueue = new ArrayBlockingQueue<>(testCount);
 
         final ThreadPoolExecutor executor = new ThreadPoolExecutor(threadCount, threadCount, 60L, TimeUnit.SECONDS, multiThreadWorkQueue);
         BlockingQueue<Runnable> singleThreadWorkQueue = new ArrayBlockingQueue<>(testCount);
 
+        HashSet<RunnableTest> rerunTests = new HashSet<>();
+
         long startTime = System.nanoTime();
         for (RunnableTest rt : allTests) {
             Runnable task = new Runnable() {
+                @Override
                 public void run() {
                     long start = System.nanoTime();
                     TestResult result = runTest(rt, decl);
@@ -240,6 +244,15 @@ public class Runner {
                     statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
                     if (result.status() == TestStatus.FAIL) {
                         failedTests.add(rt.testInfo());
+                        if (!rerunTests.contains(rt)) {
+                            log.log(Level.INFO, "Adding " + rt.testInfo() + " to rerun list.");
+                            // Track if the test was rerun due to a failure so we don't rerun in a loop.
+                            rerunTests.add(rt);
+                            singleThreadWorkQueue.add(this);
+                        }
+                    } else if (result.status() == TestStatus.PASS && rerunTests.contains(rt)) {
+                            // If the rerun passed, remove it from the failed tests list
+                            failedTests.remove(rt.testInfo());
                     }
 
                     System.out.printf("tid[%d] %s [%d/%d] %s took %.3f s\n", Thread.currentThread().getId(), result.status(), i.getAndIncrement(), testCount, rt.testInfo(), durationNs / 1e9);
