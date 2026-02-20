@@ -235,6 +235,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
 
     // Show extended frame types and stub frames for execution-type events
     bool details = event_type <= MALLOC_SAMPLE || features.mixed;
+    bool no_native = features.no_native;
 
     JavaFrameAnchor* anchor = NULL;
     VMThread* vm_thread = VMThread::current();
@@ -246,6 +247,12 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
         } else if (!vm_thread->anchor()->restoreFrame(pc, sp, fp)) {
             return 0;
         }
+    }
+
+    // Jump directly to java frame if possible in case native frames are not desired
+    if (no_native && anchor != NULL) {
+        anchor->restoreFrame(pc, sp, fp);
+        anchor = NULL;
     }
 
     unwind_loop:
@@ -388,7 +395,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                 const void* start = stub != NULL ? stub->_start : nm->code();
                 const char* name = stub != NULL ? stub->_name : nm->name();
 
-                if (details) {
+                if (!no_native && details) {
                     fillFrame(frames[depth++], BCI_NATIVE_FRAME, name);
                 }
 
@@ -405,22 +412,24 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             }
         } else {
             native_lib = profiler->findLibraryByAddress(pc);
-            const char* method_name = native_lib != NULL ? native_lib->binarySearch(pc) : NULL;
-            char mark;
-            if (method_name != NULL && (mark = NativeFunc::mark(method_name)) != 0) {
-                if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
-                    // Skip all internal frames above hook functions, leave the hook itself
-                    depth = 0;
-                } else if (mark == MARK_COMPILER_ENTRY && features.comp_task && vm_thread != NULL) {
-                    // Insert current compile task as a pseudo Java frame
-                    VMMethod* method = vm_thread->compiledMethod();
-                    jmethodID method_id = method != NULL ? method->id() : NULL;
-                    if (method_id != NULL) {
-                        fillFrame(frames[depth++], FRAME_JIT_COMPILED, 0, method_id);
+            if (!no_native) {
+                const char* method_name = native_lib != NULL ? native_lib->binarySearch(pc) : NULL;
+                char mark;
+                if (method_name != NULL && (mark = NativeFunc::mark(method_name)) != 0) {
+                    if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
+                        // Skip all internal frames above hook functions, leave the hook itself
+                        depth = 0;
+                    } else if (mark == MARK_COMPILER_ENTRY && features.comp_task && vm_thread != NULL) {
+                        // Insert current compile task as a pseudo Java frame
+                        VMMethod* method = vm_thread->compiledMethod();
+                        jmethodID method_id = method != NULL ? method->id() : NULL;
+                        if (method_id != NULL) {
+                            fillFrame(frames[depth++], FRAME_JIT_COMPILED, 0, method_id);
+                        }
                     }
                 }
+                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
             }
-            fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
         }
 
         FrameDesc* f = native_lib != NULL ? native_lib->findFrameDesc(pc) : &FrameDesc::default_frame;
