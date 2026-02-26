@@ -39,7 +39,7 @@ public class JfrconverterTests {
         JfrToFlame.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--alloc"));
     }
 
-    @Test(mainClass = Tracer.class, agentArgs = "start,jfr,wall,trace=test.jfrconverter.Tracer.traceMethod,file=%f")
+    @Test(mainClass = Tracer.class, agentArgs = "start,jfr,wall,trace=test.jfrconverter.Tracer.traceMethod,file=%f", runIsolated = true)
     public void latencyFilter(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;

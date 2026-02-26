@@ -18,12 +18,12 @@ public class CstackTests {
     @Test(mainClass = LongInitializer.class)
     public void asyncGetCallTrace(TestProcess p) throws Exception {
         Output out = p.profile(PROFILE_COMMAND + "--cstack no");
-        assert !out.contains(";readBytes");
-        assert out.contains("LongInitializer.main_\\[j]");
+        assert !out.contains(";readBytes") : out;
+        assert out.contains("LongInitializer.main_\\[j]") : out;
 
         out = p.profile(PROFILE_COMMAND + "--cstack fp");
-        assert out.contains(";readBytes");
-        assert out.contains("LongInitializer.main_\\[j]");
+        assert out.contains(";readBytes") : out;
+        assert out.contains("LongInitializer.main_\\[j]") : out;
     }
 
     @Test(mainClass = LongInitializer.class, jvm = Jvm.HOTSPOT, os = Os.LINUX)

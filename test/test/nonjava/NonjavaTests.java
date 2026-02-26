@@ -32,7 +32,7 @@ public class NonjavaTests {
     }
 
     // jvm is loaded between two profiling sessions
-    @Test(sh = "%testbin/non_java_app 3 %f.collapsed %s.collapsed", output = true)
+    @Test(sh = "%testbin/non_java_app 3 %f.collapsed %s.collapsed", output = true, runIsolated = true)
     public void jvmInBetween(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
