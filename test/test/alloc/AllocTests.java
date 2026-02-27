@@ -43,7 +43,7 @@ public class AllocTests {
         assert out.contains("java\\.util\\.HashMap\\$Node\\[]");
     }
 
-    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
+    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=fp,features=agct,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
     public void startup(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         out = out.convertFlameToCollapsed();
