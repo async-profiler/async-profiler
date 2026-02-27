@@ -495,13 +495,34 @@ class NMethod : VMStructs {
     }
 
     bool isNMethod() {
+        static const char* ptr1 = nullptr;
+        static const char* ptr2 = nullptr;
+
         const char* n = name();
-        return n != NULL && (strcmp(n, "nmethod") == 0 || strcmp(n, "native nmethod") == 0);
+        if (n == nullptr) return false;
+        if (ptr1 == n || ptr2 == n) return true;
+
+        if (ptr1 == nullptr && strcmp(n, "nmethod") == 0) {
+            ptr1 = n;
+            return true;
+        }
+        if (ptr2 == nullptr && strcmp(n, "native nmethod") == 0) {
+            ptr2 = n;
+            return true;
+        }
+        return false;
     }
 
     bool isInterpreter() {
+        static const char* ptr = nullptr;
         const char* n = name();
-        return n != NULL && strcmp(n, "Interpreter") == 0;
+        if (n == nullptr) return false;
+        if (ptr == n) return true;
+        if (ptr == nullptr && strcmp(n, "Interpreter") == 0) {
+            ptr = n;
+            return true;
+        }
+        return false;
     }
 
     bool isStub() {
@@ -510,8 +531,15 @@ class NMethod : VMStructs {
     }
 
     bool isVTableStub() {
+        static const char* ptr = nullptr;
         const char* n = name();
-        return n != NULL && strcmp(n, "vtable chunks") == 0;
+        if (n == nullptr) return false;
+        if (ptr == n) return n != nullptr;
+        if (ptr == nullptr && strcmp(n, "vtable chunks") == 0) {
+            ptr = n;
+            return true;
+        }
+        return false;
     }
 
     VMMethod* method() {
