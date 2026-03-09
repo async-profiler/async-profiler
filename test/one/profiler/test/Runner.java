@@ -16,7 +16,10 @@ import java.util.logging.Logger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -164,14 +167,14 @@ public class Runner {
         }
     }
 
-    private static void printSummary(Map<TestStatus, Integer> statusCounts, Set<String> failedTests, long totalTestDuration, long executionDuration, int testCount) {
-        int fail = statusCounts.getOrDefault(TestStatus.FAIL, 0);
+    private static void printSummary(AtomicIntegerArray statusCounts, Set<String> failedTests, long totalTestDuration, long executionDuration, int testCount) {
+        int fail = statusCounts.get(TestStatus.FAIL.ordinal());
         if (fail > 0) {
             System.out.println("\nFailed tests:");
             failedTests.forEach(System.out::println);
         }
 
-        int pass = statusCounts.getOrDefault(TestStatus.PASS, 0);
+        int pass = statusCounts.get(TestStatus.PASS.ordinal());
         String totalDuration = String.format("%.3f s", totalTestDuration / 1e9);
         String actualExecutionDuration = String.format("%.3f s", executionDuration / 1e9);
 
@@ -180,17 +183,17 @@ public class Runner {
         System.out.println("Results Summary:");
         System.out.printf("PASS: %d (%.1f%%)\n", pass, 100.0 * pass / (pass + fail));
         System.out.println("FAIL: " + fail);
-        System.out.println("SKIP (disabled): " + statusCounts.getOrDefault(TestStatus.SKIP_DISABLED, 0));
-        System.out.println("SKIP (config mismatch): " + statusCounts.getOrDefault(TestStatus.SKIP_CONFIG_MISMATCH, 0));
-        System.out.println("SKIP (missing JAR): " + statusCounts.getOrDefault(TestStatus.SKIP_MISSING_JAR, 0));
+        System.out.println("SKIP (disabled): " + statusCounts.get(TestStatus.SKIP_DISABLED.ordinal()));
+        System.out.println("SKIP (config mismatch): " + statusCounts.get(TestStatus.SKIP_CONFIG_MISMATCH.ordinal()));
+        System.out.println("SKIP (missing JAR): " + statusCounts.get(TestStatus.SKIP_MISSING_JAR.ordinal()));
         System.out.println("TOTAL: " + testCount);
     }
 
     private static void waitForExecutorTermination(ThreadPoolExecutor executor) {
         executor.shutdown(); // Initiate orderly shutdown
         try {
-            // Wait indefinitely (or a specific time) for all tasks to finish
-            boolean terminated = executor.awaitTermination(5 * 60L, TimeUnit.SECONDS);
+            // Wait for all tasks to finish, setting this high for future proofing
+            boolean terminated = executor.awaitTermination(6, TimeUnit.HOURS);
             if (terminated) {
                 System.out.println("All tasks finished and executor is terminated.");
             } else {
@@ -214,20 +217,22 @@ public class Runner {
 
         AtomicLong i = new AtomicLong(1);
         AtomicLong totalTestDuration = new AtomicLong();
-        Set<String> failedTests = Collections.synchronizedSet(new HashSet<>());
-        Map<TestStatus, Integer> statusCounts = Collections.synchronizedMap(new EnumMap<>(TestStatus.class));
-        BlockingQueue<Runnable> multiThreadWorkQueue = new ArrayBlockingQueue<>(testCount);
+        Set<String> failedTests = ConcurrentHashMap.newKeySet();
+        AtomicIntegerArray statusCounts = new AtomicIntegerArray(TestStatus.values().length);
 
-        final ThreadPoolExecutor executor = new ThreadPoolExecutor(threadCount, threadCount, 60L, TimeUnit.SECONDS, multiThreadWorkQueue);
-        BlockingQueue<Runnable> singleThreadWorkQueue = new ArrayBlockingQueue<>(testCount);
+        final ThreadPoolExecutor executor = new ThreadPoolExecutor(threadCount, threadCount, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(testCount));
+        final ThreadPoolExecutor singleExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(testCount));
+
+        final ArrayList<Callable<TestResult>> multithreadedTests = new ArrayList<>();
+        final ArrayList<Callable<TestResult>> singlethreadedTests = new ArrayList<>();
 
         HashSet<RunnableTest> rerunTests = new HashSet<>();
 
         long startTime = System.nanoTime();
         for (RunnableTest rt : allTests) {
-            Runnable task = new Runnable() {
+            Callable task = new Callable<TestResult>() {
                 @Override
-                public void run() {
+                public TestResult call() {
                     long start = System.nanoTime();
                     TestResult result = runTest(rt, decl);
 
@@ -241,14 +246,17 @@ public class Runner {
                     long durationNs = System.nanoTime() - start;
 
                     totalTestDuration.addAndGet(durationNs);
-                    statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
+                    // Using ordinal here should be fine since it isn't persisted and is just used as a lookup here.
+                    statusCounts.incrementAndGet(result.status().ordinal());
+
                     if (result.status() == TestStatus.FAIL) {
                         failedTests.add(rt.testInfo());
-                        if (!rerunTests.contains(rt)) {
+                        // rerun in non-isolated tests in single threaded mode once if retries are enabled.
+                        if (!rerunTests.contains(rt) && !rt.test().runIsolated() && retryCount > 0) {
                             log.log(Level.INFO, "Adding " + rt.testInfo() + " to rerun list.");
                             // Track if the test was rerun due to a failure so we don't rerun in a loop.
                             rerunTests.add(rt);
-                            singleThreadWorkQueue.add(this);
+                            singlethreadedTests.add(this);
                         }
                     } else if (result.status() == TestStatus.PASS && rerunTests.contains(rt)) {
                             // If the rerun passed, remove it from the failed tests list
@@ -259,23 +267,22 @@ public class Runner {
                     if (result.throwable() != null) {
                         result.throwable().printStackTrace(System.out);
                     }
+                    return result;
                 }
             };
             if (rt.test().runIsolated()) {
-                singleThreadWorkQueue.add(task);
+                singlethreadedTests.add(task);
             } else {
-                executor.execute(task);
+                multithreadedTests.add(task);
             }
         }
 
+        executor.invokeAll(multithreadedTests);
         waitForExecutorTermination(executor);
 
-        // Create the Single thread executor and execute all single-threaded tasks
         log.log(Level.INFO, "Starting single threaded tests...");
-        final ThreadPoolExecutor singleExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS, singleThreadWorkQueue);
-        singleExecutor.prestartAllCoreThreads();
+        singleExecutor.invokeAll(singlethreadedTests);
         waitForExecutorTermination(singleExecutor);
-
 
         long endTime = System.nanoTime();
         printSummary(statusCounts, failedTests, totalTestDuration.get(), endTime - startTime, testCount);
