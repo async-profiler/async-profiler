@@ -37,7 +37,7 @@ public class NativelockTests {
         assert out.contains("pthread_rwlock_wrlock_hook") : "No wrlock samples captured with LD_PRELOAD";
     }
 
-    @Test(sh = "LD_PRELOAD=%lib ASPROF_COMMAND=start,nativelock,file=%f.jfr %testbin/native_lock_contention", os = Os.LINUX)
+    @Test(sh = "LD_PRELOAD=%lib ASPROF_COMMAND=start,nativelock,file=%f.jfr %testbin/native_lock_contention", os = Os.LINUX, runIsolated = true)
     public void nativeAllLockContention(TestProcess p) throws Exception {
         p.waitForExit();
         Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"), "--nativelock");

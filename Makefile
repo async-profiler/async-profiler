@@ -62,7 +62,8 @@ LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
 RETRY_COUNT=0
-TEST_FLAGS=-DlogDir=$(LOG_DIR) -DlogLevel=$(LOG_LEVEL) -Dskip='$(subst $(COMMA), ,$(SKIP))' -DretryCount=$(RETRY_COUNT)
+TEST_THREADS ?= 8
+TEST_FLAGS=-DlogDir=$(LOG_DIR) -DlogLevel=$(LOG_LEVEL) -Dskip='$(subst $(COMMA), ,$(SKIP))' -DretryCount=$(RETRY_COUNT) -DthreadCount=$(TEST_THREADS)
 
 # always sort SOURCES so zInit is last.
 SOURCES := $(sort $(wildcard src/*.cpp))
