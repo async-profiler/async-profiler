@@ -226,8 +226,6 @@ public class Runner {
         final ArrayList<Callable<TestResult>> multithreadedTests = new ArrayList<>();
         final ArrayList<Callable<TestResult>> singlethreadedTests = new ArrayList<>();
 
-        final Set<RunnableTest> rerunTests = ConcurrentHashMap.newKeySet();
-
         long startTime = System.nanoTime();
         for (RunnableTest rt : allTests) {
             Callable<TestResult> task = () -> {
