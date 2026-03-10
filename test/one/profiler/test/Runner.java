@@ -230,45 +230,32 @@ public class Runner {
 
         long startTime = System.nanoTime();
         for (RunnableTest rt : allTests) {
-            Callable task = new Callable<TestResult>() {
-                @Override
-                public TestResult call() {
-                    long start = System.nanoTime();
-                    TestResult result = runTest(rt, decl);
+            Callable<TestResult> task = () -> {
+                long start = System.nanoTime();
+                TestResult result = runTest(rt, decl);
 
-                    int attempt = 1;
-                    while (result.status() == TestStatus.FAIL && attempt <= retryCount) {
-                        log.log(Level.WARNING, "Test failed, retrying (attempt " + attempt + "/" + retryCount + ")...");
-                        result = runTest(rt, decl);
-                        attempt++;
-                    }
-
-                    long durationNs = System.nanoTime() - start;
-
-                    totalTestDuration.addAndGet(durationNs);
-                    // Using ordinal here should be fine since it isn't persisted and is just used as a lookup here.
-                    statusCounts.incrementAndGet(result.status().ordinal());
-
-                    if (result.status() == TestStatus.FAIL) {
-                        failedTests.add(rt.testInfo());
-                        // rerun in non-isolated tests in single threaded mode once if retries are enabled.
-                        if (!rerunTests.contains(rt) && !rt.test().runIsolated() && retryCount > 0) {
-                            log.log(Level.INFO, "Adding " + rt.testInfo() + " to rerun list.");
-                            // Track if the test was rerun due to a failure so we don't rerun in a loop.
-                            rerunTests.add(rt);
-                            singlethreadedTests.add(this);
-                        }
-                    } else if (result.status() == TestStatus.PASS && rerunTests.contains(rt)) {
-                            // If the rerun passed, remove it from the failed tests list
-                            failedTests.remove(rt.testInfo());
-                    }
-
-                    System.out.printf("tid[%d] %s [%d/%d] %s took %.3f s\n", Thread.currentThread().getId(), result.status(), i.getAndIncrement(), testCount, rt.testInfo(), durationNs / 1e9);
-                    if (result.throwable() != null) {
-                        result.throwable().printStackTrace(System.out);
-                    }
-                    return result;
+                int attempt = 1;
+                while (result.status() == TestStatus.FAIL && attempt <= retryCount) {
+                    log.log(Level.WARNING, "Test failed, retrying (attempt " + attempt + "/" + retryCount + ")...");
+                    result = runTest(rt, decl);
+                    attempt++;
                 }
+
+                long durationNs = System.nanoTime() - start;
+
+                totalTestDuration.addAndGet(durationNs);
+                // Using ordinal here should be fine since it isn't persisted and is just used as a lookup here.
+                statusCounts.incrementAndGet(result.status().ordinal());
+
+                if (result.status() == TestStatus.FAIL) {
+                    failedTests.add(rt.testInfo());
+                }
+
+                System.out.printf("tid[%d] %s [%d/%d] %s took %.3f s\n", Thread.currentThread().getId(), result.status(), i.getAndIncrement(), testCount, rt.testInfo(), durationNs / 1e9);
+                if (result.throwable() != null) {
+                    result.throwable().printStackTrace(System.out);
+                }
+                return result;
             };
             if (rt.test().runIsolated()) {
                 singlethreadedTests.add(task);
