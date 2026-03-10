@@ -175,11 +175,9 @@ public class Runner {
         }
 
         int pass = statusCounts.get(TestStatus.PASS.ordinal());
-        String totalDuration = String.format("%.3f s", totalTestDuration / 1e9);
-        String actualExecutionDuration = String.format("%.3f s", executionDuration / 1e9);
 
-        System.out.println("\nTotal test duration: " + totalDuration);
-        System.out.println("\nActual execution duration: " + actualExecutionDuration);
+        System.out.printf("\nTotal test duration: %.3f s\n", totalTestDuration / 1e9);
+        System.out.printf("Actual execution duration: %.3f s\n", executionDuration / 1e9);
         System.out.println("Results Summary:");
         System.out.printf("PASS: %d (%.1f%%)\n", pass, 100.0 * pass / (pass + fail));
         System.out.println("FAIL: " + fail);
@@ -249,7 +247,7 @@ public class Runner {
                     failedTests.add(rt.testInfo());
                 }
 
-                System.out.printf("tid[%d] %s [%d/%d] %s took %.3f s\n", Thread.currentThread().getId(), result.status(), i.getAndIncrement(), testCount, rt.testInfo(), durationNs / 1e9);
+                System.out.printf("%s [%d/%d] tid[%d] %s took %.3f s\n", result.status(), i.getAndIncrement(), testCount, Thread.currentThread().getId(), rt.testInfo(), durationNs / 1e9);
                 if (result.throwable() != null) {
                     result.throwable().printStackTrace(System.out);
                 }
