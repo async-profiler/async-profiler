@@ -258,6 +258,8 @@ class Recording {
     RecordingBuffer _proc_buf;
     ProcessSampler _process_sampler;
 
+    u64 _last_ticks_skipped;
+
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
     }
@@ -272,6 +274,7 @@ class Recording {
         _bytes_written = 0;
         _memfd = -1;
         _in_memory = false;
+        _last_ticks_skipped = Profiler::instance()->_failures[-ticks_skipped];
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
@@ -330,11 +333,16 @@ class Recording {
         close(_fd);
     }
 
+    void writePerChunkEvents() {
+        writeProfilerFailures(_buf);
+        writeNativeLibraries(_buf);
+    }
+
     off_t finishChunk() {
         flush(&_monitor_buf);
         flush(&_proc_buf);
 
-        writeNativeLibraries(_buf);
+        writePerChunkEvents();
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             flush(&_buf[i]);
@@ -796,6 +804,19 @@ class Recording {
         }
 
         jvmti->Deallocate((unsigned char*)keys);
+    }
+
+    void writeProfilerFailures(Buffer* buf) {
+        u64 new_ticks_skipped = Profiler::instance()->_failures[-ticks_skipped];
+        if (new_ticks_skipped == _last_ticks_skipped) return;
+
+        int start = buf->skip(1);
+        buf->put8(T_PROFILER_FAILURES);
+        buf->putVar64(TSC::ticks());
+        buf->putVar64(new_ticks_skipped - _last_ticks_skipped);
+        buf->put8(start, buf->offset() - start);
+
+        _last_ticks_skipped = new_ticks_skipped;
     }
 
     void writeNativeLibraries(Buffer* buf) {
