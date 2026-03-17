@@ -12,6 +12,7 @@ import java.util.Arrays;
  */
 public class Dictionary<T> {
     private static final int INITIAL_CAPACITY = 16;
+    private static final long USED_BIT = 1L << 63;
 
     private long[] keys;
     private Object[] values;
@@ -37,12 +38,12 @@ public class Dictionary<T> {
     }
 
     // key[i]==0 is used to signal that the i-th position is unset.
-    // Thus, we map key=key+1, so the user can still use key=0.
+    // Thus, we flip USED_BIT, so the user can still use key=0.
     private static long remapKey(long key) {
-        if (key < 0) {
-            throw new IllegalArgumentException("Negative keys not allowed");
+        if (key == USED_BIT) {
+            throw new IllegalArgumentException("Key not allowed");
         }
-        return key + 1;
+        return key ^ USED_BIT;
     }
 
     public void put(long key, T value) {
@@ -82,7 +83,7 @@ public class Dictionary<T> {
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != 0) {
                 // Map key back, see remapKey
-                visitor.visit(keys[i] - 1, (T) values[i]);
+                visitor.visit(keys[i] ^ USED_BIT, (T) values[i]);
             }
         }
     }
