@@ -13,6 +13,9 @@
 #include "codeCache.h"
 
 
+class NMethod;
+class VMMethod;
+
 class VMStructs {
   protected:
     enum { MONITOR_BIT = 2 };
@@ -111,6 +114,8 @@ class VMStructs {
     static unsigned char _unsigned5_base;
     static const void** _call_stub_return_addr;
     static const void* _call_stub_return;
+    static const void* _interpreter_start;
+    static NMethod* _interpreter_nm;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -199,10 +204,6 @@ class MethodList {
         }
     }
 };
-
-
-class NMethod;
-class VMMethod;
 
 class VMSymbol : VMStructs {
   public:
@@ -434,6 +435,16 @@ class VMMethod : VMStructs {
 };
 
 class NMethod : VMStructs {
+  private:
+    // Inline string comparison to avoid indirect call to strncmp
+    template<size_t N>
+    static bool startsWith(const char* s, const char (&pattern)[N]) {
+        for (size_t i = 0; i < N - 1; i++) {
+            if (s[i] != pattern[i]) return false;
+        }
+        return true;
+    }
+
   public:
     int size() {
         return *(int*) at(_blob_size_offset);
@@ -494,24 +505,23 @@ class NMethod : VMStructs {
         return *(const char**) at(_nmethod_name_offset);
     }
 
-    bool isNMethod() {
-        const char* n = name();
-        return n != NULL && (strcmp(n, "nmethod") == 0 || strcmp(n, "native nmethod") == 0);
+    bool isInterpreter() {
+        return this == _interpreter_nm;
     }
 
-    bool isInterpreter() {
+    bool isNMethod() {
         const char* n = name();
-        return n != NULL && strcmp(n, "Interpreter") == 0;
+        return n != NULL && n[0] == 'n' && (startsWith(n, "nmethod\0") || startsWith(n, "native nmethod\0"));
     }
 
     bool isStub() {
         const char* n = name();
-        return n != NULL && strncmp(n, "StubRoutines", 12) == 0;
+        return n != NULL && startsWith(n, "StubRoutines");
     }
 
     bool isVTableStub() {
         const char* n = name();
-        return n != NULL && strcmp(n, "vtable chunks") == 0;
+        return n != NULL && startsWith(n, "vtable chunks");
     }
 
     VMMethod* method() {
@@ -566,6 +576,11 @@ class CodeHeap : VMStructs {
         for (const void* high = _code_heap_high;
              end > high && !__sync_bool_compare_and_swap(&_code_heap_high, high, end);
              high = _code_heap_high);
+    }
+
+    static void setInterpreterStart(const void* start) {
+        _interpreter_start = start;
+        _interpreter_nm = findNMethod(start);
     }
 
     static NMethod* findNMethod(const void* pc) {

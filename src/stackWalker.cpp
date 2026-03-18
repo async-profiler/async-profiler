@@ -280,44 +280,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                 anchor = NULL;
             }
 
-            if (nm->isNMethod()) {
-                int level = nm->level();
-                FrameTypeId type = details && level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
-                fillFrame(frames[depth++], type, 0, nm->method()->id());
-
-                if (nm->isFrameCompleteAt(pc)) {
-                    if (depth == 1 && frame.unwindEpilogue(nm, (uintptr_t&)pc, sp, fp)) {
-                        continue;
-                    }
-
-                    int scope_offset = nm->findScopeOffset(pc);
-                    if (scope_offset > 0) {
-                        depth--;
-                        ScopeDesc scope(nm);
-                        do {
-                            scope_offset = scope.decode(scope_offset);
-                            if (details) {
-                                type = scope_offset > 0 ? FRAME_INLINED :
-                                       level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
-                            }
-                            fillFrame(frames[depth++], type, scope.bci(), scope.method()->id());
-                        } while (scope_offset > 0 && depth < max_depth);
-                    }
-
-                    // Handle situations when sp is temporarily changed in the compiled code
-                    frame.adjustSP(nm->entry(), pc, sp);
-
-                    sp += nm->frameSize() * sizeof(void*);
-                    fp = ((uintptr_t*)sp)[-FRAME_PC_SLOT - 1];
-                    pc = ((const void**)sp)[-FRAME_PC_SLOT];
-                    continue;
-                } else if (frame.unwindPrologue(nm, (uintptr_t&)pc, sp, fp)) {
-                    continue;
-                }
-
-                fillFrame(frames[depth++], BCI_ERROR, "break_compiled");
-                break;
-            } else if (nm->isInterpreter()) {
+            if (nm->isInterpreter()) {
                 if (vm_thread != NULL && vm_thread->inDeopt()) {
                     fillFrame(frames[depth++], BCI_ERROR, "break_deopt");
                     break;
@@ -362,6 +325,43 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                 }
 
                 fillFrame(frames[depth++], BCI_ERROR, "break_interpreted");
+                break;
+            } else if (nm->isNMethod()) {
+                int level = nm->level();
+                FrameTypeId type = details && level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
+                fillFrame(frames[depth++], type, 0, nm->method()->id());
+
+                if (nm->isFrameCompleteAt(pc)) {
+                    if (depth == 1 && frame.unwindEpilogue(nm, (uintptr_t&)pc, sp, fp)) {
+                        continue;
+                    }
+
+                    int scope_offset = nm->findScopeOffset(pc);
+                    if (scope_offset > 0) {
+                        depth--;
+                        ScopeDesc scope(nm);
+                        do {
+                            scope_offset = scope.decode(scope_offset);
+                            if (details) {
+                                type = scope_offset > 0 ? FRAME_INLINED :
+                                       level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
+                            }
+                            fillFrame(frames[depth++], type, scope.bci(), scope.method()->id());
+                        } while (scope_offset > 0 && depth < max_depth);
+                    }
+
+                    // Handle situations when sp is temporarily changed in the compiled code
+                    frame.adjustSP(nm->entry(), pc, sp);
+
+                    sp += nm->frameSize() * sizeof(void*);
+                    fp = ((uintptr_t*)sp)[-FRAME_PC_SLOT - 1];
+                    pc = ((const void**)sp)[-FRAME_PC_SLOT];
+                    continue;
+                } else if (frame.unwindPrologue(nm, (uintptr_t&)pc, sp, fp)) {
+                    continue;
+                }
+
+                fillFrame(frames[depth++], BCI_ERROR, "break_compiled");
                 break;
             } else if (nm->isEntryFrame(pc) && !features.mixed) {
                 JavaFrameAnchor* next_anchor = JavaFrameAnchor::fromEntryFrame(fp);
