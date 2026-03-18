@@ -8,7 +8,6 @@
 
 #include <jvmti.h>
 #include <stdint.h>
-#include <string.h>
 #include <type_traits>
 #include "codeCache.h"
 
