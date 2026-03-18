@@ -510,7 +510,7 @@ class NMethod : VMStructs {
 
     bool isNMethod() {
         const char* n = name();
-        return n != NULL && n[0] == 'n' && (startsWith(n, "nmethod\0") || startsWith(n, "native nmethod\0"));
+        return n != NULL && (startsWith(n, "nmethod\0") || startsWith(n, "native nmethod\0"));
     }
 
     bool isStub() {
