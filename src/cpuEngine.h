@@ -15,6 +15,7 @@ class CpuEngine : public Engine {
   protected:
     static void** _pthread_entry;
     static CpuEngine* _current;
+    static StackWalkFeatures _features;
 
     static long _interval;
     static CStack _cstack;

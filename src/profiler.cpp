@@ -428,7 +428,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         if (_features.pc_addr && event_type <= WALL_CLOCK_SAMPLE) {
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
-        if (!_features.no_native || _cstack != CSTACK_NO) {
+        if (!_features.no_native) {
             num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &cpu);
         }
     }
@@ -877,10 +877,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
     if (!VMStructs::hasCompilerStructs()) {
         _features.comp_task = 0;
-    }
-
-    if (args._cstack == CSTACK_NO) {
-        _features.no_native = 1;
     }
 
     if (reset || _start_time == 0) {

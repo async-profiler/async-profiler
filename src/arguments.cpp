@@ -329,7 +329,7 @@ Error Arguments::parse(const char* args) {
                         _cstack = CSTACK_VM;
                         _features.mixed = 1;
                     } else {
-                        _cstack = CSTACK_NO;
+                        _features.no_native = 1;
                     }
                 }
 

@@ -18,6 +18,7 @@ CpuEngine* CpuEngine::_current = NULL;
 
 long CpuEngine::_interval;
 CStack CpuEngine::_cstack;
+StackWalkFeatures CpuEngine::_features;
 int CpuEngine::_signal;
 bool CpuEngine::_count_overrun;
 
@@ -124,7 +125,7 @@ void CpuEngine::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     J9StackTraceNotification notif;
-    notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF
+    notif.num_frames = _features.no_native ? 0 : _cstack == CSTACK_DWARF
         ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES)
         : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES);
     J9StackTraces::checkpoint(_interval, &notif);

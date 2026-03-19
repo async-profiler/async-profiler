@@ -4,6 +4,7 @@
  */
 
 #ifdef __linux__
+#include "cpuEngine.h"
 
 #include <stdlib.h>
 #include <sys/syscall.h>
@@ -83,6 +84,7 @@ Error CTimer::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
     _cstack = args._cstack;
+    _features = args._features;
     _signal = args._signal == 0 ? OS::getProfilingSignal(0) : args._signal & 0xff;
     _count_overrun = true;
 

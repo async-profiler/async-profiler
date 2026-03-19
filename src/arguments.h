@@ -57,10 +57,10 @@ enum Style {
 // Whenever enum changes, update SETTING_CSTACK in FlightRecorder
 enum SHORT_ENUM CStack {
     CSTACK_DEFAULT,  // use perf_event_open stack if available or Frame Pointer links otherwise
-    CSTACK_NO,       // do not collect native frames
     CSTACK_FP,       // walk stack using Frame Pointer links
     CSTACK_DWARF,    // use DWARF unwinding info from .eh_frame section
-    CSTACK_VM        // unwind using HotSpot VMStructs
+    CSTACK_VM,       // unwind using HotSpot VMStructs
+    CSTACK_INVALID   // added to stop compilation warning related to assert statement in flightRecorder
 };
 
 enum SHORT_ENUM Clock {

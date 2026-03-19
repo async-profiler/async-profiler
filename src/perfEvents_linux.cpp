@@ -4,6 +4,8 @@
  */
 
 #ifdef __linux__
+#include "cpuEngine.h"
+#include "cpuEngine.h"
 
 #include <jvmti.h>
 #include <string.h>
@@ -785,7 +787,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif;
         u64 cpu = 0;
-        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &cpu);
+        notif.num_frames = _features.no_native ? 0 : walk(OS::threadId(), ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &cpu);
         J9StackTraces::checkpoint(counter, &notif);
     } else {
         resetBuffer(OS::threadId());
@@ -829,11 +831,12 @@ Error PerfEvents::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : _event_type->default_interval;
     _cstack = args._cstack;
+    _features = args._features;
     _signal = args._signal == 0 ? OS::getProfilingSignal(0) : args._signal & 0xff;
     _count_overrun = false;
 
     _alluser = args._alluser;
-    _kernel_stack = !_alluser && _cstack != CSTACK_NO;
+    _kernel_stack = !_alluser && !_features.no_native;
     if (_kernel_stack && !Symbols::haveKernelSymbols()) {
         Log::warn("Kernel symbols are unavailable due to restrictions. Try\n"
                   "  sysctl kernel.perf_event_paranoid=1\n"
