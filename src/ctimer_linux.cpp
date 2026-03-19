@@ -4,7 +4,6 @@
  */
 
 #ifdef __linux__
-#include "cpuEngine.h"
 
 #include <stdlib.h>
 #include <sys/syscall.h>

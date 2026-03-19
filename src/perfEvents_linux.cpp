@@ -4,8 +4,6 @@
  */
 
 #ifdef __linux__
-#include "cpuEngine.h"
-#include "cpuEngine.h"
 
 #include <jvmti.h>
 #include <string.h>
