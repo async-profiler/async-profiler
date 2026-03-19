@@ -32,7 +32,7 @@ public class CpuTests {
         }
     }
 
-    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX, runIsolated = true)
     public void ctimerTotal(TestProcess p) throws Exception {
         Output out = p.profile("-d 2 -e ctimer -i 100ms --total -o collapsed");
         assertCloseTo(out.total(), 2_000_000_000, "ctimer total should match profiling duration");
@@ -41,13 +41,13 @@ public class CpuTests {
         assertCloseTo(out.total(), 2_000_000_000, "ctimer total should not depend on the profiling interval");
     }
 
-    @Test(mainClass = CpuBurner.class)
+    @Test(mainClass = CpuBurner.class, runIsolated = true)
     public void itimerTotal(TestProcess p) throws Exception {
         Output out = p.profile("-d 2 -e itimer -i 100ms --total -o collapsed");
         assertCloseTo(out.total(), 2_000_000_000, "itimer total should match profiling duration");
     }
 
-    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX, runIsolated = true)
     public void perfEventsTargetCpuEventsCount(TestProcess p) throws Exception {
         pinCpu(p, 0);
 
@@ -71,7 +71,7 @@ public class CpuTests {
         assert !output.contains("\\[CPU-0\\]");
     }
 
-    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX, runIsolated = true)
     public void perfEventsTargetCpuWithFdtransferEventsCount(TestProcess p) throws Exception {
         pinCpu(p, 0);
 

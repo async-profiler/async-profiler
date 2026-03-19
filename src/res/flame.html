@@ -57,7 +57,7 @@
 </dl>
 <dl class='hotkeys'>
 	<dt>Click frame</dt><dd>Zoom into frame</dd>
-	<dt>Alt+Click</dt><dd>Remove stack</dd>
+	<dt>Ctrl/Alt+Click</dt><dd>Remove stack</dd>
 	<dt>0</dt><dd>Reset zoom</dd>
 	<dt>I</dt><dd>Invert graph</dd>
 	<dt>Ctrl+F</dt><dd>Search</dd>
@@ -276,7 +276,7 @@
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
 				canvas.style.cursor = 'pointer';
 				canvas.onclick = function() {
-					if (event.altKey && h >= root.level && h > 0) {
+					if ((event.altKey || event.ctrlKey) && h >= root.level && h > 0) {
 						removeStack(f.left, f.width);
 						root.width > f.width ? render(root) : render();
 					} else if (f !== root) {

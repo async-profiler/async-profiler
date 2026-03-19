@@ -3,6 +3,7 @@ name: CI
 on:  # We are very liberal in terms of triggering builds. This should be revisited if we start seeing a lot of queueing
   - push
   - pull_request
+  - workflow_dispatch
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

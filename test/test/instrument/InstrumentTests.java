@@ -385,7 +385,8 @@ public class InstrumentTests {
         agentArgs = "start,threads,trace=*.*:100ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all",
         output    = true,
-        error     = true
+        error     = true,
+        runIsolated = true
     )
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
     public void latencyAll(TestProcess p) throws Exception {
