@@ -553,7 +553,7 @@ class Recording {
     void flush(Buffer* buf) {
         ssize_t result = write(_in_memory ? _memfd : _fd, buf->data(), buf->offset());
         if (result > 0) {
-            atomicInc(_bytes_written, result);
+            atomicInc(_bytes_written, (u64)result);
         }
         buf->reset();
     }
@@ -1396,9 +1396,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     int event_mask = args.eventMask() |
                      ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
 
-    __atomic_store_n(&_jfr_starting, true, __ATOMIC_RELEASE);
+    storeRelease(_jfr_starting, true);
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
-    __atomic_store_n(&_jfr_starting, false, __ATOMIC_RELEASE);
+    storeRelease(_jfr_starting, false);
 
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -1489,5 +1489,5 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
 }
 
 bool FlightRecorder::isJfrStarting() {
-    return __atomic_load_n(&_jfr_starting, __ATOMIC_ACQUIRE);
+    return loadAcquire(_jfr_starting);
 }

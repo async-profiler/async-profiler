@@ -293,7 +293,7 @@ class VMKlass : VMStructs {
     }
 
     jmethodID* jmethodIDs() {
-        return __atomic_load_n((jmethodID**) at(_jmethod_ids_offset), __ATOMIC_ACQUIRE);
+        return loadAcquire(*(jmethodID**) at(_jmethod_ids_offset));
     }
 };
 

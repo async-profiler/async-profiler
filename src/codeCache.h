@@ -7,6 +7,7 @@
 #define _CODECACHE_H
 
 #include <jvmti.h>
+#include "arch.h"
 
 
 #define NO_MIN_ADDRESS  ((const void*)-1)
@@ -230,7 +231,7 @@ class CodeCacheArray {
     }
 
     int count() {
-        return __atomic_load_n(&_count, __ATOMIC_ACQUIRE);
+        return loadAcquire(_count);
     }
 
     size_t usedMemory() {
@@ -238,10 +239,10 @@ class CodeCacheArray {
     }
 
     void add(CodeCache* lib) {
-        int index = __atomic_load_n(&_count, __ATOMIC_ACQUIRE);
+        int index = loadAcquire(_count);
         _libs[index] = lib;
         _used_memory += lib->usedMemory();
-        __atomic_store_n(&_count, index + 1, __ATOMIC_RELEASE);
+        storeRelease(_count, index + 1);
     }
 };
 
