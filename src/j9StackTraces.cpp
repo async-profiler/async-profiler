@@ -47,7 +47,7 @@ pthread_t J9StackTraces::_thread = 0;
 int J9StackTraces::_max_stack_depth;
 int J9StackTraces::_pipe[2];
 
-static JNIEnv* _self_env = NULL;
+static JNIEnv* _self_env = nullptr;
 
 
 Error J9StackTraces::start(Arguments& args) {
@@ -145,13 +145,13 @@ void J9StackTraces::timerLoop() {
     free(jvmti_frames);
     free(frames);
 
-    storeRelease(_self_env, NULL);
+    storeRelease(_self_env, nullptr);
     VM::detachThread();
 }
 
 void J9StackTraces::checkpoint(u64 counter, J9StackTraceNotification* notif) {
     JNIEnv* self_env = loadAcquire(_self_env);
-    if (self_env == NULL) {
+    if (self_env == nullptr) {
         // Sampler thread is not ready
         return;
     }

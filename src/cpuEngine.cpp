@@ -85,7 +85,7 @@ void CpuEngine::enableThreadHook() {
 
 void CpuEngine::disableThreadHook() {
     *_pthread_entry = (void*)pthread_setspecific;
-    storeRelease(_current, NULL);
+    storeRelease(_current, nullptr);
 }
 
 bool CpuEngine::isResourceLimit(int err) {
