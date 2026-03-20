@@ -38,7 +38,7 @@ class J9VMThread {
     }
 
     void setOverflowMark() {
-        __atomic_store_n(&_overflow_mark, (uintptr_t)-1, __ATOMIC_RELEASE);
+        storeRelease(_overflow_mark, (uintptr_t)-1);
     }
 };
 
@@ -47,7 +47,7 @@ pthread_t J9StackTraces::_thread = 0;
 int J9StackTraces::_max_stack_depth;
 int J9StackTraces::_pipe[2];
 
-static JNIEnv* _self_env = NULL;
+static JNIEnv* _self_env = nullptr;
 
 
 Error J9StackTraces::start(Arguments& args) {
@@ -78,7 +78,7 @@ void J9StackTraces::stop() {
 
 void J9StackTraces::timerLoop() {
     JNIEnv* jni = VM::attachThread("Async-profiler Sampler");
-    __atomic_store_n(&_self_env, jni, __ATOMIC_RELEASE);
+    storeRelease(_self_env, jni);
 
     jni->PushLocalFrame(64);
 
@@ -145,13 +145,13 @@ void J9StackTraces::timerLoop() {
     free(jvmti_frames);
     free(frames);
 
-    __atomic_store_n(&_self_env, NULL, __ATOMIC_RELEASE);
+    storeRelease(_self_env, nullptr);
     VM::detachThread();
 }
 
 void J9StackTraces::checkpoint(u64 counter, J9StackTraceNotification* notif) {
-    JNIEnv* self_env = __atomic_load_n(&_self_env, __ATOMIC_ACQUIRE);
-    if (self_env == NULL) {
+    JNIEnv* self_env = loadAcquire(_self_env);
+    if (self_env == nullptr) {
         // Sampler thread is not ready
         return;
     }

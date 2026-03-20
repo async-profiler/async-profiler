@@ -102,7 +102,7 @@ void ThreadFilter::remove(int thread_id) {
 
     u32 bit = 1 << (thread_id & 0x1f);
     if (__sync_fetch_and_and(&word(b, thread_id), ~bit) & bit) {
-        atomicInc(_size, -1);
+        atomicDec(_size);
     }
 }
 

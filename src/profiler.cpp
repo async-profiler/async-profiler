@@ -573,7 +573,7 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
 void Profiler::switchLibraryTrap(bool enable) {
     if (_dlopen_entry != NULL) {
         void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
-        __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
+        storeRelease(*_dlopen_entry, impl);
     }
 }
 

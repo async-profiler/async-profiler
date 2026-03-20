@@ -250,7 +250,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
             if (table->incSize() == capacity * 3 / 4) {
                 LongHashTable* new_table = LongHashTable::allocate(table, capacity * 2);
                 if (new_table != NULL) {
-                    __atomic_store_n(&_current_table, new_table, __ATOMIC_RELEASE);
+                    storeRelease(_current_table, new_table);
                 }
             }
 

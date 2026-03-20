@@ -27,28 +27,24 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
 
-static inline u64 atomicInc(volatile u64& var, u64 increment = 1) {
-    return __sync_fetch_and_add(&var, increment);
+template<typename T>
+static inline T atomicInc(T& var, T increment = 1) {
+    return __atomic_fetch_add(&var, increment, __ATOMIC_ACQ_REL);
 }
 
-static inline int atomicInc(volatile u32& var, int increment = 1) {
-    return __sync_fetch_and_add(&var, increment);
+template<typename T>
+static inline T atomicDec(T& var, T decrement = 1) {
+    return __atomic_fetch_sub(&var, decrement, __ATOMIC_ACQ_REL);
 }
 
-static inline int atomicInc(volatile int& var, int increment = 1) {
-    return __sync_fetch_and_add(&var, increment);
-}
-
-static inline u64 loadAcquire(u64& var) {
+template<typename T>
+static inline T loadAcquire(T& var) {
     return __atomic_load_n(&var, __ATOMIC_ACQUIRE);
 }
 
-static inline u32 loadAcquire(u32& var) {
-    return __atomic_load_n(&var, __ATOMIC_ACQUIRE);
-}
-
-static inline void storeRelease(u64& var, u64 value) {
-    __atomic_store_n(&var, value, __ATOMIC_RELEASE);
+template<typename T, typename U>
+static inline void storeRelease(T& var, U value) {
+    __atomic_store_n(&var, static_cast<T>(value), __ATOMIC_RELEASE);
 }
 
 #if defined(__x86_64__) || defined(__i386__)

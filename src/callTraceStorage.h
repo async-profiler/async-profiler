@@ -26,11 +26,11 @@ struct CallTraceSample {
     u64 counter;
 
     CallTrace* acquireTrace() {
-        return __atomic_load_n(&trace, __ATOMIC_ACQUIRE);
+        return loadAcquire(trace);
     }
 
     void setTrace(CallTrace* value) {
-        return __atomic_store_n(&trace, value, __ATOMIC_RELEASE);
+        storeRelease(trace, value);
     }
 
     CallTraceSample& operator+=(const CallTraceSample& s) {
