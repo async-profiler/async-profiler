@@ -19,6 +19,7 @@ struct Chunk {
 class LinearAllocator {
   private:
     size_t _chunk_size;
+    size_t _used_memory;
     Chunk* _tail;
     Chunk* _reserve;
 
@@ -31,8 +32,11 @@ class LinearAllocator {
     LinearAllocator(size_t chunk_size);
     ~LinearAllocator();
 
+    size_t usedMemory() const {
+        return _used_memory;
+    }
+
     void clear();
-    size_t usedMemory();
 
     void* alloc(size_t size);
 };

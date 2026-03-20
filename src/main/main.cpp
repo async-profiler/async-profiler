@@ -92,6 +92,7 @@ static const char USAGE_STRING[] =
     "  --end function      end profiling when function is executed\n"
     "  --ttsp              only time-to-safepoint profiling \n"
     "  --nostop            do not stop profiling outside --begin/--end window\n"
+    "  --memlimit bytes    limit size of the stack trace storage\n"
     "  --jfropts opts      JFR recording options: mem\n"
     "  --jfrsync config    synchronize profiler with JFR recording\n"
     "  --libpath path      full path to libasyncProfiler.so in the container\n"
@@ -509,7 +510,7 @@ int main(int argc, const char** argv) {
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||
                    arg == "--wall" || arg == "--trace" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
-                   arg == "--target-cpu" || arg == "--proc") {
+                   arg == "--target-cpu" || arg == "--proc" || arg == "--memlimit") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--all" || arg == "--live" || arg == "--nobatch" || arg == "--nofree" || arg == "--nostop" ||

@@ -9,6 +9,7 @@
 
 LinearAllocator::LinearAllocator(size_t chunk_size) {
     _chunk_size = chunk_size;
+    _used_memory = 0;
     _reserve = _tail = allocateChunk(NULL);
 }
 
@@ -28,14 +29,6 @@ void LinearAllocator::clear() {
     }
     _reserve = _tail;
     _tail->offs = sizeof(Chunk);
-}
-
-size_t LinearAllocator::usedMemory() {
-    size_t bytes = _reserve->prev == _tail ? _chunk_size : 0;
-    for (Chunk* chunk = _tail; chunk != NULL; chunk = chunk->prev) {
-        bytes += _chunk_size;
-    }
-    return bytes;
 }
 
 void* LinearAllocator::alloc(size_t size) {
@@ -62,12 +55,14 @@ Chunk* LinearAllocator::allocateChunk(Chunk* current) {
     if (chunk != NULL) {
         chunk->prev = current;
         chunk->offs = sizeof(Chunk);
+        atomicInc(_used_memory, _chunk_size);
     }
     return chunk;
 }
 
 void LinearAllocator::freeChunk(Chunk* current) {
     OS::safeFree(current, _chunk_size);
+    atomicDec(_used_memory, _chunk_size);
 }
 
 void LinearAllocator::reserveChunk(Chunk* current) {

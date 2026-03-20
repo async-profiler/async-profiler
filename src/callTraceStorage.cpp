@@ -83,6 +83,7 @@ CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, LP64_ONLY(0 COMMA)
 
 CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
     _current_table = LongHashTable::allocate(NULL, INITIAL_CAPACITY);
+    _used_memory = _current_table->usedMemory();
     _overflow = 0;
 }
 
@@ -97,6 +98,7 @@ void CallTraceStorage::clear() {
         _current_table = _current_table->destroy();
     }
     _current_table->clear();
+    _used_memory = _current_table->usedMemory();
     _allocator.clear();
     _overflow = 0;
 }
@@ -108,11 +110,8 @@ u32 CallTraceStorage::capacity() {
 }
 
 size_t CallTraceStorage::usedMemory() {
-    size_t bytes = _allocator.usedMemory();
-    for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
-        bytes += table->usedMemory();
-    }
-    return bytes;
+    // Warning: do not access _current_table as this function is called outside the lock
+    return _used_memory + _allocator.usedMemory();
 }
 
 void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
@@ -250,6 +249,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
             if (table->incSize() == capacity * 3 / 4) {
                 LongHashTable* new_table = LongHashTable::allocate(table, capacity * 2);
                 if (new_table != NULL) {
+                    atomicInc(_used_memory, new_table->usedMemory());
                     storeRelease(_current_table, new_table);
                 }
             }

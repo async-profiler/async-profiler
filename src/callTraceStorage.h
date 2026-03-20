@@ -47,6 +47,7 @@ class CallTraceStorage {
 
     LinearAllocator _allocator;
     LongHashTable* _current_table;
+    size_t _used_memory;
     u64 _overflow;
 
     u64 calcHash(int num_frames, ASGCT_CallFrame* frames);
