@@ -84,6 +84,7 @@ CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, LP64_ONLY(0 COMMA)
 CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
     _current_table = LongHashTable::allocate(NULL, INITIAL_CAPACITY);
     _used_memory = _current_table->usedMemory();
+    _mem_limit = SIZE_MAX;
     _overflow = 0;
 }
 
@@ -93,13 +94,14 @@ CallTraceStorage::~CallTraceStorage() {
     }
 }
 
-void CallTraceStorage::clear() {
+void CallTraceStorage::clear(size_t mem_limit) {
     while (_current_table->prev() != NULL) {
         _current_table = _current_table->destroy();
     }
     _current_table->clear();
     _used_memory = _current_table->usedMemory();
     _allocator.clear();
+    _mem_limit = mem_limit ? mem_limit : SIZE_MAX;
     _overflow = 0;
 }
 
@@ -240,6 +242,12 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
 
     while (keys[slot] != hash) {
         if (keys[slot] == 0) {
+            if (usedMemory() > _mem_limit) {
+                // Do not add new stack traces once memory limit has been exceeded
+                atomicInc(_overflow);
+                return OVERFLOW_TRACE_ID;
+            }
+
             if (!__sync_bool_compare_and_swap(&keys[slot], 0, hash)) {
                 continue;
             }
