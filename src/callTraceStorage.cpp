@@ -12,6 +12,7 @@
 static const u32 INITIAL_CAPACITY = 65536;
 static const u32 CALL_TRACE_CHUNK = 8 * 1024 * 1024;
 static const u32 OVERFLOW_TRACE_ID = 0x7fffffff;
+static const size_t MEM_LIMIT_EXTRA = 0x10000;  // reserve up to 64 KB for LongHashTable headers
 
 
 class LongHashTable {
@@ -101,7 +102,7 @@ void CallTraceStorage::clear(size_t mem_limit) {
     _current_table->clear();
     _used_memory = _current_table->usedMemory();
     _allocator.clear();
-    _mem_limit = mem_limit ? mem_limit : SIZE_MAX;
+    _mem_limit = mem_limit ? mem_limit | MEM_LIMIT_EXTRA : SIZE_MAX;
     _overflow = 0;
 }
 
@@ -112,7 +113,6 @@ u32 CallTraceStorage::capacity() {
 }
 
 size_t CallTraceStorage::usedMemory() {
-    // Warning: do not access _current_table as this function is called outside the lock
     return _used_memory + _allocator.usedMemory();
 }
 
@@ -243,7 +243,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
     while (keys[slot] != hash) {
         if (keys[slot] == 0) {
             if (usedMemory() > _mem_limit) {
-                // Do not add new stack traces once memory limit has been exceeded
+                // Stop adding new stack traces once memory limit is exceeded
                 atomicInc(_overflow);
                 return OVERFLOW_TRACE_ID;
             }
