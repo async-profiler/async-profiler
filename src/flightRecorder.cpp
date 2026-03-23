@@ -629,7 +629,7 @@ class Recording {
 
     void writeSettings(Buffer* buf, Arguments& args) {
         const char* const* cstack_str = SETTING_CSTACK + args._cstack;
-        const char* const* cstack_limit = SETTING_CSTACK + sizeof(SETTING_CSTACK);
+        const char* const* cstack_limit = SETTING_CSTACK + (sizeof(SETTING_CSTACK) / sizeof(char*));
         assert(cstack_str < cstack_limit);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->_engine->type());
