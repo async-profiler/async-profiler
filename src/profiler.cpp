@@ -881,7 +881,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         lockAll();
         _class_map.clear();
         _thread_filter.clear();
-        _call_trace_storage.clear();
+        _call_trace_storage.clear(args._mem_limit);
         // Make sure frame structure is consistent throughout the entire recording
         _add_event_frame = args._output != OUTPUT_JFR;
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;

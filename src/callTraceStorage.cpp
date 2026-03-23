@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <stdint.h>
 #include <string.h>
 #include "callTraceStorage.h"
 #include "os.h"
@@ -12,6 +13,7 @@
 static const u32 INITIAL_CAPACITY = 65536;
 static const u32 CALL_TRACE_CHUNK = 8 * 1024 * 1024;
 static const u32 OVERFLOW_TRACE_ID = 0x7fffffff;
+static const size_t MEM_LIMIT_EXTRA = 0x10000;  // reserve up to 64 KB for LongHashTable headers
 
 
 class LongHashTable {
@@ -83,6 +85,8 @@ CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, LP64_ONLY(0 COMMA)
 
 CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
     _current_table = LongHashTable::allocate(NULL, INITIAL_CAPACITY);
+    _used_memory = _current_table->usedMemory();
+    _mem_limit = SIZE_MAX;
     _overflow = 0;
 }
 
@@ -92,12 +96,14 @@ CallTraceStorage::~CallTraceStorage() {
     }
 }
 
-void CallTraceStorage::clear() {
+void CallTraceStorage::clear(size_t mem_limit) {
     while (_current_table->prev() != NULL) {
         _current_table = _current_table->destroy();
     }
     _current_table->clear();
+    _used_memory = _current_table->usedMemory();
     _allocator.clear();
+    _mem_limit = mem_limit ? mem_limit | MEM_LIMIT_EXTRA : SIZE_MAX;
     _overflow = 0;
 }
 
@@ -108,11 +114,7 @@ u32 CallTraceStorage::capacity() {
 }
 
 size_t CallTraceStorage::usedMemory() {
-    size_t bytes = _allocator.usedMemory();
-    for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
-        bytes += table->usedMemory();
-    }
-    return bytes;
+    return _used_memory + _allocator.usedMemory();
 }
 
 void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
@@ -241,6 +243,12 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
 
     while (keys[slot] != hash) {
         if (keys[slot] == 0) {
+            if (usedMemory() > _mem_limit) {
+                // Stop adding new stack traces once memory limit is exceeded
+                atomicInc(_overflow);
+                return OVERFLOW_TRACE_ID;
+            }
+
             if (!__sync_bool_compare_and_swap(&keys[slot], 0, hash)) {
                 continue;
             }
@@ -250,6 +258,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
             if (table->incSize() == capacity * 3 / 4) {
                 LongHashTable* new_table = LongHashTable::allocate(table, capacity * 2);
                 if (new_table != NULL) {
+                    atomicInc(_used_memory, new_table->usedMemory());
                     storeRelease(_current_table, new_table);
                 }
             }

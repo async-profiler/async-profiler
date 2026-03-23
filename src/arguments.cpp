@@ -166,6 +166,9 @@ Error Arguments::parse(const char* args) {
                     msg = "Invalid loop duration";
                 }
 
+            CASE("memlimit")
+                _mem_limit = value == NULL ? 0 : parseUnits(value, BYTES);
+
             CASE("alloc")
                 _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
 

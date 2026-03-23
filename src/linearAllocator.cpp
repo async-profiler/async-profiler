@@ -9,6 +9,7 @@
 
 LinearAllocator::LinearAllocator(size_t chunk_size) {
     _chunk_size = chunk_size;
+    _used_memory = chunk_size;
     _reserve = _tail = allocateChunk(NULL);
 }
 
@@ -28,14 +29,7 @@ void LinearAllocator::clear() {
     }
     _reserve = _tail;
     _tail->offs = sizeof(Chunk);
-}
-
-size_t LinearAllocator::usedMemory() {
-    size_t bytes = _reserve->prev == _tail ? _chunk_size : 0;
-    for (Chunk* chunk = _tail; chunk != NULL; chunk = chunk->prev) {
-        bytes += _chunk_size;
-    }
-    return bytes;
+    _used_memory = _chunk_size;
 }
 
 void* LinearAllocator::alloc(size_t size) {
@@ -99,5 +93,11 @@ Chunk* LinearAllocator::getNextChunk(Chunk* current) {
 
     // Expected case: a new chunk is already reserved
     Chunk* tail = __sync_val_compare_and_swap(&_tail, current, reserve);
-    return tail == current ? reserve : tail;
+    if (tail == current) {
+        // CAS succeeded: switched to a new chunk
+        atomicInc(_used_memory, _chunk_size);
+        return reserve;
+    }
+    // Lost the race to another thread
+    return tail;
 }
