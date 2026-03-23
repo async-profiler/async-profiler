@@ -254,7 +254,7 @@ Error Arguments::parse(const char* args) {
                     if (strstr(value, "comptask")) _features.comp_task = 1;
                     if (strstr(value, "pcaddr"))   _features.pc_addr = 1;
                     if (strstr(value, "agct"))     _features.agct = 1;
-                    if (strstr(value, "nonative")) _features.no_native = 1;
+                    if (strstr(value, "javaonly")) _features.java_only = 1;
                 }
 
             CASE("file")
@@ -329,7 +329,7 @@ Error Arguments::parse(const char* args) {
                         _cstack = CSTACK_VM;
                         _features.mixed = 1;
                     } else {
-                        _features.no_native = 1;
+                        _features.java_only = 1;
                     }
                 }
 

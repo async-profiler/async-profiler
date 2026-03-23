@@ -235,7 +235,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
 
     // Show extended frame types and stub frames for execution-type events
     bool details = event_type <= MALLOC_SAMPLE || features.mixed;
-    bool no_native = features.no_native;
+    bool java_only = features.java_only;
 
     JavaFrameAnchor* anchor = NULL;
     VMThread* vm_thread = VMThread::current();
@@ -250,7 +250,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
     }
 
     // Jump directly to java frame if possible in case native frames are not desired
-    if (no_native && anchor != NULL) {
+    if (java_only && anchor != NULL) {
         anchor->restoreFrame(pc, sp, fp);
         anchor = NULL;
     }
@@ -395,7 +395,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                 const void* start = stub != NULL ? stub->_start : nm->code();
                 const char* name = stub != NULL ? stub->_name : nm->name();
 
-                if (!no_native && details) {
+                if (!java_only && details) {
                     fillFrame(frames[depth++], BCI_NATIVE_FRAME, name);
                 }
 
@@ -412,7 +412,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             }
         } else {
             native_lib = profiler->findLibraryByAddress(pc);
-            if (!no_native) {
+            if (!java_only) {
                 const char* method_name = native_lib != NULL ? native_lib->binarySearch(pc) : NULL;
                 char mark;
                 if (method_name != NULL && (mark = NativeFunc::mark(method_name)) != 0) {

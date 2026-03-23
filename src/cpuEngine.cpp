@@ -125,7 +125,7 @@ void CpuEngine::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     J9StackTraceNotification notif;
-    notif.num_frames = _features.no_native ? 0 : _cstack == CSTACK_DWARF
+    notif.num_frames = _features.java_only ? 0 : _cstack == CSTACK_DWARF
         ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES)
         : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES);
     J9StackTraces::checkpoint(_interval, &notif);

@@ -785,7 +785,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif;
         u64 cpu = 0;
-        notif.num_frames = _features.no_native ? 0 : walk(OS::threadId(), ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &cpu);
+        notif.num_frames = _features.java_only ? 0 : walk(OS::threadId(), ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &cpu);
         J9StackTraces::checkpoint(counter, &notif);
     } else {
         resetBuffer(OS::threadId());
@@ -834,7 +834,7 @@ Error PerfEvents::start(Arguments& args) {
     _count_overrun = false;
 
     _alluser = args._alluser;
-    _kernel_stack = !_alluser && !_features.no_native;
+    _kernel_stack = !_alluser && !_features.java_only;
     if (_kernel_stack && !Symbols::haveKernelSymbols()) {
         Log::warn("Kernel symbols are unavailable due to restrictions. Try\n"
                   "  sysctl kernel.perf_event_paranoid=1\n"

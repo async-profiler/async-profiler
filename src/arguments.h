@@ -60,7 +60,6 @@ enum SHORT_ENUM CStack {
     CSTACK_FP,       // walk stack using Frame Pointer links
     CSTACK_DWARF,    // use DWARF unwinding info from .eh_frame section
     CSTACK_VM,       // unwind using HotSpot VMStructs
-    CSTACK_INVALID   // added to stop compilation warning related to assert statement in flightRecorder
 };
 
 enum SHORT_ENUM Clock {
@@ -112,7 +111,7 @@ struct StackWalkFeatures {
     unsigned short vtable_target : 1;   // show receiver classes of vtable/itable stubs
     unsigned short comp_task     : 1;   // display current compilation task for JIT threads
     unsigned short pc_addr       : 1;   // record exact PC address for each sample
-    unsigned short no_native     : 1;   // do not collect native stacks
+    unsigned short java_only     : 1;   // only collect java stacks
     unsigned short _padding      : 8;   // pad structure to 16 bits
 };
 

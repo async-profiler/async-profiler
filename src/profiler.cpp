@@ -428,7 +428,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         if (_features.pc_addr && event_type <= WALL_CLOCK_SAMPLE) {
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
-        if (!_features.no_native) {
+        if (!_features.java_only) {
             num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &cpu);
         }
     }
@@ -894,7 +894,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         _add_event_frame = args._output != OUTPUT_JFR;
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
         _add_sched_frame = args._sched;
-        _add_cpu_frame = args._record_cpu && !_features.no_native;
+        _add_cpu_frame = args._record_cpu && !_features.java_only;
         unlockAll();
 
         // Reset thread names and IDs
