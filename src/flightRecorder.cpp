@@ -628,10 +628,12 @@ class Recording {
     }
 
     void writeSettings(Buffer* buf, Arguments& args) {
-        assert(args._cstack < sizeof(SETTING_CSTACK) / sizeof(char*));
+        const char* const* cstack_str = SETTING_CSTACK + args._cstack;
+        const char* const* cstack_limit = SETTING_CSTACK + sizeof(SETTING_CSTACK);
+        assert(cstack_str < cstack_limit);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->_engine->type());
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", *cstack_str);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", TSC::enabled() ? "tsc" : "monotonic");
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
