@@ -211,12 +211,14 @@ public class JfrReader implements Closeable {
             } else {
                 Constructor<? extends Event> customEvent = customEvents.get(type);
                 if (customEvent != null && (cls == null || cls == customEvent.getDeclaringClass())) {
+                    long eventEnd = filePosition + pos + size;
+                    ensureBytes(size - (buf.position() - pos));
                     try {
                         return (E) customEvent.newInstance(this);
                     } catch (ReflectiveOperationException e) {
                         throw new IllegalStateException(e);
                     } finally {
-                        seek(filePosition + pos + size);
+                        seek(eventEnd);
                     }
                 }
             }
