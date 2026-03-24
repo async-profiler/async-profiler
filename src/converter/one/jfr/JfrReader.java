@@ -181,8 +181,6 @@ public class JfrReader implements Closeable {
                 }
                 return null;
             }
-            long eventEnd = filePosition + pos + size;
-            ensureBytes(size - (buf.position() - pos));
 
             if (type == executionSample || type == nativeMethodSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(false);
@@ -213,6 +211,8 @@ public class JfrReader implements Closeable {
             } else {
                 Constructor<? extends Event> customEvent = customEvents.get(type);
                 if (customEvent != null && (cls == null || cls == customEvent.getDeclaringClass())) {
+                    long eventEnd = filePosition + pos + size;
+                    ensureBytes(size - (buf.position() - pos));
                     try {
                         return (E) customEvent.newInstance(this);
                     } catch (ReflectiveOperationException e) {
@@ -223,7 +223,7 @@ public class JfrReader implements Closeable {
                 }
             }
 
-            seek(eventEnd);
+            seek(filePosition + pos + size);
         }
 
         state = STATE_EOF;
