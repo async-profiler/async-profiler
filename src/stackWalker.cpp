@@ -424,6 +424,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
         }
 
         uintptr_t prev_fp = fp;
+        const void* prev_pc = pc;
         FrameDesc* f = native_lib != NULL ? native_lib->findFrameDesc(pc) : &FrameDesc::default_frame;
 
         unwind_frame:
@@ -449,7 +450,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             break;
         }
 
-        const void* prev_pc = pc;
         if (f->fp_off & DW_PC_OFFSET) {
             pc = (const char*)pc + (f->fp_off >> 1);
         } else {
