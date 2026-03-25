@@ -1361,7 +1361,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
         jclass cls = env->DefineClass(JFR_SYNC_NAME, NULL, (const jbyte*)JFR_SYNC_CLASS, INCBIN_SIZEOF(JFR_SYNC_CLASS));
         if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0
                 || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL
-                || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL
+                || (_stop_method = env->GetStaticMethodID(cls, "stop", "()Z")) == NULL
                 || (_box_method = env->GetStaticMethodID(cls, "box", "(I)Ljava/lang/Integer;")) == NULL
                 || (_jfr_sync_class = (jclass)env->NewGlobalRef(cls)) == NULL) {
             env->ExceptionDescribe();
@@ -1411,7 +1411,9 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
 
 void FlightRecorder::stopMasterRecording() {
     JNIEnv* env = VM::jni();
-    env->CallStaticVoidMethod(_jfr_sync_class, _stop_method);
+    if (env->CallStaticBooleanMethod(_jfr_sync_class, _stop_method) == JNI_FALSE) {
+        Log::warn("Failed to stop JFR recording");
+    }
     env->ExceptionClear();
 }
 
