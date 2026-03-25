@@ -16,6 +16,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.util.StringTokenizer;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Synchronize async-profiler recording with an existing JFR recording.
@@ -77,13 +78,24 @@ class JfrSync implements FlightRecorderListener {
         recording.start();
     }
 
-    public static void stop() {
+    public static boolean stop() {
         Recording recording = masterRecording;
         if (recording != null) {
             // Disable state change notification before stopping
             masterRecording = null;
-            recording.stop();
+            try {
+                recording.stop();
+            } catch (IllegalStateException e) {
+                // Workaround the JDK issue: JFR shutdown hook may stop the recording concurrently
+                // then populate the target file outside the state lock.
+                // Once the file is completely written, the recording state is changed to CLOSED.
+                for (int pause = 10; recording.getState() != RecordingState.CLOSED && pause < 1000; pause *= 2) {
+                    LockSupport.parkNanos(pause * 1_000_000L);
+                }
+                return recording.getState() == RecordingState.CLOSED;
+            }
         }
+        return true;
     }
 
     private static void disableBuiltinEvents(Recording recording, int eventMask) {
