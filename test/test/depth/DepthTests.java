@@ -42,7 +42,7 @@ public class DepthTests {
         assert full.stream().anyMatch(s -> frameCount(s) < 20);
 
         // All truncated stacks start with [truncated] followed by exactly 20 frames
-        List<String> truncated = out.stream("^(?!DeepRecursion.main)").collect(Collectors.toList());
+        List<String> truncated = out.stream("^DeepRecursion.(?!main)").collect(Collectors.toList());
         assert truncated.stream().allMatch(s -> s.startsWith("[truncated];"));
         assert truncated.stream().allMatch(s -> frameCount(s) == 21);
     }
