@@ -457,6 +457,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     if (num_frames == 0) {
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, "no_Java_frame");
+    } else if (num_frames >= _max_stack_depth && _truncated_stack_depth < _max_stack_depth) {
+        num_frames = _truncated_stack_depth;
+        num_frames += makeFrame(frames + num_frames, BCI_ERROR, "truncated");
     }
 
     if (_add_thread_frame) {
@@ -909,6 +912,7 @@ Error Profiler::start(Arguments& args, bool reset) {
             }
         }
     }
+    _truncated_stack_depth = std::min(std::max(args._truncated_stack_depth, 0), _max_stack_depth);
 
     _features = args._features;
     if (!VMStructs::hasClassNames()) {
