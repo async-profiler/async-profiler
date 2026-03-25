@@ -173,6 +173,7 @@ class Arguments {
     long _proc;
     bool _all;
     int _jstackdepth;
+    int _truncated_stack_depth;
     int _signal;
     const char* _file;
     const char* _log;
@@ -236,6 +237,7 @@ class Arguments {
         _proc(-1),
         _all(false),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
+        _truncated_stack_depth(DEFAULT_JSTACKDEPTH),
         _signal(0),
         _file(NULL),
         _log(NULL),

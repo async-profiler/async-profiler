@@ -80,6 +80,7 @@ class Profiler {
     SpinLock _locks[CONCURRENCY_LEVEL];
     CallTraceBuffer* _calltrace_buffer[CONCURRENCY_LEVEL];
     int _max_stack_depth;
+    int _truncated_stack_depth;
     StackWalkFeatures _features;
     CStack _cstack;
     bool _add_event_frame;
@@ -162,6 +163,7 @@ class Profiler {
         _gc_id(0),
         _timer_id(NULL),
         _max_stack_depth(0),
+        _truncated_stack_depth(0),
         _thread_events_state(JVMTI_DISABLE),
         _stubs_lock(),
         _runtime_stubs("[stubs]"),

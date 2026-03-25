@@ -238,6 +238,9 @@ Error Arguments::parse(const char* args) {
             CASE("jstackdepth")
                 if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
                     msg = "jstackdepth must be > 0";
+                } else {
+                    char* slash = strchr(value, '/');
+                    _truncated_stack_depth = slash != NULL ? atoi(slash + 1) : _jstackdepth;
                 }
 
             CASE("signal")
