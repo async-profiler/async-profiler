@@ -8,7 +8,7 @@ as a standalone Java application: [`jfr-converter.jar`](https://github.com/async
 
 The tool can convert several source formats into various outputs. The conversion capabilities are summarized below:
 
-| Source Format | to html | to collapsed | to pprof | to pb.gz | to heatmap | to otlp |
+| Source format | to html | to collapsed | to pprof | to pb.gz | to heatmap | to otlp |
 | ------------- | ------- | ------------ | -------- | -------- | ---------- | ------- |
 | jfr           | ✅      | ✅           | ✅       | ✅       | ✅         | ✅      |
 | html          | ✅      | ✅           | ❌       | ❌       | ❌         | ❌      |
