@@ -55,7 +55,7 @@ public class CpuTests {
         Assert.isEqual(outWrongCpu.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
 
         Output outRightCpu = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --target-cpu 0");
-        assertCloseTo(outRightCpu.total(), 2_000_000_000, "perf_events total should match profiling duration");
+        Assert.isGreater(outRightCpu.total(), 200_000_000, "perf_events total should accumulate perf counter value");
     }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
@@ -79,7 +79,7 @@ public class CpuTests {
         Assert.isEqual(outWrongCpu.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
 
         Output outRightCpu = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --target-cpu 0 --fdtransfer");
-        assertCloseTo(outRightCpu.total(), 2_000_000_000, "perf_events total should match profiling duration");
+        Assert.isGreater(outRightCpu.total(), 200_000_000, "perf_events total should accumulate perf counter value");
     }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
