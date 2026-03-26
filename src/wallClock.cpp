@@ -206,6 +206,13 @@ void WallClock::timerLoop() {
                 continue;
             }
             if (thread_filter_enabled && !thread_filter->accept(thread_id)) {
+                if (mode == WALL_BATCH) {
+                    ThreadSleepMap::iterator it = thread_sleep_state.find(thread_id);
+                    if (it != thread_sleep_state.end() && it->second.counter != 0) {
+                        recordWallClock(it->second, THREAD_SLEEPING, thread_id);
+                        it->second.counter = 0;
+                    }
+                }
                 continue;
             }
 
