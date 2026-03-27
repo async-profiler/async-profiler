@@ -375,7 +375,12 @@ class VMThread : VMStructs {
     // match those of a known JavaThread (which is either application thread or AttachListener).
     // Indexes were carefully chosen to work on OpenJDK 8 to 25, both product an debug builds.
     bool isJavaThread() {
+        if (VM::_isJavaThread) {
+            return VM::_isJavaThread();
+        }
+
         const void** vtbl = vtable();
+        if (vtbl == nullptr) return false;
         return (vtbl[1] == _java_thread_vtbl[1]) +
                (vtbl[3] == _java_thread_vtbl[3]) +
                (vtbl[5] == _java_thread_vtbl[5]) >= 2;

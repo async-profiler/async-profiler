@@ -88,6 +88,8 @@ typedef jlong (*JVM_MemoryFunc)();
 
 typedef jint (*GetCreatedJavaVMs)(JavaVM**, jsize, jsize*);
 
+typedef jint (*IsJavaThread)();
+
 typedef struct {
     void* unused1[86];
     jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -122,6 +124,7 @@ class VM {
     static AsyncGetCallTrace _asyncGetCallTrace;
     static JVM_MemoryFunc _totalMemory;
     static JVM_MemoryFunc _freeMemory;
+    static IsJavaThread _isJavaThread;
 
     static bool init(JavaVM* vm, bool attach);
 

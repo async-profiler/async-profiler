@@ -42,6 +42,7 @@ jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
+IsJavaThread   VM::_isJavaThread;
 
 static bool isVmRuntimeEntry(const char* blob_name) {
     return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0
@@ -178,6 +179,10 @@ bool VM::init(JavaVM* vm, bool attach) {
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(libjvm, "AsyncGetCallTrace");
     _totalMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_TotalMemory");
     _freeMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_FreeMemory");
+
+    if(_zing) {
+        _isJavaThread = (IsJavaThread)dlsym(libjvm, "JVM_IsJavaThread");
+    }
 
     Profiler* profiler = Profiler::instance();
     if (VMStructs::libjvm() == NULL) {
