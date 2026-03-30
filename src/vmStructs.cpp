@@ -616,10 +616,12 @@ void VMStructs::initThreadBridge() {
 
         VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
         if (vm_thread != NULL) {
-            _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
             initTLS(vm_thread);
-            _env_offset = (intptr_t)env - (intptr_t)vm_thread;
-            memcpy(_java_thread_vtbl, vm_thread->vtable(), sizeof(_java_thread_vtbl));
+            if (!VM::isZing()) {
+                _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
+                _env_offset = (intptr_t)env - (intptr_t)vm_thread;
+                memcpy(_java_thread_vtbl, vm_thread->vtable(), sizeof(_java_thread_vtbl));
+            }
         }
     }
 }
