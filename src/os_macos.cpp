@@ -374,8 +374,9 @@ int OS::createMemoryFile(const char* name) {
 }
 
 void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
-    char* buf = (char*)mmap(NULL, size + offset, PROT_READ, MAP_PRIVATE, src_fd, 0);
-    if (buf == NULL) {
+    size_t map_size = size + offset;
+    char* buf = (char*)mmap(NULL, map_size, PROT_READ, MAP_PRIVATE, src_fd, 0);
+    if (buf == MAP_FAILED) {
         return;
     }
 
@@ -388,7 +389,7 @@ void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
         size -= (size_t)bytes;
     }
 
-    munmap(buf, offset);
+    munmap(buf, map_size);
 }
 
 void OS::freePageCache(int fd, off_t start_offset) {
