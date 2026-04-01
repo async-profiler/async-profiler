@@ -423,8 +423,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
         }
 
+        uintptr_t prev_fp = fp;
+        const void* prev_pc = pc;
         FrameDesc* f = native_lib != NULL ? native_lib->findFrameDesc(pc) : &FrameDesc::default_frame;
 
+        unwind_frame:
         u8 cfa_reg = (u8)f->cfa;
         int cfa_off = f->cfa >> 8;
         if (cfa_reg == DW_REG_SP) {
@@ -447,7 +450,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             break;
         }
 
-        const void* prev_pc = pc;
         if (f->fp_off & DW_PC_OFFSET) {
             pc = (const char*)pc + (f->fp_off >> 1);
         } else {
@@ -457,10 +459,15 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
 
             if (EMPTY_FRAME_SIZE > 0 || f->pc_off != DW_LINK_REGISTER) {
                 pc = stripPointer(*(void**)(sp + f->pc_off));
-            } else if (depth == 1) {
-                pc = (const void*)frame.link();
             } else {
-                break;
+                if (depth == 1) pc = (const void*)frame.link();
+
+                if (pc == prev_pc) {
+                    f = &FrameDesc::default_frame;
+                    sp = prev_sp;
+                    fp = prev_fp;
+                    goto unwind_frame;
+                }
             }
 
             if (EMPTY_FRAME_SIZE == 0 && cfa_off == 0 && f->fp_off != DW_SAME_FP) {
