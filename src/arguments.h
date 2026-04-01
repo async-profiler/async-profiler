@@ -57,10 +57,9 @@ enum Style {
 // Whenever enum changes, update SETTING_CSTACK in FlightRecorder
 enum SHORT_ENUM CStack {
     CSTACK_DEFAULT,  // use perf_event_open stack if available or Frame Pointer links otherwise
-    CSTACK_NO,       // do not collect native frames
     CSTACK_FP,       // walk stack using Frame Pointer links
     CSTACK_DWARF,    // use DWARF unwinding info from .eh_frame section
-    CSTACK_VM        // unwind using HotSpot VMStructs
+    CSTACK_VM,       // unwind using HotSpot VMStructs
 };
 
 enum SHORT_ENUM Clock {
@@ -107,11 +106,13 @@ constexpr int EVENT_MASK_SIZE = 7;
 struct StackWalkFeatures {
     unsigned short stats         : 1;   // collect stack walking duration statistics
     unsigned short jnienv        : 1;   // verify JNIEnv* obtained using VMStructs
+    unsigned short agct          : 1;   // force usage of legacy stack walkers when selected rather than silently using vm
     unsigned short mixed         : 1;   // mixed stack traces with Java and native frames interleaved
     unsigned short vtable_target : 1;   // show receiver classes of vtable/itable stubs
     unsigned short comp_task     : 1;   // display current compilation task for JIT threads
     unsigned short pc_addr       : 1;   // record exact PC address for each sample
-    unsigned short _padding      : 10;  // pad structure to 16 bits
+    unsigned short java_only     : 1;   // only collect java stacks
+    unsigned short _padding      : 8;   // pad structure to 16 bits
 };
 
 

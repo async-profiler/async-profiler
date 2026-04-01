@@ -428,7 +428,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         if (_features.pc_addr && event_type <= WALL_CLOCK_SAMPLE) {
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
-        if (_cstack != CSTACK_NO) {
+        if (!_features.java_only) {
             num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &cpu);
         }
     }
@@ -874,6 +874,14 @@ Error Profiler::start(Arguments& args, bool reset) {
     // Save the arguments for shutdown or restart
     args.save();
 
+    _features = args._features;
+    if (!VMStructs::hasClassNames()) {
+        _features.vtable_target = 0;
+    }
+    if (!VMStructs::hasCompilerStructs()) {
+        _features.comp_task = 0;
+    }
+
     if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
@@ -889,7 +897,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         _add_event_frame = args._output != OUTPUT_JFR;
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
         _add_sched_frame = args._sched;
-        _add_cpu_frame = args._record_cpu;
+        _add_cpu_frame = args._record_cpu && !_features.java_only;
         unlockAll();
 
         // Reset thread names and IDs
@@ -914,14 +922,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
     _truncated_stack_depth = std::min(std::max(args._truncated_stack_depth, 0), _max_stack_depth);
 
-    _features = args._features;
-    if (!VMStructs::hasClassNames()) {
-        _features.vtable_target = 0;
-    }
-    if (!VMStructs::hasCompilerStructs()) {
-        _features.comp_task = 0;
-    }
-
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
 
@@ -943,14 +943,11 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("VMStructs stack walking is not supported on this JVM/platform");
     }
 
-    if (_cstack == CSTACK_DEFAULT) {
-        if (VMStructs::hasStackStructs()) {
-            // Use VMStructs by default when possible
-            _cstack = args._cstack = CSTACK_VM;
-        } else if (VM::isOpenJ9() && DWARF_SUPPORTED) {
-            // OpenJ9 libs are compiled with frame pointers omitted
-            _cstack = args._cstack = CSTACK_DWARF;
-        }
+    if (VMStructs::hasStackStructs() && !_features.agct) {
+        _cstack = args._cstack = CSTACK_VM;
+    } else if (_cstack == CSTACK_DEFAULT && VM::isOpenJ9() && DWARF_SUPPORTED) {
+        // OpenJ9 libs are compiled with frame pointers omitted
+        _cstack = args._cstack = CSTACK_DWARF;
     }
 
     if (_cstack != CSTACK_VM && _features.mixed) {

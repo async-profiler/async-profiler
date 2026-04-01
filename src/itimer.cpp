@@ -16,6 +16,7 @@ Error ITimer::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
     _cstack = args._cstack;
+    _features = args._features;
     _signal = SIGPROF;
     _count_overrun = false;
 
