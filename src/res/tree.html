@@ -4,6 +4,41 @@
     <title>Tree view</title>
     <meta charset="utf-8" />
     <style>
+      :root {
+        --bg-color: #ffffff;
+        --text-color: #000000;
+        --secondary-text: #5e5e5e;
+        --toolbar-bg: #f5f5f5;
+        --input-bg: #ffffff;
+        --input-border: rgba(32, 35, 40, 0.1);
+        --border-color: #e9e9e9;
+        --tree-line-color: #252527;
+        --highlight-bg: #d9d9d9;
+        --child-count-border: #abb1c1;
+        --child-count-color: #7d8089;
+      }
+      [data-theme="dark"] {
+        --bg-color: #1e1e1e;
+        --text-color: #d4d4d4;
+        --secondary-text: #999999;
+        --toolbar-bg: #2a2a2a;
+        --input-bg: #333333;
+        --input-border: #555555;
+        --border-color: #3c3c3c;
+        --tree-line-color: #999999;
+        --highlight-bg: #404040;
+        --child-count-border: #555555;
+        --child-count-color: #999999;
+      }
+      .theme-icon-dark {
+        display: none;
+      }
+      [data-theme="dark"] .theme-icon-light {
+        display: none;
+      }
+      [data-theme="dark"] .theme-icon-dark {
+        display: inline;
+      }
       html,
       body,
       div,
@@ -21,7 +56,8 @@
       body {
         line-height: 140%;
         font-family: Arial;
-        background: white;
+        background: var(--bg-color);
+        color: var(--text-color);
         font-size: 15px;
       }
       ul {
@@ -50,7 +86,7 @@
         top: 0;
         bottom: 0;
         margin: auto;
-        background: #252527;
+        background: var(--tree-line-color);
       }
       .tree li div:before {
         width: 10px;
@@ -74,7 +110,7 @@
         position: relative;
         display: inline;
         cursor: pointer;
-        color: black;
+        color: var(--text-color);
         text-decoration: none;
       }
       .tree li > div:first-word {
@@ -86,17 +122,18 @@
         display: none !important;
       }
       .sc {
-        text-decoration-color: black;
+        text-decoration-color: var(--text-color);
         font-weight: bold;
-        background-color: #d9d9d9;
+        background-color: var(--highlight-bg);
       }
       input {
         height: 36px;
         padding: 0 14px;
         border-radius: 4px;
-        background: white;
+        background: var(--input-bg);
+        color: var(--text-color);
         font-size: 16px;
-        border: 1px solid #2023281a;
+        border: 1px solid var(--input-border);
       }
       button {
         height: 36px;
@@ -110,17 +147,17 @@
         color: #00ac4f;
       }
       .button_outlined {
-        color: black;
+        color: var(--text-color);
         font-size: 15px;
         padding: 0 12px;
-        background: white;
-        border: 1px solid #2023281a;
+        background: var(--input-bg);
+        border: 1px solid var(--input-border);
         display: flex;
         align-items: center;
         gap: 8px;
       }
       .total-count {
-        color: #5e5e5e;
+        color: var(--secondary-text);
         font-weight: bold;
         font-size: 14px;
       }
@@ -136,7 +173,7 @@
         flex-direction: row;
         z-index: 100;
         padding: 8px 20px;
-        background: #f5f5f5;
+        background: var(--toolbar-bg);
         align-items: center;
         box-sizing: border-box;
         width: 100%;
@@ -181,15 +218,15 @@
       }
       .wrapper {
         padding: 70px 20px 10px;
-        background: white;
-        border-top: 1px solid #e9e9e9;
+        background: var(--bg-color);
+        border-top: 1px solid var(--border-color);
       }
 
       .child-count {
-        border: 1px solid #abb1c1;
+        border: 1px solid var(--child-count-border);
         border-radius: 3px;
         padding: 0 5px;
-        color: #7d8089;
+        color: var(--child-count-color);
       }
 
       .t0,
@@ -215,6 +252,16 @@
       }
     </style>
 <script>
+document.documentElement.dataset.theme = localStorage.getItem('color-mode') ||
+	(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+function toggleTheme() {
+	var newTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+	document.documentElement.dataset.theme = newTheme;
+	try {
+		localStorage.setItem('color-mode', newTheme);
+	} catch (ignored) {}
+}
 function treeView(opt) {
 	var tree = document.querySelectorAll('ul.tree div:not(:last-child)');
 	for(var i = 0; i < tree.length; i++){
@@ -311,6 +358,9 @@ for(var i = 0; i < tree.length; i++){
         </div>
         <div class="header-item header-item_search">
           <input class="search-input" type="text" id="search" value="" placeholder="Search..." size="35" onkeypress="if(event.keyCode == 13) search()"/>
+        </div>
+        <div class="header-item">
+          <button type="button" onclick="toggleTheme()" class="button_outlined" id="theme-toggle" title="Toggle dark mode"><svg class='theme-icon-light' xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><circle cx='10' cy='10' r='7' fill='none' stroke='currentColor' stroke-width='2'/><path d='M10 3a7 7 0 0 1 0 14z' fill='currentColor'/></svg><svg class='theme-icon-dark' xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><circle cx='10' cy='10' r='7' fill='none' stroke='currentColor' stroke-width='2'/><path d='M10 3a7 7 0 0 0 0 14z' fill='currentColor'/></svg></button>
         </div>
       </div>
     </div>

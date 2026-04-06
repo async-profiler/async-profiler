@@ -3,10 +3,44 @@
 <head>
 <meta charset='utf-8'>
 <style>
+	:root {
+		--bg-color: #ffffff;
+		--text-color: #000000;
+		--tooltip-bg: #ffffe0;
+		--tooltip-border: #ffc000;
+		--legend-border: #666666;
+		--link-color: #0366d6;
+		--dim-overlay: rgba(255, 255, 255, 0.25);
+		--sidebar-bg: #efefef;
+		--toolbar-selected-bg: #cccccc;
+		--toolbar-selected-border: #999999
+	}
+	[data-theme="dark"] {
+		--bg-color: #1e1e1e;
+		--text-color: #d4d4d4;
+		--tooltip-bg: #2d2d2d;
+		--tooltip-border: #555555;
+		--legend-border: #555555;
+		--link-color: #58a6ff;
+		--dim-overlay: rgba(30, 30, 30, 0.25);
+		--sidebar-bg: #2a2a2a;
+		--toolbar-selected-bg: #444444;
+		--toolbar-selected-border: #666666;
+	}
+	.theme-icon-dark {
+		display: none;
+	}
+	[data-theme="dark"] .theme-icon-light {
+		display: none;
+	}
+	[data-theme="dark"] .theme-icon-dark {
+		display: inline;
+	}
 	body {
 		margin: 0;
 		padding: 4px 8px 24px;
-		background-color: #ffffff;
+		background-color: var(--bg-color);
+		color: var(--text-color);
 		overflow-y: scroll
 	}
 	h1 {
@@ -27,7 +61,7 @@
 		margin: 5px 0 5px 0
 	}
 	a {
-		color: #0366d6
+		color: var(--link-color)
 	}
 	#hl {
 		position: absolute;
@@ -35,15 +69,16 @@
 		overflow: hidden;
 		white-space: nowrap;
 		pointer-events: none;
-		background-color: #ffffe0;
-		outline: 1px solid #ffc000;
+		background-color: var(--tooltip-bg);
+		outline: 1px solid var(--tooltip-border);
+		color: var(--text-color);
 		height: 15px
 	}
 	#preview_wrapper {
 		position: absolute;
 		display: none;
-		background-color: #ffffe0;
-		outline: 1px solid #ffc000;
+		background-color: var(--tooltip-bg);
+		outline: 1px solid var(--tooltip-border);
 		pointer-events: none;
 	}
 	#hl span {
@@ -100,13 +135,14 @@
 		top: 10px;
 		right: 48px;
 		width: 204px;
-		border: 1px solid #666666;
-		background: #ffffe0;
+		border: 1px solid var(--legend-border);
+		background: var(--tooltip-bg);
+		color: var(--text-color);
 		border-radius: 8px;
 		padding: 4px
 	}
 	#heatmap-height-line {
-		text-decoration: #0366d6 dashed underline;
+		text-decoration: var(--link-color) dashed underline;
 		cursor: pointer;
 		font-family: monospace
 	}
@@ -126,17 +162,17 @@
 		align-items: center;
 	}
 	.toolbarSelected {
-		background-color: #cccccc;
-		outline: 1px solid #999999;
+		background-color: var(--toolbar-selected-bg);
+		outline: 1px solid var(--toolbar-selected-border);
 		border-radius: 4px;
 	}
 	.toolbarIcon:hover {
-		background-color: #ffffe0;
-		outline: 1px solid #ffc000;
+		background-color: var(--tooltip-bg);
+		outline: 1px solid var(--tooltip-border);
 		border-radius: 4px;
 	}
 	.bordered {
-		outline: 1px solid #999999;
+		outline: 1px solid var(--toolbar-selected-border);
 	}
 	.colortip {
 		width: 100px;
@@ -148,16 +184,21 @@
 		position: fixed;
 		bottom: 0;
 		padding: 2px 4px;
-		background-color: #ffffe0;
-		border-top: 1px solid #ffc000;
-		border-left: 1px solid #ffc000;
-		border-right: 1px solid #ffc000;
+		background-color: var(--tooltip-bg);
+		border-top: 1px solid var(--tooltip-border);
+		border-left: 1px solid var(--tooltip-border);
+		border-right: 1px solid var(--tooltip-border);
+		color: var(--text-color);
 	}
 </style>
+<script>
+	document.documentElement.dataset.theme = localStorage.getItem('color-mode') ||
+		(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+</script>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <div class='bordered' style="display: flex">
-	<div class='bordered' style="width: 20px; margin-right: 1px; padding: 2px; float: left; background-color: #efefef; writing-mode: vertical-rl; transform: scale(-1); text-align: center; user-select: none">
+	<div class='bordered' style="width: 20px; margin-right: 1px; padding: 2px; float: left; background-color: var(--sidebar-bg); writing-mode: vertical-rl; transform: scale(-1); text-align: center; user-select: none">
 		<pre id="heatmap-height-line"> 1 sec : 20 ms </pre>
 	</div>
 
@@ -185,7 +226,7 @@
 		<div id='rightMiddleDiff' class='selectionPart left'><span></span></div>
 	</div>
 
-	<div class='bordered' style="user-select: none; background-color: #efefef; padding: 2px; margin-left: 1px">
+	<div class='bordered' style="user-select: none; background-color: var(--sidebar-bg); padding: 2px; margin-left: 1px">
 		<div id="heatmap-info" class="toolbarIcon"><svg height="20px" width="20px" viewBox="0 0 392.598 392.598"><path style="fill:#FFFFFF;" d="M274.457,148.234c0.194,17.131-5.236,33.358-15.515,46.933c-23.984,32-36.784,68.331-36.784,104.921 v1.164h-51.911c-0.065-37.107-12.929-73.956-37.107-106.537c-12.735-15.386-17.455-32.065-15.321-49.842 c5.624-45.834,39.822-70.917,74.343-74.925C237.026,67.879,274.457,103.693,274.457,148.234z"></path><rect style="fill:#40b2ff;" x="170.311" y="323.038" width="51.846" height="47.774"></rect><path style="fill:#ff8d40;" d="M196.299,91.604c-0.905,0-1.939,0-2.844,0.065c-17.842,0.84-33.681,10.279-43.442,24.178h42.408 c6.012,0,10.925,4.848,10.925,10.925s-4.848,10.925-10.925,10.925h-51.588c-0.453,2.651-0.84,5.301-1.034,8.016 c-0.259,4.719,0.129,9.244,1.099,13.77h25.988c6.012,0,10.925,4.848,10.925,10.925c0,6.012-4.848,10.925-10.925,10.925h-16.356 c0.065,0.129,0.129,0.323,0.323,0.388c22.238,30.061,35.943,63.418,40.016,97.681h10.796c3.943-34.263,17.519-67.556,39.952-97.358 c7.37-9.826,11.313-21.463,11.313-33.875C252.865,117.075,227.523,91.604,196.299,91.604z"></path><path style="fill:#004d80;" d="M196.299,36.137c6.012,0,10.925-4.848,10.925-10.925V10.925C207.224,4.913,202.376,0,196.299,0 c-6.012,0-10.925,4.848-10.925,10.925v14.287C185.374,31.289,190.287,36.137,196.299,36.137z"></path> <path style="fill:#004d80;" d="M333.543,137.309h-14.287c-6.012,0-10.925,4.848-10.925,10.925c0,6.012,4.849,10.925,10.925,10.925 h14.287c6.012,0,10.925-4.848,10.925-10.925S339.556,137.309,333.543,137.309z"></path> <path style="fill:#004d80;" d="M73.277,137.309H59.055c-6.012,0-10.925,4.848-10.925,10.925c0,6.012,4.848,10.925,10.925,10.925 h14.287c6.012,0,10.925-4.848,10.925-10.925C84.202,142.158,79.289,137.309,73.277,137.309z"></path> <path style="fill:#004d80;" d="M285.64,43.507l-10.15,10.149c-4.267,4.267-4.267,11.119,0,15.45c4.267,4.267,11.119,4.267,15.451,0 l10.15-10.149c4.267-4.267,4.267-11.119,0-15.451C296.824,39.176,289.907,39.176,285.64,43.507z"></path> <path style="fill:#004d80;" d="M101.657,227.491l-10.085,10.02c-4.267,4.267-4.267,11.119,0,15.451 c4.267,4.331,11.119,4.267,15.451,0l10.02-10.02c4.267-4.267,4.267-11.119,0-15.451 C112.776,223.224,105.859,223.224,101.657,227.491z"></path> <path style="fill:#004d80;" d="M290.941,227.491c-4.267-4.267-11.119-4.267-15.451,0c-4.267,4.267-4.267,11.119,0,15.451 l10.15,10.149c4.267,4.267,11.119,4.267,15.451,0s4.267-11.119,0-15.451L290.941,227.491z"></path> <path style="fill:#004d80;" d="M101.657,68.978c4.267,4.267,11.119,4.267,15.451,0c4.267-4.267,4.267-11.119,0-15.451l-10.02-10.02 c-4.267-4.267-11.119-4.267-15.451,0c-4.267,4.267-4.267,11.119,0,15.451L101.657,68.978z"></path> <path style="fill:#004d80;" d="M191.257,48.097c-51.2,2.457-92.962,44.606-95.095,95.806c-1.034,23.208,5.818,45.188,19.523,63.741 c21.463,28.962,32.84,61.414,32.84,93.996v80.032c0,6.012,4.848,10.925,10.925,10.925h73.632c6.012,0,10.925-4.848,10.925-10.925 l0.065-81.584c0-31.935,11.184-63.677,32.388-91.798c13.123-17.455,20.04-38.141,20.04-60.057 C296.436,91.345,248.921,45.253,191.257,48.097z M222.093,370.812h-51.846v-47.774h51.846L222.093,370.812L222.093,370.812z M258.941,195.168c-23.984,32-36.784,68.331-36.784,104.921v1.164h-51.911c-0.065-37.107-12.929-73.956-37.107-106.537 c-12.735-15.386-17.455-32.065-15.321-49.842c5.624-45.834,39.822-70.917,74.343-74.925c44.865-2.069,82.295,33.745,82.295,78.287 C274.651,165.366,269.22,181.592,258.941,195.168z"></path></svg></div>
 		<div id="search" class="toolbarIcon" title="Search by Regex [Ctrl + F]"><svg height="20px" width="20px" viewBox="-39.26 -39.26 471.13 471.13" xml:space="preserve" fill="#000000" stroke="#000000" stroke-width="0.00392609"><path style="fill:#FFFFFF;" d="M273.713,147.774c0,69.495-56.501,125.931-125.931,125.931c-69.495,0-125.931-56.501-125.931-125.931 c0-69.495,56.501-125.931,125.931-125.931C217.212,21.843,273.713,78.344,273.713,147.774z"></path><path style="fill:#40b2ff;" d="M370.747,348.695c0,1.422-1.616,6.271-7.176,12.283c-6.206,6.659-12.477,9.762-14.739,9.762h-0.065 c-19.459-1.616-61.996-43.184-109.576-106.796c0-0.065,0-0.065,0-0.129c9.18-7.24,17.455-15.515,24.63-24.63 c0.065,0,0.065,0,0.129,0C327.564,286.699,369.131,329.301,370.747,348.695z"></path><path style="fill:#ff8d40;" d="M208.679,86.877l-14.481,14.481c-17.131,17.131-46.545,5.042-46.545-19.265V61.6 c-49.002,0-88.372,40.792-86.109,90.246c2.004,43.895,38.141,80.032,82.036,82.036c49.455,2.263,90.246-37.172,90.246-86.109 C233.956,124.049,224.323,102.522,208.679,86.877z"></path><path style="fill:#004d80;" d="M276.105,220.954c12.347-21.527,19.459-46.545,19.459-73.18c0-81.455-66.327-147.717-147.846-147.717 S0,66.32,0,147.904s66.327,147.717,147.717,147.717c26.57,0,51.523-7.111,73.18-19.459 c39.822,53.333,91.863,113.519,126.061,116.364c12.283,0.517,22.885-6.723,32.776-16.743c5.172-5.624,13.77-16.937,12.8-28.768 C389.624,312.881,329.438,260.776,276.105,220.954z M147.717,273.77c-69.495,0-125.931-56.501-125.931-125.931 S78.287,21.908,147.717,21.908s125.931,56.501,125.931,125.931S217.212,273.77,147.717,273.77z M363.572,360.978 c-6.206,6.659-12.412,9.762-14.739,9.762h-0.065c-19.459-1.616-61.996-43.184-109.576-106.796c0-0.065,0-0.065,0-0.129 c9.18-7.24,17.455-15.515,24.63-24.63c0.065,0,0.065,0,0.129,0c63.612,47.58,105.18,90.182,106.796,109.576 C370.747,350.118,369.131,354.966,363.572,360.978z"></path></svg></div>
 		<div id="filter" class="toolbarIcon" title="Filter by Regex [Shift + Ctrl + F]"><svg height="16px" width="16px" viewBox="0 0 392.541 392.541"><path style="fill:#FFFFFF;" d="M219.345,344.911V190.988c0-2.909,1.164-5.689,3.232-7.758L367.386,39.586 c3.814-3.814,3.426-7.434,2.392-9.891c-1.487-3.62-6.012-7.887-13.834-7.887H36.137c-7.822,0-12.347,4.267-13.834,7.887 c-1.034,2.392-1.422,6.077,2.392,9.891L169.503,183.23c2.069,2.004,3.232,4.848,3.232,7.758v174.093L219.345,344.911z"></path><path style="fill:#40b2ff;" d="M59.733,43.594L91.41,75.012c0.065,0,0.259,0,0.323,0h97.228c6.012,0,10.925,4.848,10.925,10.925 c0,6.012-4.848,10.925-10.925,10.925h-75.636l22.044,21.786h31.741c6.012,0,10.925,4.848,10.925,10.925 c0,6.012-4.848,10.925-10.925,10.925h-9.826l38.853,38.335l136.21-135.176L59.733,43.594L59.733,43.594z"></path><path style="fill:#004d80;" d="M356.008,0.022H36.137c-30.578,0-47.968,33.487-26.828,55.079l141.705,140.412v186.053 c0.065,7.111,7.564,13.382,15.192,10.02l68.396-29.543c4.008-1.681,6.594-5.624,6.594-10.02V195.513l141.64-140.412 C404.234,33.767,388.008,0.022,356.008,0.022z M367.45,39.586L222.642,183.23c-2.069,2.004-3.232,4.848-3.232,7.758v153.923 l-46.61,20.105V190.988c0-2.909-1.164-5.689-3.232-7.758L24.759,39.586c-8.339-8.792,1.099-18.295,11.442-17.778h319.806 C367.45,21.485,375.337,32.41,367.45,39.586z"></path></svg></div>
@@ -199,6 +240,10 @@
 		</div>
 		<div id="flame-mode-methods" class="toolbarIcon" title="Methods List [Ctrl + 3]">
 			<svg height="20px" width="20px" viewBox="0 0 20 20"><rect x="0" y="0" style="fill:#ff8d40;" width="20" height="4"></rect><rect x="0" y="5" style="fill:#40b2ff;" width="16" height="4"></rect><rect x="0" y="10" style="fill:#ff8d40;" width="8" height="4"></rect><rect x="0" y="15" style="fill:#40b2ff;" width="4" height="4"></rect></svg>
+		</div>
+		<div id="theme-toggle" class="toolbarIcon" style="margin-top: 16px" title="Toggle dark mode [D]">
+			<svg class='theme-icon-light' width='20' height='20' viewBox='0 0 20 20'><circle cx='10' cy='10' r='7' fill='none' stroke='#004d80' stroke-width='2'/><path d='M10 3a7 7 0 0 1 0 14z' fill='#004d80'/></svg>
+			<svg class='theme-icon-dark' width='20' height='20' viewBox='0 0 20 20'><circle cx='10' cy='10' r='7' fill='none' stroke='#ff8d40' stroke-width='2'/><path d='M10 3a7 7 0 0 0 0 14z' fill='#ff8d40'/></svg>
 		</div>
 
 		<div id="info-tooltip">
@@ -220,7 +265,7 @@
 				<div class="colortip" style="--c1:#42ff8e;--c2:#ccffe0">Less frames</div>
 				<div class="colortip" style="--c1:#ff8d40;--c2:#ffe0cc">More frames</div>
 			</div>
-			<div style="float:left; margin-top: 4px; width: 100%; border: 1px solid #666666; border-radius: 2px; padding: 2px; box-sizing: border-box;">
+			<div style="float:left; margin-top: 4px; width: 100%; border: 1px solid var(--legend-border); border-radius: 2px; padding: 2px; box-sizing: border-box;">
 				Shift + Click - Select range<br>
 				Ctrl + Click - Compare<br>
 				<br>
@@ -255,6 +300,10 @@
 	// Copyright The async-profiler authors
 	// SPDX-License-Identifier: Apache-2.0
 	'use strict';
+
+	function cssVar(v) {
+		return getComputedStyle(document.documentElement).getPropertyValue(v);
+	}
 
 	let dR, dG, dB;
 	let dRs, dGs, dBs;
@@ -349,6 +398,16 @@
 
 	document.getElementById('filter').onclick = () => {
 		search(true, true);
+	};
+
+	document.getElementById('theme-toggle').onclick = function() {
+		const newTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+		document.documentElement.dataset.theme = newTheme;
+		try {
+			localStorage.setItem('color-mode', newTheme);
+		} catch (ignored) {}
+		if (root) render(root, rootLevel);
+		if (heatC) redrawHeatMap();
 	};
 
 	const palette = [
@@ -460,7 +519,7 @@
 	function render(newRoot, newLevel, minLevel) {
 		minLevel = minLevel || 0;
 		if (root && minLevel === 0) {
-			c.fillStyle = '#ffffff';
+			c.fillStyle = cssVar('--bg-color');
 			c.fillRect(0, 0, canvasWidth, canvasHeight);
 		}
 
@@ -510,7 +569,7 @@
 				}
 
 				if (alpha) {
-					c.fillStyle = 'rgba(255, 255, 255, 0.25)';
+					c.fillStyle = cssVar('--dim-overlay');
 					c.fillRect((f.left - x0) * px, y, fw, 15);
 				}
 			}
@@ -555,7 +614,7 @@
 		const c = preview.getContext('2d');
 		if (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);
 		c.font = document.body.style.font;
-		c.fillStyle = '#ffffff';
+		c.fillStyle = cssVar('--bg-color');
 		c.fillRect(0, 0, w, h);
 		for (let i = 0; i < 15; i++) {
 			const level = Math.floor(previewY / 16) + i - 7;
@@ -1295,7 +1354,7 @@
 	function prepareRender() {
 		root = undefined;
 		rootLevel = 0;
-		c.fillStyle = '#ffffff';
+		c.fillStyle = cssVar('--bg-color');
 		c.fillRect(0, 0, canvasWidth, canvasHeight);
 		hl.style.display = 'none';
 		addTask('flame', function () {
@@ -4203,6 +4262,9 @@
 				break;
 			case 'Escape':
 				search(false);
+				break;
+			case 'd':
+				document.getElementById('theme-toggle').onclick();
 				break;
 			default:
 				return;
