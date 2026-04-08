@@ -30,6 +30,17 @@ public class JfrToHeatmap extends JfrConverter {
     @Override
     protected EventCollector createCollector(Arguments args) {
         return new EventCollector() {
+            long wallInterval;
+
+            private long getWallInterval() {
+                if (wallInterval == 0) {
+                    String wall = jfr.settings.get("wall");
+                    long interval = Long.parseLong(wall != null ? wall : jfr.settings.get("interval"));
+                    wallInterval = interval != 0 ? interval : 50_000_000;
+                }
+                return wallInterval;
+            }
+
             @Override
             public void collect(Event event) {
                 int classId = 0;
@@ -42,10 +53,14 @@ public class JfrToHeatmap extends JfrConverter {
                     type = TYPE_KERNEL;
                 }
 
-                long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
-                long timeMs = jfr.chunkStartNanos / 1_000_000 + msFromStart;
-
-                heatmap.addEvent(event.stackTraceId, event.tid, classId, type, timeMs);
+                long timeNs = jfr.eventTimeToNanos(event.time);
+                long samples = event.samples();
+                while (true) {
+                    heatmap.addEvent(event.stackTraceId, event.tid, classId, type, timeNs / 1_000_000);
+                    if (--samples <= 0) break;
+                    // Only wall clock events can have samples > 1
+                    timeNs += getWallInterval();
+                }
             }
 
             @Override
@@ -62,6 +77,7 @@ public class JfrToHeatmap extends JfrConverter {
             @Override
             public void afterChunk() {
                 jfr.stackTraces.clear();
+                wallInterval = 0;
             }
 
             @Override

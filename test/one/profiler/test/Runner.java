@@ -71,22 +71,12 @@ public class Runner {
         File javaHome = new File(System.getProperty("java.home"));
 
         // Look for OpenJ9-specific file
-        File[] files = new File(javaHome, "lib").listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.getName().equals("J9TraceFormat.dat")) {
-                    return Jvm.OPENJ9;
-                }
-            }
+        if (new File(javaHome, "lib/J9TraceFormat.dat").exists()) {
+            return Jvm.OPENJ9;
         }
 
         // Strip /jre from JDK 8 path
         if (currentJvmVersion <= 8) {
-            javaHome = javaHome.getParentFile();
-        }
-
-        // Workaround for Contents/Home on macOS
-        if (currentOs == Os.MACOS) {
             javaHome = javaHome.getParentFile();
         }
 
@@ -95,7 +85,7 @@ public class Runner {
             return Jvm.ZING;
         }
 
-        if (!new File(System.getProperty("java.home"), "lib/" + System.mapLibraryName("jvmcicompiler")).exists()) {
+        if (!new File(javaHome, "lib/" + System.mapLibraryName("jvmcicompiler")).exists()) {
             return Jvm.HOTSPOT_C2;
         }
 
