@@ -141,6 +141,35 @@ jobs:
       architecture: ${{ matrix.architecture || '' }}
       retry-count: ${{ matrix.retry-count || 0 }}
 
+  post-size-comparison:
+    if: github.event_name == 'pull_request'
+    needs: [build-linux-x64, build-linux-arm64]
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download size reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: size-report-*
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const sections = [];
+            for (const dir of fs.readdirSync('.').filter(d => d.startsWith('size-report-')).sort()) {
+              const platform = dir.replace('size-report-', '');
+              const report = fs.readFileSync(`${dir}/size-report.md`, 'utf8').trim();
+              sections.push(`### ${platform}\n${report}`);
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 📏 Binary Size Comparison\n\n${sections.join('\n\n')}`,
+            });
+
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     permissions:
