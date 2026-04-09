@@ -81,12 +81,3 @@ jobs:
           name: test-coverage-${{ inputs.platform }}
           path: build/test/coverage/
           if-no-files-found: error
-      - name: Compare binary sizes
-        if: inputs.platform != 'macos'
-        run: make size-report | tee size-report.md
-      - name: Upload size report
-        if: inputs.platform != 'macos'
-        uses: actions/upload-artifact@v4
-        with:
-          name: size-report-${{ inputs.platform }}
-          path: size-report.md

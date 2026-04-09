@@ -1,0 +1,14 @@
+#! /usr/bin/env bash
+set -eux -o pipefail
+
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/common.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/buildtools.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/filesize-reports.sh"
+
+function main() {
+    local target="${1}"
+    shift
+    declare -F "${target}" && "${target}" "${@}"
+}
+
+[[ "${BASH_SOURCE[0]}" == "${0}" ]] && main "${@}"

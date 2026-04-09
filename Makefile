@@ -138,7 +138,7 @@ ifneq (,$(STATIC_BINARY))
   CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
 endif
 
-.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md local-docker-build compare-sizes size-report
+.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
@@ -337,34 +337,5 @@ clean-coverage:
 clean:
 	$(RM) -r build
 
-local-docker-build: clean
-	@find . -maxdepth 1 -name 'async-profiler-*-$(OS_TAG)-$(ARCH_TAG).$(PACKAGE_EXT)' -delete; \
-	set -eux; \
-	SUFFIX=$$(yq '.jobs."build-linux-$(ARCH_TAG)".with.container-image' .github/workflows/test-and-publish-nightly.yml); \
-	PREFIX=$$(yq '.jobs.build.container.image' .github/workflows/build.yml | grep -oP "format\('\K[^{]+"); \
-	{ echo 'set -eux'; yq '.jobs.build.steps[] | select(.id == "build") | .run | sub("\$$\{\{ inputs\.platform \}\}", "linux-$(ARCH_TAG)")' .github/workflows/build.yml; } | \
-	docker run --rm -i \
-		--user $$(id -u):$$(id -g) \
-		-v "$(CURDIR):/src" -w /src \
-		-e GITHUB_SHA=$$(git rev-parse HEAD) \
-		-e COMMIT_TAG=$$(git rev-parse --short=7 HEAD) \
-		-e GITHUB_OUTPUT=/dev/null \
-		"$${PREFIX}$${SUFFIX}" bash
-
-size-report:
-	@TMPDIR=$$(mktemp -d); trap 'rm -rf "$$TMPDIR"' EXIT; \
-	LOCAL=$$(find . -maxdepth 1 -name 'async-profiler-*-$(OS_TAG)-$(ARCH_TAG).$(PACKAGE_EXT)' -not -name '*-debug*' | head -1); \
-	curl -sL $$(curl -sf https://api.github.com/repos/async-profiler/async-profiler/releases/latest \
-	  | grep -o '"browser_download_url": *"[^"]*$(OS_TAG)-$(ARCH_TAG)\.$(PACKAGE_EXT)"' \
-	  | head -1 | sed 's/"browser_download_url": *"//;s/"$$//') -o "$$TMPDIR/release.tar.gz"; \
-	tar tvzf "$$TMPDIR/release.tar.gz" | grep -v '/$$' | awk '{print $$NF, $$3}' | sed 's|^[^/]*/||' | sort > "$$TMPDIR/rel"; \
-	tar tvzf "$$LOCAL"                 | grep -v '/$$' | awk '{print $$NF, $$3}' | sed 's|^[^/]*/||' | sort > "$$TMPDIR/loc"; \
-	printf "| File | Release | Local | Diff | %% |\n"; \
-	printf "| --- | ---: | ---: | ---: | ---: |\n"; \
-	join -a1 -a2 -e 0 -o 0,1.2,2.2 "$$TMPDIR/rel" "$$TMPDIR/loc" | \
-	awk '{ file=$$1; rel=$$2+0; loc=$$3+0; diff=loc-rel; pct=(rel>0) ? diff/rel*100 : 0; \
-	  if (rel && loc) printf "| %s | %.1f KiB | %.1f KiB | %+.1f KiB | %+.1f%% |\n", file, rel/1024, loc/1024, diff/1024, pct; \
-	  else if (!rel)  printf "| %s | (new) | %.1f KiB | - | - |\n", file, loc/1024; \
-	  else            printf "| %s | %.1f KiB | (removed) | - | - |\n", file, rel/1024 }'
-
-compare-sizes: local-docker-build size-report
+print-%:
+	@echo $($*)
