@@ -1,7 +1,7 @@
 PROFILER_VERSION ?= 4.4
 
 ifeq ($(COMMIT_TAG),true)
-  PROFILER_VERSION := $(PROFILER_VERSION)-$(shell git rev-parse --short=8 HEAD)
+  PROFILER_VERSION := $(PROFILER_VERSION)-$(shell git rev-parse --short=7 HEAD)
 else ifneq ($(COMMIT_TAG),)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(COMMIT_TAG)
 endif
