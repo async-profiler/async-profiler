@@ -392,6 +392,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                     fillFrame(frames[depth++], BCI_NATIVE_FRAME, name);
                 }
 
+                if (startsWith(name, "cont") || startsWith(name, "Cont ")) {
+                    // Walking past virtual thread continuation barriers is not currently supported
+                    break;
+                }
+
                 if (frame.unwindStub((instruction_t*)start, name, (uintptr_t&)pc, sp, fp)) {
                     continue;
                 }
