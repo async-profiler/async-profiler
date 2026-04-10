@@ -12,6 +12,25 @@
 #include "codeCache.h"
 
 
+// Inline string comparison to avoid indirect call to strcmp
+template<size_t N>
+static bool streq(const char* s, const char (&pattern)[N]) {
+    for (size_t i = 0; i < N; i++) {
+        if (s[i] != pattern[i]) return false;
+    }
+    return true;
+}
+
+// Same as streq but compares one byte less
+template<size_t N>
+static bool startsWith(const char* s, const char (&pattern)[N]) {
+    for (size_t i = 0; i < N - 1; i++) {
+        if (s[i] != pattern[i]) return false;
+    }
+    return true;
+}
+
+
 class NMethod;
 class VMMethod;
 
@@ -434,16 +453,6 @@ class VMMethod : VMStructs {
 };
 
 class NMethod : VMStructs {
-  private:
-    // Inline string comparison to avoid indirect call to strncmp
-    template<size_t N>
-    static bool startsWith(const char* s, const char (&pattern)[N]) {
-        for (size_t i = 0; i < N - 1; i++) {
-            if (s[i] != pattern[i]) return false;
-        }
-        return true;
-    }
-
   public:
     int size() {
         return *(int*) at(_blob_size_offset);
@@ -510,7 +519,7 @@ class NMethod : VMStructs {
 
     bool isNMethod() {
         const char* n = name();
-        return n != NULL && (startsWith(n, "nmethod\0") || startsWith(n, "native nmethod\0"));
+        return n != NULL && (streq(n, "nmethod") || streq(n, "native nmethod"));
     }
 
     bool isStub() {

@@ -83,13 +83,13 @@ static inline bool isFixedSizeFrame(const char* name) {
     // Dispatch by the first character to optimize lookup
     switch (name[0]) {
         case 'i':
-            return strncmp(name, "indexof_linear_", 15) == 0;
+            return startsWith(name, "indexof_linear_");
         case 'm':
-            return strncmp(name, "md5_implCompress", 16) == 0;
+            return startsWith(name, "md5_implCompress");
         case 's':
-            return strncmp(name, "sha256_implCompress", 19) == 0
-                || strncmp(name, "string_indexof_linear_", 22) == 0
-                || strncmp(name, "slow_subtype_check", 18) == 0;
+            return startsWith(name, "sha256_implCompress")
+                || startsWith(name, "string_indexof_linear_")
+                || startsWith(name, "slow_subtype_check");
         default:
             return false;
     }
@@ -100,43 +100,43 @@ static inline bool isZeroSizeFrame(const char* name) {
     // Dispatch by the first character to optimize lookup
     switch (name[0]) {
         case 'I':
-            return strcmp(name, "InlineCacheBuffer") == 0;
+            return streq(name, "InlineCacheBuffer");
         case 'S':
-            return strncmp(name, "SafeFetch", 9) == 0;
+            return startsWith(name, "SafeFetch");
         case 'a':
-            return strncmp(name, "atomic", 6) == 0;
+            return startsWith(name, "atomic");
         case 'b':
-            return strncmp(name, "bigInteger", 10) == 0
-                || strncmp(name, "base64_encodeBlock", 18) == 0
-                || strcmp(name, "backward_copy_longs") == 0;
+            return startsWith(name, "bigInteger")
+                || startsWith(name, "base64_encodeBlock")
+                || streq(name, "backward_copy_longs");
         case 'c':
-            return strncmp(name, "copy_", 5) == 0
-                || strncmp(name, "compare_long_string_", 20) == 0;
+            return startsWith(name, "copy_")
+                || startsWith(name, "compare_long_string_");
         case 'e':
-            return strcmp(name, "encodeBlock") == 0;
+            return streq(name, "encodeBlock");
         case 'f':
-            return strncmp(name, "f2hf", 4) == 0
-                || strcmp(name, "forward_copy_longs") == 0
-                || strcmp(name, "foward_copy_longs") == 0;  // there is a typo in JDK 8
+            return startsWith(name, "f2hf")
+                || streq(name, "forward_copy_longs")
+                || streq(name, "foward_copy_longs");  // there is a typo in JDK 8
         case 'g':
-            return strncmp(name, "ghash_processBlocks", 19) == 0 && strchr(name + 19, 'w') == NULL;
+            return startsWith(name, "ghash_processBlocks") && strchr(name + 19, 'w') == NULL;
         case 'h':
-            return strncmp(name, "hf2f", 4) == 0;
+            return startsWith(name, "hf2f");
         case 'i':
-            return strncmp(name, "itable", 6) == 0;
+            return startsWith(name, "itable");
         case 'l':
-            return strncmp(name, "large_byte_array_inflate", 24) == 0
-                || strncmp(name, "lookup_secondary_supers_", 24) == 0;
+            return startsWith(name, "large_byte_array_inflate")
+                || startsWith(name, "lookup_secondary_supers_");
         case 'm':
-            return strncmp(name, "md5_implCompress", 16) == 0;
+            return startsWith(name, "md5_implCompress");
         case 's':
-            return strncmp(name, "sha1_implCompress", 17) == 0;
+            return startsWith(name, "sha1_implCompress");
         case 'u':
-            return strncmp(name, "updateBytesAdler32", 18) == 0;
+            return startsWith(name, "updateBytesAdler32");
         case 'v':
-            return strncmp(name, "vtable", 6) == 0;
+            return startsWith(name, "vtable");
         case 'z':
-            return strncmp(name, "zero_", 5) == 0;
+            return startsWith(name, "zero_");
         default:
             return false;
     }
@@ -282,7 +282,7 @@ bool StackFrame::unwindAtomicStub(const void*& pc) {
     const void* lr = (const void*)link();
     if (VMStructs::libjvm()->contains(lr)) {
         NMethod* nm = CodeHeap::findNMethod(pc);
-        if (nm != NULL && strncmp(nm->name(), "Stub", 4) == 0) {
+        if (nm != NULL && startsWith(nm->name(), "Stub")) {
             pc = lr;
             return true;
         }

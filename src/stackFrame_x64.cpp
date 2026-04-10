@@ -6,7 +6,6 @@
 #ifdef __x86_64__
 
 #include <errno.h>
-#include <string.h>
 #include <sys/syscall.h>
 #include "stackFrame.h"
 #include "vmStructs.h"
@@ -77,9 +76,9 @@ void StackFrame::ret() {
 bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     instruction_t* ip = (instruction_t*)pc;
     if (ip == entry || *ip == 0xc3
-        || strncmp(name, "itable", 6) == 0
-        || strncmp(name, "vtable", 6) == 0
-        || strcmp(name, "InlineCacheBuffer") == 0)
+        || startsWith(name, "itable")
+        || startsWith(name, "vtable")
+        || streq(name, "InlineCacheBuffer"))
     {
         pc = ((uintptr_t*)sp)[0] - 1;
         sp += 8;
