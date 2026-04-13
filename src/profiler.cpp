@@ -943,17 +943,17 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("VMStructs stack walking is not supported on this JVM/platform");
     }
 
-    if (_cstack == CSTACK_DEFAULT) {
-        if (VMStructs::hasStackStructs()) {
-            // Use VMStructs by default when possible
-            _cstack = args._cstack = CSTACK_VM;
-        } else if (VM::isOpenJ9() && DWARF_SUPPORTED) {
-            // OpenJ9 libs are compiled with frame pointers omitted
-            _cstack = args._cstack = CSTACK_DWARF;
-        }
+    if ((_cstack == CSTACK_DEFAULT || _cstack == CSTACK_DWARF) && VMStructs::hasStackStructs() && !_features.agct) {
+        // Use VMStructs by default when possible
+        _cstack = args._cstack = CSTACK_VM;
+    } else if (_cstack == CSTACK_DEFAULT && VM::isOpenJ9() && DWARF_SUPPORTED) {
+        // OpenJ9 libs are compiled with frame pointers omitted
+        _cstack = args._cstack = CSTACK_DWARF;
     }
 
-    if (_cstack != CSTACK_VM && _features.mixed) {
+    if (_cstack == CSTACK_VM && _features.agct) {
+        return Error("agct feature is incompatible with cstack=vm");
+    } else if (_cstack != CSTACK_VM && _features.mixed) {
         return Error("mixed feature is only allowed with VMStructs stack walking");
     }
 
