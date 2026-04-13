@@ -456,15 +456,20 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
         if (f->fp_off & DW_PC_OFFSET) {
             pc = (const char*)pc + (f->fp_off >> 1);
         } else {
+            retry_unwind_frame:
             if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
                 fp = *(uintptr_t*)(sp + f->fp_off);
             }
 
             if (EMPTY_FRAME_SIZE > 0 || f->pc_off != DW_LINK_REGISTER) {
                 pc = stripPointer(*(void**)(sp + f->pc_off));
-            } else if (depth == 1) {
-                pc = (const void*)frame.link();
-            } else {
+            } else if (depth > 1 || (pc = (const void*)frame.link()) == prev_pc) {
+                // Failed to unwind using link register
+                if (f->cfa == DW_REG_SP && f->fp_off == DW_SAME_FP) {
+                    // Special case for vDSO: if an empty frame did not work, retry using the default frame
+                    f = &FrameDesc::default_frame;
+                    goto retry_unwind_frame;
+                }
                 break;
             }
 
