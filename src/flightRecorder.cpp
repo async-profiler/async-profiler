@@ -540,9 +540,10 @@ class Recording {
     }
 
     static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
-        int chars = snprintf(str, size, "%s%s%s%s%s%s",
+        int chars = snprintf(str, size, "%s%s%s%s%s%s%s",
             f.stats         ? ",stats"    : "",
             f.jnienv        ? ",jnienv"   : "",
+            f.agct          ? ",agct"     : "",
             f.mixed         ? ",mixed"    : "",
             f.vtable_target ? ",vtable"   : "",
             f.comp_task     ? ",comptask" : "",

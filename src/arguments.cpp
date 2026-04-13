@@ -255,6 +255,7 @@ Error Arguments::parse(const char* args) {
                 if (value != NULL) {
                     if (strstr(value, "stats"))    _features.stats = 1;
                     if (strstr(value, "jnienv"))   _features.jnienv = 1;
+                    if (strstr(value, "agct"))     _features.agct = 1;
                     if (strstr(value, "mixed"))    _features.mixed = 1;
                     if (strstr(value, "vtable"))   _features.vtable_target = 1;
                     if (strstr(value, "comptask")) _features.comp_task = 1;
