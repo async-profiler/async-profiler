@@ -1,6 +1,44 @@
 # Changelog
 
-## [4.3]
+## [4.4]
+
+### Features
+
+ - #1553: Differential Flame Graphs
+
+### Improvements
+
+ - #1705: `memlimit` option to limit size of the call trace storage
+ - #1706: Extend syntax of `-j` option to truncate deep stacks
+ - #1720: FlameGraph: Dark mode toggle
+ - #1672: FlameGraph: Use Ctrl+Click in addition to Alt+Click to remove stacks
+ - #1684: Unwind ARM64 generated stubs on JDK 26+
+ - #1676: Make `dwarf` stack walking mode an alias for `vm`
+ - #1671: An option to select TLAB based AllocTracer engine with JDK 11+
+ - #1670: Move converter Main class to the one.convert package
+ - #1660: Provide non-aggregated samples in OTLP converter
+ - #1701, #1682: Speed-up stack walking
+
+### Breaking changes
+
+ - #1673: Permanently remove `check` command
+ - #1675: Remove unsafe AsyncGetCallTrace recovery tricks along with `safemode` option
+ - #1677: Remove `cstack=lbr` option
+
+### Bug fixes
+
+ - #1716: Wall-clock Heatmap does not count samples correctly
+ - #1715: Fix Zing crash when profiling cpu+wall together
+ - #1708: Another fix for correct vDSO unwinding on ARM64
+ - #1707: Workaround for JFR shutdown race
+ - #1699: Allow negative keys in JFR constant pool
+ - #1697: Ensure remaining buffer is sufficient for event data in JfrReader
+ - #1654: Prefer perf-events engine when record-cpu or target-cpu are selected
+ - #1585: Scale perf counters in case of multiplexing
+ - #1528: Add a hard-coded limit on the maximum number of jmethodIDs
+ - Do not walk past virtual thread continuation barriers
+
+## [4.3] - 2026-01-20
 
 ### Features
 
