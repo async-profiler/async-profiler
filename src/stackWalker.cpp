@@ -430,6 +430,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
 
         FrameDesc* f = native_lib != NULL ? native_lib->findFrameDesc(pc) : &FrameDesc::default_frame;
 
+        retry_unwind_frame:
         u8 cfa_reg = (u8)f->cfa;
         int cfa_off = f->cfa >> 8;
         if (cfa_reg == DW_REG_SP) {
@@ -456,7 +457,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
         if (f->fp_off & DW_PC_OFFSET) {
             pc = (const char*)pc + (f->fp_off >> 1);
         } else {
-            retry_unwind_frame:
             if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
                 fp = *(uintptr_t*)(sp + f->fp_off);
             }
@@ -465,8 +465,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                 pc = stripPointer(*(void**)(sp + f->pc_off));
             } else if (depth > 1 || (pc = (const void*)frame.link()) == prev_pc) {
                 // Failed to unwind using link register
-                if (f->cfa == DW_REG_SP && f->fp_off == DW_SAME_FP) {
-                    // Special case for vDSO: if an empty frame did not work, retry using the default frame
+                if (f->cfa == DW_REG_SP && fp == sp) {
+                    // Special case for vDSO: if an empty frame did not work, try the default frame
                     f = &FrameDesc::default_frame;
                     goto retry_unwind_frame;
                 }
