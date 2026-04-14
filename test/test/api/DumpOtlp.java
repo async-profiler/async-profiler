@@ -5,7 +5,6 @@
 
 package test.api;
 
-import java.nio.ByteBuffer;
 import one.profiler.AsyncProfiler;
 import one.profiler.Counter;
 import one.profiler.Events;
@@ -22,7 +21,7 @@ public class DumpOtlp extends BusyLoops {
         }
 
         // TODO: Should we test this further?
-        byte[] profile = AsyncProfiler.getInstance().dumpOtlp();
+        byte[] profile = AsyncProfiler.getInstance().dumpOtlp(Counter.TOTAL);
         System.out.println(profile.length);
     }
 }
