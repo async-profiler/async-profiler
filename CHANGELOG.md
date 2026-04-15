@@ -27,15 +27,18 @@
 
 ### Bug fixes
 
+ - #1727: Allocation profile has wrong units in OTLP format
  - #1716: Wall-clock Heatmap does not count samples correctly
  - #1715: Fix Zing crash when profiling cpu+wall together
  - #1708: Another fix for correct vDSO unwinding on ARM64
  - #1707: Workaround for JFR shutdown race
  - #1699: Allow negative keys in JFR constant pool
  - #1697: Ensure remaining buffer is sufficient for event data in JfrReader
+ - #1657: Re-enable workaround for a long attach on JDK 8
  - #1654: Prefer perf-events engine when record-cpu or target-cpu are selected
  - #1585: Scale perf counters in case of multiplexing
  - #1528: Add a hard-coded limit on the maximum number of jmethodIDs
+ - #1203: Fix "Instance field not found" when using `-Xcheck:jni` on JDK 8
  - Do not walk past virtual thread continuation barriers
 
 ## [4.3] - 2026-01-20
