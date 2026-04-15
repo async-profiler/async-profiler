@@ -5,6 +5,7 @@
 package test.otlp;
 
 import one.profiler.AsyncProfiler;
+import one.profiler.Counter;
 import one.profiler.Events;
 import io.opentelemetry.proto.profiles.v1development.*;
 
@@ -39,7 +40,7 @@ public class OtlpProfileTimeTest {
     }
 
     public static Profile dumpAndGetProfile(AsyncProfiler profiler) throws Exception {
-        byte[] dump = profiler.dumpOtlp();
+        byte[] dump = profiler.dumpOtlp(Counter.SAMPLES);
         ProfilesData data = ProfilesData.parseFrom(dump);
         return data.getResourceProfiles(0).getScopeProfiles(0).getProfiles(0);
     }
