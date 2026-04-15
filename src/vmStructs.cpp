@@ -442,7 +442,9 @@ void VMStructs::resolveOffsets() {
         return;
     }
 
-    if (_klass_offset_addr != NULL) {
+    JVMFlag* cjc = JVMFlag::find("CheckJNICalls");
+    if (cjc != NULL && !cjc->get() && _klass_offset_addr != NULL) {
+        // Create a synthetic fieldID to access VMKlass from jclass instance
         _klass = (jfieldID)(uintptr_t)(*_klass_offset_addr << 2 | 2);
     }
 
@@ -461,8 +463,7 @@ void VMStructs::resolveOffsets() {
             && (_compact_object_headers ? (_markword_klass_shift >= 0 && _markword_monitor_value == MONITOR_BIT)
                                         : _oop_klass_offset >= 0)
             && (_symbol_length_offset >= 0 || _symbol_length_and_refcount_offset >= 0)
-            && _symbol_body_offset >= 0
-            && _klass != NULL;
+            && _symbol_body_offset >= 0;
 
     _has_method_structs = _jmethod_ids_offset >= 0
             && _nmethod_method_offset >= 0

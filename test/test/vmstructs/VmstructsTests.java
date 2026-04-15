@@ -5,9 +5,11 @@
 
 package test.vmstructs;
 
+import one.profiler.test.Assert;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
+import test.alloc.Hello;
 import test.smoke.Alloc;
 
 public class VmstructsTests {
@@ -24,5 +26,11 @@ public class VmstructsTests {
         Thread.sleep(2000);
         Output out = p.profile("stop -o collapsed");
         assert out.contains("Alloc.allocate");
+    }
+
+    @Test(mainClass = Hello.class, jvmArgs = "-Xcheck:jni", agentArgs = "start,event=alloc", output = true)
+    public void checkJni(TestProcess p) throws Exception {
+        p.waitForExit();
+        Assert.isEqual(p.exitCode(), 0);
     }
 }
