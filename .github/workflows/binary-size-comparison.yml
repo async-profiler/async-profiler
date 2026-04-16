@@ -1,0 +1,48 @@
+name: Binary Size Comparison
+
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build-pr-linux-x64:
+    uses: ./.github/workflows/build.yml
+    with: { platform: linux-x64, runner: ubuntu-latest, container-image: "x86:latest", sha: "${{ github.event.pull_request.head.sha }}" }
+  build-pr-linux-arm64:
+    uses: ./.github/workflows/build.yml
+    with: { platform: linux-arm64, runner: ubuntu-24.04-arm, container-image: "arm:latest", sha: "${{ github.event.pull_request.head.sha }}" }
+  build-pr-macos:
+    uses: ./.github/workflows/build.yml
+    with: { platform: macos, runner: macos-15, sha: "${{ github.event.pull_request.head.sha }}" }
+
+  build-base-linux-x64:
+    uses: ./.github/workflows/build.yml
+    with: { platform: linux-x64, runner: ubuntu-latest, container-image: "x86:latest", sha: "${{ github.event.pull_request.base.sha }}" }
+  build-base-linux-arm64:
+    uses: ./.github/workflows/build.yml
+    with: { platform: linux-arm64, runner: ubuntu-24.04-arm, container-image: "arm:latest", sha: "${{ github.event.pull_request.base.sha }}" }
+  build-base-macos:
+    uses: ./.github/workflows/build.yml
+    with: { platform: macos, runner: macos-15, sha: "${{ github.event.pull_request.base.sha }}" }
+
+  compare:
+    needs: [build-pr-linux-x64, build-pr-linux-arm64, build-pr-macos, build-base-linux-x64, build-base-linux-arm64, build-base-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - name: Compare and comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sudo apt-get -y install libarchive-tools
+          bash scripts/compare-binary-sizes.sh ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > size-report.md
+          gh pr comment ${{ github.event.pull_request.number }} --body-file size-report.md
