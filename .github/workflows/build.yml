@@ -12,6 +12,10 @@ on:
       container-image:
         type: string
         required: false
+      sha:
+        type: string
+        required: false
+        description: 'Commit SHA to checkout and build. Defaults to the triggering commit.'
 
 env:
   build_java_distribution: corretto
@@ -37,11 +41,13 @@ jobs:
           java-version: ${{ env.build_java_version }}
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || github.sha }}
       - name: Build and unit test
         id: build
         run: |
           set -x
-          HASH=${GITHUB_SHA:0:7}
+          HASH=${COMMIT_SHA:0:7}
           case "${{ inputs.platform }}" in
             macos*)
               brew install gcovr
@@ -55,13 +61,13 @@ jobs:
           echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
         shell: bash
         env:
-          GITHUB_SHA: ${{ github.sha }}
+          COMMIT_SHA: ${{ inputs.sha || github.sha }}
       - name: Set artifact name
         id: set_artifact_name
-        run: echo "artifact_name=async-profiler-${{ inputs.platform }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+        run: echo "artifact_name=async-profiler-${{ inputs.platform }}-${COMMIT_SHA:0:7}" >> $GITHUB_OUTPUT
         shell: bash
         env:
-          GITHUB_SHA: ${{ github.sha }}
+          COMMIT_SHA: ${{ inputs.sha || github.sha }}
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
