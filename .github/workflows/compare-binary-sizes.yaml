@@ -1,0 +1,28 @@
+name: compare-binary-sizes
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+env:
+  GH_TOKEN: "${{ github.token }}"
+  REPO: "${{ github.repository }}"
+  PR_SHA: "${{ github.event.workflow_run.head_sha }}"
+jobs:
+  compare:
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          gh api "repos/${REPO}/contents/scripts/compare-binary-sizes.sh" -H 'Accept: application/vnd.github.raw' > compare.sh
+          read pr base_sha < <(gh api "repos/${REPO}/commits/${PR_SHA}/pulls" --jq '.[0] | "\(.number) \(.base.sha)"')
+          function find-archive() { find "${1}" -type f \( -name "async-profiler-*${2}.tar.gz" -o -name "async-profiler-*${2}.zip" \) ! -name '*-debug*' | head -n1; }
+          for p in linux-x64 linux-arm64 macos; do
+            gh run download -R "${REPO}" -n "async-profiler-${p}-${base_sha:0:7}" -D "base/${p}" 2>/dev/null || continue
+            gh run download -R "${REPO}" -n "async-profiler-${p}-${PR_SHA:0:7}"   -D "pr/${p}"   2>/dev/null || continue
+            bash compare.sh "$(find-archive "base/${p}" "${p}")" "$(find-archive "pr/${p}" "${p}")" >> report.md
+          done
+          gh pr comment "${pr}" -R "${REPO}" --body-file report.md --edit-last --create-if-none
