@@ -34,7 +34,7 @@
 INCLUDE_HELPER_CLASS(JFR_SYNC_NAME, JFR_SYNC_CLASS, "one/profiler/JfrSync")
 
 static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
-    Profiler::instance()->stop();
+    Profiler::instance()->expire(_global_args, false);
 }
 
 

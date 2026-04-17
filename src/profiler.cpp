@@ -1541,17 +1541,19 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             break;
         }
         case ACTION_STOP: {
-            Error error = stop();
-            if (args._output == OUTPUT_NONE) {
-                if (error) {
-                    return error;
+            MutexLocker ml(_state_lock);
+
+            if (_state == RUNNING) {
+                if (args._output == OUTPUT_NONE) {
+                    if (!(args._quiet || _global_args._quiet) && _global_args._output == OUTPUT_NONE) {
+                        out << "Profiling stopped after " << uptime() << " seconds. No dump options specified.\n";
+                    }
+                    return expire(_global_args, false);
+                } else {
+                    return expire(args, false);
                 }
-                if (!args._quiet) {
-                    out << "Profiling stopped after " << uptime() << " seconds. No dump options specified\n";
-                }
-                break;
             }
-            // Fall through
+            // fall through (backward compatibility for using stop as a dump command)
         }
         case ACTION_DUMP: {
             Error error = dump(out, args);

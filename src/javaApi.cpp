@@ -47,7 +47,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
 
 extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
-    Error error = Profiler::instance()->stop();
+    Error error = Profiler::instance()->expire(_global_args, false);
 
     if (error) {
         throwNew(env, "java/lang/IllegalStateException", error.message());

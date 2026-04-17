@@ -53,4 +53,15 @@ public class ApiTests {
         assert profile.contains("BusyLoops.method2;");
         assert profile.contains("BusyLoops.method3;");
     }
+
+    @Test(mainClass = OutputAtStart.class, args = "%profile.collapsed")
+    public void outputAtStart(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        Output profile = p.readFile("%profile");
+        assert profile.contains("BusyLoops.method1;");
+        assert profile.contains("BusyLoops.method2;");
+        assert profile.contains("BusyLoops.method3;");
+    }
 }
