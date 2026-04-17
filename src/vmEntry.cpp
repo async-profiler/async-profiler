@@ -538,6 +538,6 @@ extern "C" DLLEXPORT void JNICALL
 JNI_OnUnload(JavaVM* vm, void* reserved) {
     Profiler* profiler = Profiler::instance();
     if (profiler != NULL) {
-        profiler->stop();
+        profiler->expire(_global_args, false);
     }
 }
