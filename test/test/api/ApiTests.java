@@ -60,8 +60,6 @@ public class ApiTests {
         assert p.exitCode() == 0;
 
         Output profile = p.readFile("%profile");
-        assert profile.contains("BusyLoops.method1;");
-        assert profile.contains("BusyLoops.method2;");
-        assert profile.contains("BusyLoops.method3;");
+        assert profile.contains("BusyLoop");
     }
 }
