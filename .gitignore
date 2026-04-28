@@ -8,3 +8,5 @@
 *.iml
 /src/api/**/*.class
 .gdb_history
+async-profiler-*.tar.gz
+async-profiler-*.zip
