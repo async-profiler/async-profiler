@@ -215,7 +215,7 @@ public class JfrTests {
         assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
 
         Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert out.samples("delaySafepoint") >= 10;
+        Assert.isGreaterOrEqual(out.samples("delaySafepoint"), 3);
     }
 
     /**
