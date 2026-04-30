@@ -148,7 +148,23 @@ const char* CodeCache::binarySearch(const void* address) {
     // Symbols with zero size can be valid functions: e.g. ASM entry points or kernel code.
     // Also, in some cases (endless loop) the return address may point beyond the function.
     if (low > 0 && (_blobs[low - 1]._start == _blobs[low - 1]._end || _blobs[low - 1]._end == address)) {
-        return _blobs[low - 1]._name;
+        const char* name = _blobs[low - 1]._name;
+        // Skip ELF section-boundary markers (zero-size data symbols emitted by the linker).
+        // They're not functions; returning them is actively misleading. Fall through to the
+        // library-name fallback so frames render as the lib (e.g. "libfoo.so") instead.
+        if (name != NULL && name[0] == '_' && (
+                strcmp(name, "_end") == 0 ||
+                strcmp(name, "_edata") == 0 ||
+                strcmp(name, "_etext") == 0 ||
+                strcmp(name, "__bss_start") == 0 ||
+                strcmp(name, "__data_start") == 0 ||
+                strcmp(name, "__init_array_end") == 0 ||
+                strcmp(name, "__init_array_start") == 0 ||
+                strcmp(name, "__fini_array_end") == 0 ||
+                strcmp(name, "__fini_array_start") == 0)) {
+            return _name;
+        }
+        return name;
     }
     return _name;
 }

@@ -957,6 +957,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("mixed feature is only allowed with VMStructs stack walking");
     }
 
+    Symbols::setFilter(args._symbols_include, args._symbols_exclude);
+
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_engine == &perf_events && !args._alluser);
 

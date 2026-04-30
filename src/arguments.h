@@ -184,6 +184,8 @@ class Arguments {
     const char* _filter;
     std::vector<const char*> _include;
     std::vector<const char*> _exclude;
+    std::vector<const char*> _symbols_include;
+    std::vector<const char*> _symbols_exclude;
     unsigned char _mcache;
     bool _preloaded;
     bool _quiet;
