@@ -303,6 +303,12 @@ Error Arguments::parse(const char* args) {
             CASE("exclude")
                 _exclude.push_back(value);
 
+            CASE("syminclude")
+                _symbols_include.push_back(value);
+
+            CASE("symexclude")
+                _symbols_exclude.push_back(value);
+
             CASE("threads")
                 _threads = true;
 

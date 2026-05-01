@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include "hooks.h"
 #include "profiler.h"
+#include "symbols.h"
 #include "vmStructs.h"
 
 
@@ -34,7 +35,21 @@ class LateInitializer {
   private:
     bool checkJvmLoaded() {
         Profiler* profiler = Profiler::instance();
+        // checkJvmLoaded only needs libjvm parsed (to find AsyncGetCallTrace
+        // and initialize VMStructs). The static-init context here runs while
+        // the agent .so is being dlopen()ed, BEFORE any agent callback
+        // (Agent_OnLoad / Agent_OnAttach) — so the user's symbols filter
+        // hasn't been parsed yet. Doing a full parseLibraries here would
+        // bypass that filter and force-load every mapped .so, which on
+        // processes with a large number native libraries can spike RSS.
+        //
+        // Restrict to libjvm here. The full library walk runs later, in
+        // VM::init's call to updateSymbols (vmEntry.cpp), by which time
+        // Agent_OnLoad/Agent_OnAttach has already invoked Symbols::setFilter
+        // with the user's --symbols-include / --symbols-exclude arguments.
+        Symbols::setEagerParseLibjvmOnly(true);
         profiler->updateSymbols(false);
+        Symbols::setEagerParseLibjvmOnly(false);
 
         CodeCache* libjvm = profiler->findLibraryByName(OS::isLinux() ? "libjvm.so" : "libjvm.dylib");
         if (libjvm != NULL && libjvm->findSymbol("AsyncGetCallTrace") != NULL) {

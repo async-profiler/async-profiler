@@ -18,6 +18,7 @@
 #include "instrument.h"
 #include "lockTracer.h"
 #include "log.h"
+#include "symbols.h"
 #include "vmStructs.h"
 
 
@@ -484,6 +485,9 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
         }
     }
 
+    // Apply symbol filter before VM::init triggers the first parseLibraries.
+    Symbols::setFilter(_global_args._symbols_include, _global_args._symbols_exclude);
+
     if (!VM::init(vm, false)) {
         Log::error("JVM does not support Tool Interface");
         return COMMAND_ERROR;
@@ -503,6 +507,9 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
         Log::error("%s", error.message());
         return ARGUMENTS_ERROR;
     }
+
+    // Apply symbol filter before VM::init triggers the first parseLibraries.
+    Symbols::setFilter(args._symbols_include, args._symbols_exclude);
 
     if (!VM::init(vm, true)) {
         Log::error("JVM does not support Tool Interface");

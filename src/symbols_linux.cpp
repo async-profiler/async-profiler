@@ -6,6 +6,7 @@
 #ifdef __linux__
 
 #include <dlfcn.h>
+#include <fnmatch.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <stdio.h>
@@ -673,8 +674,142 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
+std::vector<const char*> Symbols::_includes;
+std::vector<const char*> Symbols::_excludes;
 static std::unordered_set<u64> _parsed_inodes;
 static bool _in_parse_libraries = false;
+static bool _eager_libjvm_only = false;
+
+// Auto-allow context cached on first parseLibraries call with an active filter.
+// Subsequent dlopen-triggered calls won't re-discover libjvm (already in
+// _parsed_inodes), so we cache the derivation rather than re-walking each time.
+// All access is serialized by _parse_lock.
+static bool _auto_allow_initialized = false;
+static std::string _jdk_lib_root;
+static char _main_exe_buf[PATH_MAX];
+static const char* _main_exe = NULL;
+
+// Forward declarations for helpers defined further down.
+static const char* basename_of(const char* path);
+static std::string deriveJdkLibRoot(const char* libjvm_path);
+
+void Symbols::setFilter(const std::vector<const char*>& includes,
+                        const std::vector<const char*>& excludes) {
+    MutexLocker ml(_parse_lock);
+    _includes = includes;
+    _excludes = excludes;
+
+    // libjvm is force-parsed at agent load time so the profiler can locate
+    // AsyncGetCallTrace; an exclude that matches it cannot suppress that early
+    // parse. Warn the user once at filter-set time.
+    for (const char* g : _excludes) {
+        if (fnmatch(g, "libjvm.so", 0) == 0) {
+            Log::warn("symbols-exclude=%s has no effect: libjvm is required by "
+                      "the profiler and is parsed during bootstrap before the "
+                      "filter is applied", g);
+            break;
+        }
+    }
+}
+
+void Symbols::setEagerParseLibjvmOnly(bool on) {
+    _eager_libjvm_only = on;
+}
+
+static const char* basename_of(const char* path) {
+    const char* slash = strrchr(path, '/');
+    return slash != NULL ? slash + 1 : path;
+}
+
+static bool matchesAny(const std::vector<const char*>& globs, const char* basename) {
+    for (const char* g : globs) {
+        if (fnmatch(g, basename, 0) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Returns the basename of the async-profiler shared library itself (e.g.
+// "libasyncProfiler.so"), or NULL if it can't be determined. Several internal
+// paths (MallocTracer / NativeLockTracer initialization, crash handler, etc.)
+// call findLibraryByAddress on a function inside our own .so and ASSERT the
+// result is non-NULL. So we MUST always parse our own library regardless of
+// the user's filter.
+//
+// We compare by basename rather than full path because dladdr returns the
+// path used at dlopen time (often relative, e.g. "build/bin/../lib/foo.so"),
+// while /proc/self/maps reports the kernel-resolved canonical path. A real-
+// path normalization would also work but basename is sufficient and cheaper.
+static const char* selfLibBasename() {
+    static char base[256];
+    static bool initialized = false;
+    if (!initialized) {
+        Dl_info info;
+        if (dladdr((const void*)&selfLibBasename, &info) && info.dli_fname != NULL) {
+            const char* slash = strrchr(info.dli_fname, '/');
+            const char* b = slash != NULL ? slash + 1 : info.dli_fname;
+            strncpy(base, b, sizeof(base) - 1);
+            base[sizeof(base) - 1] = 0;
+        } else {
+            base[0] = 0;
+        }
+        initialized = true;
+    }
+    return base[0] != 0 ? base : NULL;
+}
+
+bool Symbols::shouldParseLibrary(const char* path,
+                                 const char* jdk_lib_root,
+                                 const char* main_exe) {
+    const char* base = basename_of(path);
+    bool is_libjvm = strcmp(base, "libjvm.so") == 0;
+    bool is_main_exe = main_exe != NULL && strcmp(path, main_exe) == 0;
+    bool is_pseudo = path[0] == '[';  // [vdso], [vsyscall], etc.
+    const char* self_base = selfLibBasename();
+    bool is_self = self_base != NULL && strcmp(base, self_base) == 0;
+
+    if (matchesAny(_excludes, base)) {
+        if (is_libjvm) {
+            // libjvm is force-parsed at agent load time so the profiler can find
+            // AsyncGetCallTrace and friends; excluding it has no practical effect
+            // because its symbols are already in CodeCache by the time the user's
+            // filter is read.
+            Log::warn("symbols-exclude=%s has no effect: libjvm is required by "
+                      "the profiler and is parsed during bootstrap before the "
+                      "filter is applied", base);
+            return true;  // pretend it's allowed; it's already in CodeCache anyway
+        }
+        if (is_self) {
+            // Internal code paths (MallocTracer, NativeLockTracer, crash handler)
+            // assert that async-profiler's own .so is in CodeCache. Honoring this
+            // exclude would crash on the next start.
+            Log::warn("symbols-exclude=%s has no effect: async-profiler's own "
+                      "library is required and cannot be filtered out", base);
+            return true;
+        }
+        if (is_main_exe) {
+            Log::warn("symbols-exclude is skipping the main executable %s; "
+                      "main/launcher frames will appear as [unknown]", base);
+        }
+        return false;
+    }
+
+    if (is_libjvm || is_main_exe || is_pseudo || is_self) {
+        return true;  // auto-allow
+    }
+    if (jdk_lib_root != NULL && jdk_lib_root[0] != 0) {
+        size_t root_len = strlen(jdk_lib_root);
+        if (strncmp(path, jdk_lib_root, root_len) == 0) {
+            return true;  // sibling of libjvm under JDK lib dir
+        }
+    }
+
+    if (_includes.empty()) {
+        return true;  // no allowlist set -> default-allow
+    }
+    return matchesAny(_includes, base);
+}
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
     int fd;
@@ -775,6 +910,20 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     fclose(f);
 }
 
+// Derive the JDK lib root from libjvm's path so JDK helpers (libnet, libnio, libzip, ...)
+// can be auto-allowed alongside libjvm itself. Examples:
+//   /opt/jdk/lib/server/libjvm.so          -> /opt/jdk/lib/
+//   /opt/jdk-8/jre/lib/amd64/server/libjvm.so -> /opt/jdk-8/jre/lib/amd64/
+// Returns "" if the path does not have at least two parent directories.
+static std::string deriveJdkLibRoot(const char* libjvm_path) {
+    const char* last_slash = strrchr(libjvm_path, '/');
+    if (last_slash == NULL) return "";
+    std::string parent(libjvm_path, last_slash - libjvm_path);
+    size_t pos = parent.rfind('/');
+    if (pos == std::string::npos) return "";
+    return parent.substr(0, pos + 1);  // include trailing '/' for prefix match
+}
+
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
@@ -795,14 +944,74 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         }
     }
 
+    bool filter_active = !_includes.empty() || !_excludes.empty();
     std::unordered_map<u64, SharedLibrary> libs;
-    collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
+    // When a filter is active we must discover every candidate library so that
+    // allowlist matches aren't lost behind unrelated entries that happened to
+    // appear earlier in /proc/self/maps. Without a filter, preserve the
+    // historical cap on discovery to bound transient memory.
+    int discover_cap = filter_active ? INT_MAX : MAX_NATIVE_LIBS - array->count();
+    collectSharedLibraries(libs, discover_cap);
+
+    if (filter_active && !_auto_allow_initialized) {
+        // Look for libjvm in the just-discovered libs first.
+        for (auto& it : libs) {
+            const char* base = basename_of(it.second.file);
+            if (strcmp(base, "libjvm.so") == 0) {
+                _jdk_lib_root = deriveJdkLibRoot(it.second.file);
+                break;
+            }
+        }
+        // Fall back to already-parsed CodeCaches (libjvm is typically parsed
+        // during static init, before any filter is set).
+        if (_jdk_lib_root.empty()) {
+            int n = array->count();
+            for (int i = 0; i < n; i++) {
+                CodeCache* cc = (*array)[i];
+                if (cc != NULL && cc->name() != NULL &&
+                    strcmp(basename_of(cc->name()), "libjvm.so") == 0) {
+                    _jdk_lib_root = deriveJdkLibRoot(cc->name());
+                    break;
+                }
+            }
+        }
+        ssize_t n = readlink("/proc/self/exe", _main_exe_buf, sizeof(_main_exe_buf) - 1);
+        if (n > 0) {
+            _main_exe_buf[n] = 0;
+            _main_exe = _main_exe_buf;
+        }
+        // Mark initialized only once libjvm has been seen, otherwise retry next call.
+        if (!_jdk_lib_root.empty()) {
+            _auto_allow_initialized = true;
+        }
+    }
 
     for (auto& it : libs) {
         u64 inode = it.first;
+        SharedLibrary& lib = it.second;
+
+        if (_eager_libjvm_only) {
+            // Static-init bootstrap: only parse libjvm so we can find
+            // AsyncGetCallTrace. Everything else waits until the agent has
+            // had a chance to set the filter (Agent_OnAttach).
+            const char* base = basename_of(lib.file);
+            if (strcmp(base, "libjvm.so") != 0) {
+                free(lib.file);
+                continue;
+            }
+        }
+        if (filter_active && !shouldParseLibrary(lib.file, _jdk_lib_root.c_str(), _main_exe)) {
+            // Skip without recording inode so a later filter change can re-evaluate.
+            free(lib.file);
+            continue;
+        }
+        if (array->count() >= MAX_NATIVE_LIBS) {
+            free(lib.file);
+            continue;
+        }
+
         _parsed_inodes.insert(inode);
 
-        SharedLibrary& lib = it.second;
         CodeCache* cc = new CodeCache(lib.file, array->count(), lib.map_start, lib.map_end, lib.image_base);
 
         if (strchr(lib.file, ':') != NULL) {

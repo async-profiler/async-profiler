@@ -7,7 +7,10 @@
 
 #include <unordered_set>
 #include <dlfcn.h>
+#include <fnmatch.h>
 #include <string.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
 #include <mach-o/nlist.h>
@@ -176,14 +179,166 @@ class MachOParser {
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
+std::vector<const char*> Symbols::_includes;
+std::vector<const char*> Symbols::_excludes;
 static std::unordered_set<const void*> _parsed_libraries;
 
+// Forward declarations.
+static const char* basename_of(const char* path);
+static std::string deriveJdkLibRootMacos(const char* libjvm_path);
+
+static bool _eager_libjvm_only = false;
+
+void Symbols::setFilter(const std::vector<const char*>& includes,
+                        const std::vector<const char*>& excludes) {
+    MutexLocker ml(_parse_lock);
+    _includes = includes;
+    _excludes = excludes;
+
+    for (const char* g : _excludes) {
+        if (fnmatch(g, "libjvm.dylib", 0) == 0) {
+            Log::warn("symbols-exclude=%s has no effect: libjvm is required by "
+                      "the profiler and is parsed during bootstrap before the "
+                      "filter is applied", g);
+            break;
+        }
+    }
+}
+
+void Symbols::setEagerParseLibjvmOnly(bool on) {
+    _eager_libjvm_only = on;
+}
+
+static const char* basename_of(const char* path) {
+    const char* slash = strrchr(path, '/');
+    return slash != NULL ? slash + 1 : path;
+}
+
+static bool matchesAny(const std::vector<const char*>& globs, const char* basename) {
+    for (const char* g : globs) {
+        if (fnmatch(g, basename, 0) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Returns the basename of the async-profiler shared library itself (e.g.
+// "libasyncProfiler.dylib"), or NULL if it can't be determined. Several
+// internal paths (MallocTracer / NativeLockTracer initialization, crash
+// handler, etc.) call findLibraryByAddress on a function inside our own
+// .dylib and ASSERT the result is non-NULL. So we MUST always parse our own
+// library regardless of the user's filter.
+//
+// We compare by basename rather than full path because dladdr returns the
+// path used at dlopen time (often relative), while dyld may report a
+// canonical absolute path. A realpath normalization would also work but
+// basename is sufficient and cheaper.
+static const char* selfLibBasename() {
+    static char base[256];
+    static bool initialized = false;
+    if (!initialized) {
+        Dl_info info;
+        if (dladdr((const void*)&selfLibBasename, &info) && info.dli_fname != NULL) {
+            const char* slash = strrchr(info.dli_fname, '/');
+            const char* b = slash != NULL ? slash + 1 : info.dli_fname;
+            strncpy(base, b, sizeof(base) - 1);
+            base[sizeof(base) - 1] = 0;
+        } else {
+            base[0] = 0;
+        }
+        initialized = true;
+    }
+    return base[0] != 0 ? base : NULL;
+}
+
+bool Symbols::shouldParseLibrary(const char* path,
+                                 const char* jdk_lib_root,
+                                 const char* main_exe) {
+    const char* base = basename_of(path);
+    bool is_libjvm = strcmp(base, "libjvm.dylib") == 0;
+    bool is_main_exe = main_exe != NULL && strcmp(path, main_exe) == 0;
+    bool is_pseudo = path[0] == '[';
+    const char* self_base = selfLibBasename();
+    bool is_self = self_base != NULL && strcmp(base, self_base) == 0;
+
+    if (matchesAny(_excludes, base)) {
+        if (is_libjvm) {
+            Log::warn("symbols-exclude=%s has no effect: libjvm is required by "
+                      "the profiler and is parsed during bootstrap before the "
+                      "filter is applied", base);
+            return true;
+        }
+        if (is_self) {
+            // Internal code paths (MallocTracer, NativeLockTracer, crash handler)
+            // assert that async-profiler's own .dylib is in CodeCache. Honoring
+            // this exclude would crash on the next start.
+            Log::warn("symbols-exclude=%s has no effect: async-profiler's own "
+                      "library is required and cannot be filtered out", base);
+            return true;
+        }
+        if (is_main_exe) {
+            Log::warn("symbols-exclude is skipping the main executable %s; "
+                      "main/launcher frames will appear as [unknown]", base);
+        }
+        return false;
+    }
+
+    if (is_libjvm || is_main_exe || is_pseudo || is_self) {
+        return true;
+    }
+    if (jdk_lib_root != NULL && jdk_lib_root[0] != 0) {
+        size_t root_len = strlen(jdk_lib_root);
+        if (strncmp(path, jdk_lib_root, root_len) == 0) {
+            return true;
+        }
+    }
+
+    if (_includes.empty()) {
+        return true;
+    }
+    return matchesAny(_includes, base);
+}
+
 void Symbols::parseKernelSymbols(CodeCache* cc) {
+}
+
+static std::string deriveJdkLibRootMacos(const char* libjvm_path) {
+    const char* last_slash = strrchr(libjvm_path, '/');
+    if (last_slash == NULL) return "";
+    std::string parent(libjvm_path, last_slash - libjvm_path);
+    size_t pos = parent.rfind('/');
+    if (pos == std::string::npos) return "";
+    return parent.substr(0, pos + 1);
 }
 
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
+
+    bool filter_active = !_includes.empty() || !_excludes.empty();
+    std::string jdk_lib_root;
+    char main_exe_buf[PATH_MAX];
+    const char* main_exe = NULL;
+    if (filter_active) {
+        for (uint32_t i = 0; i < images; i++) {
+            const char* path = _dyld_get_image_name(i);
+            if (path != NULL && strcmp(basename_of(path), "libjvm.dylib") == 0) {
+                jdk_lib_root = deriveJdkLibRootMacos(path);
+                break;
+            }
+        }
+        uint32_t buf_len = sizeof(main_exe_buf);
+        if (_NSGetExecutablePath(main_exe_buf, &buf_len) == 0) {
+            char* resolved = realpath(main_exe_buf, NULL);
+            if (resolved != NULL) {
+                strncpy(main_exe_buf, resolved, sizeof(main_exe_buf) - 1);
+                main_exe_buf[sizeof(main_exe_buf) - 1] = 0;
+                free(resolved);
+            }
+            main_exe = main_exe_buf;
+        }
+    }
 
     for (uint32_t i = 0; i < images; i++) {
         const mach_header* image_base = _dyld_get_image_header(i);
@@ -201,6 +356,18 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         }
 
         const char* path = _dyld_get_image_name(i);
+        if (_eager_libjvm_only && path != NULL &&
+                strcmp(basename_of(path), "libjvm.dylib") != 0) {
+            _parsed_libraries.erase(image_base);
+            continue;
+        }
+        if (filter_active && path != NULL &&
+                !shouldParseLibrary(path, jdk_lib_root.c_str(), main_exe)) {
+            // Drop the membership we just inserted so a later filter change can retry.
+            _parsed_libraries.erase(image_base);
+            continue;
+        }
+
         const char* vmaddr_slide = (const char*)_dyld_get_image_vmaddr_slide(i);
 
         CodeCache* cc = new CodeCache(path, count);
