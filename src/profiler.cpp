@@ -838,6 +838,21 @@ Error Profiler::start(Arguments& args, bool reset) {
         VM::tryAttach();
     }
 
+    if (args._fdtransfer) {
+        if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
+            return Error("Failed to initialize FdTransferClient");
+        }
+    }
+
+    Error error = startInternal(args, reset);
+    if (error) {
+        FdTransferClient::closePeer();
+    }
+
+    return error;
+}
+
+Error Profiler::startInternal(Arguments& args, bool reset) {
     Error error = checkJvmCapabilities();
     if (error) {
         return error;
@@ -855,12 +870,6 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     if (args._jfr_sync && !VM::loaded()) {
         return Error("jfrsync is not supported with non-Java processes");
-    }
-
-    if (args._fdtransfer) {
-        if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
-            return Error("Failed to initialize FdTransferClient");
-        }
     }
 
     if (args._proc > 0) {
@@ -1060,7 +1069,6 @@ error1:
     _jfr.stop();
     unlockAll();
 
-    FdTransferClient::closePeer();
     return error;
 }
 
