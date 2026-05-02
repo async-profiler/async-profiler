@@ -74,6 +74,30 @@ public class OtlpTests {
         checkSamples(getProfile(profilesData, 0), profilesData.getDictionary());
     }
 
+    // Sample.values is field 4 in opentelemetry-proto >= 1.10 (was field 2 in <= 1.9).
+    // Guards against accidentally regressing the wire-format renumbering — an empty
+    // values list across every Sample is the exact symptom when Otlp::Sample::values
+    // points at a stale field number.
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
+    public void samplesContainNonEmptyValues(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+        Profile profile = getProfile(profilesData, 0);
+        assert !profile.getSamplesList().isEmpty() : "no Sample emitted";
+
+        boolean anyNonEmpty = false;
+        boolean anyNonZero = false;
+        for (Sample sample : profile.getSamplesList()) {
+            if (sample.getValuesCount() > 0) {
+                anyNonEmpty = true;
+                for (long v : sample.getValuesList()) {
+                    if (v != 0) { anyNonZero = true; break; }
+                }
+            }
+        }
+        assert anyNonEmpty : "Sample.values is empty for every sample — wire-format regression?";
+        assert anyNonZero : "Sample.values populated but every entry is zero";
+    }
+
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void samplesFromJfr(TestProcess p) throws Exception {
         p.waitForExit();
