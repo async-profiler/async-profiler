@@ -53,13 +53,13 @@ namespace Profile {
 namespace ValueType {
     const protobuf_index_t type_strindex = 1;
     const protobuf_index_t unit_strindex = 2;
-    const protobuf_index_t aggregation_temporality = 3;
 }
 
 namespace Sample {
     const protobuf_index_t stack_index = 1;
-    const protobuf_index_t values = 2;
-    const protobuf_index_t attribute_indices = 3;
+    const protobuf_index_t attribute_indices = 2;
+    const protobuf_index_t link_index = 3;
+    const protobuf_index_t values = 4;
 }
 
 namespace Stack {

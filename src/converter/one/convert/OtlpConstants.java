@@ -33,13 +33,13 @@ final class OtlpConstants {
 
     static final int
             VALUE_TYPE_type_strindex = 1,
-            VALUE_TYPE_unit_strindex = 2,
-            VALUE_TYPE_aggregation_temporality = 3;
+            VALUE_TYPE_unit_strindex = 2;
 
     static final int
             SAMPLE_stack_index = 1,
-            SAMPLE_values = 2,
-            SAMPLE_attribute_indices = 3,
+            SAMPLE_attribute_indices = 2,
+            SAMPLE_link_index = 3,
+            SAMPLE_values = 4,
             SAMPLE_timestamps_unix_nano = 5;
 
     static final int
