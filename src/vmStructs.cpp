@@ -83,7 +83,7 @@ int VMStructs::_flag_origin_offset = -1;
 const char* VMStructs::_flags_addr = NULL;
 int VMStructs::_flag_count = 0;
 int VMStructs::_flag_size = 0;
-char* VMStructs::_code_heap[3] = {};
+char* VMStructs::_code_heap[4] = {};
 const void* VMStructs::_code_heap_low = NO_MIN_ADDRESS;
 const void* VMStructs::_code_heap_high = NO_MAX_ADDRESS;
 char** VMStructs::_code_heap_addr = NULL;
@@ -534,7 +534,7 @@ void VMStructs::resolveOffsets() {
     if (_code_heap_addr != NULL && _code_heap_low_addr != NULL && _code_heap_high_addr != NULL) {
         char* code_heaps = *_code_heap_addr;
         unsigned int code_heap_count = *(unsigned int*)(code_heaps + _array_len_offset);
-        if (code_heap_count <= 3 && _array_data_offset >= 0) {
+        if (code_heap_count <= 4 && _array_data_offset >= 0) {
             char* code_heap_array = *(char**)(code_heaps + _array_data_offset);
             memcpy(_code_heap, code_heap_array, code_heap_count * sizeof(_code_heap[0]));
         }

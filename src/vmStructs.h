@@ -109,7 +109,7 @@ class VMStructs {
     static const char* _flags_addr;
     static int _flag_count;
     static int _flag_size;
-    static char* _code_heap[3];
+    static char* _code_heap[4];
     static const void* _code_heap_low;
     static const void* _code_heap_high;
     static char** _code_heap_addr;
@@ -595,6 +595,7 @@ class CodeHeap : VMStructs {
         if (contains(_code_heap[0], pc)) return findNMethod(_code_heap[0], pc);
         if (contains(_code_heap[1], pc)) return findNMethod(_code_heap[1], pc);
         if (contains(_code_heap[2], pc)) return findNMethod(_code_heap[2], pc);
+        if (contains(_code_heap[3], pc)) return findNMethod(_code_heap[3], pc);
         return NULL;
     }
 };

@@ -6,6 +6,7 @@
 package test.vmstructs;
 
 import one.profiler.test.Assert;
+import one.profiler.test.Jvm;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
@@ -32,5 +33,21 @@ public class VmstructsTests {
     public void checkJni(TestProcess p) throws Exception {
         p.waitForExit();
         Assert.isEqual(p.exitCode(), 0);
+    }
+
+    @Test(
+        mainClass = DoBusyWork.class,
+        agentArgs = "start,event=cpu,collapsed,interval=1ms,file=%f",
+        jvmArgs = "-XX:+UnlockExperimentalVMOptions -XX:+HotCodeHeap -XX:+NMethodRelocation -XX:HotCodeIntervalSeconds=0 -XX:HotCodeSampleSeconds=1 -XX:HotCodeStablePercent=-1 -XX:HotCodeStartupDelaySeconds=0",
+        jvm = Jvm.HOTSPOT,
+        jvmVer = {27, Integer.MAX_VALUE},
+        runIsolated = true
+    )
+    public void checkHotCodeHeap(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert out.contains("DoBusyWork\\.main");
+        assert out.contains("DoBusyWork\\.doBusyWork");
+        assert !out.contains("unknown_nmethod");
+        assert !out.contains("no_Java_frame");
     }
 }
