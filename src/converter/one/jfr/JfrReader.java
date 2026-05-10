@@ -616,6 +616,8 @@ public class JfrReader implements Closeable {
         cpuTimeSample = getTypeId("jdk.CPUTimeSample");
         nativeLock = getTypeId("profiler.NativeLock");
 
+        // The following classes are instantiated reflectively.
+        // Make sure to list them in reachability-metadata.json.
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);
         registerEvent("jdk.ObjectCount", ObjectCount.class);

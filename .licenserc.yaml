@@ -14,7 +14,7 @@ header:
     paths-ignore:
       - 'src/jattach'
       - 'src/res'
-      - '**/MANIFEST.MF'
+      - '**/META-INF'
       - 'test/**/*.collapsed'
     license:
       content: |

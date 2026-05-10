@@ -15,6 +15,7 @@ DEBUG_PACKAGE_DIR=$(PACKAGE_DIR)-debug
 
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
+JFRCONV_NI=bin/jfr-converter
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
 LIB_PROFILER_DEBUG=libasyncProfiler.$(SOEXT).debug
 ASPROF_HEADER=include/asprof.h
@@ -54,6 +55,9 @@ JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 TEST_JAVA ?= $(JAVA_HOME)/bin/java
 
+NATIVE_IMAGE=$(JAVA_HOME)/bin/native-image
+NI_FLAGS=-O3 --initialize-at-build-time
+
 TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
 TEST_DEPS_DIR=test/deps
@@ -71,8 +75,8 @@ HEADERS := $(wildcard src/*.h)
 RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
-JAR_MANIFEST := src/api/one/profiler/MANIFEST.MF
-CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
+JAR_MANIFEST := src/api/META-INF/MANIFEST.MF
+CONVERTER_SOURCES := $(shell find src/converter -type f)
 TEST_SOURCES := $(shell find test -name '*.java' ! -path 'test/stubs/*')
 TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
@@ -138,11 +142,13 @@ ifneq (,$(STATIC_BINARY))
   CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
 endif
 
-.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md
+.PHONY: all jar ni release build-test test clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
 jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
+
+ni: build/bin build/$(JFRCONV_NI)
 
 release: $(PACKAGE_NAME).$(PACKAGE_EXT)
 
@@ -187,6 +193,9 @@ build/$(JFRCONV): src/launcher/launcher.sh build/$(CONVERTER_JAR)
 	chmod +x $@
 	cat build/$(CONVERTER_JAR) >> $@
 
+build/$(JFRCONV_NI): build/$(CONVERTER_JAR)
+	$(NATIVE_IMAGE) $(NI_FLAGS) -jar $< $@
+
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
@@ -207,8 +216,8 @@ build/$(API_JAR): $(API_SOURCES) $(JAR_MANIFEST)
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	mkdir -p build/converter
-	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
-	$(JAR) cfe $@ one.convert.Main -C build/converter . -C src/res .
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(filter %.java,$(CONVERTER_SOURCES))
+	$(JAR) cfe $@ one.convert.Main -C build/converter . -C src/res . -C src/converter META-INF
 	$(RM) -r build/converter
 
 %.class: %.java

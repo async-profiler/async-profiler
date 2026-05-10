@@ -1,0 +1,12 @@
+{
+  "reflection": [
+    {"type": "one.jfr.event.CPULoad",       "allPublicConstructors": true},
+    {"type": "one.jfr.event.GCHeapSummary", "allPublicConstructors": true},
+    {"type": "one.jfr.event.ObjectCount",   "allPublicConstructors": true},
+    {"type": "one.jfr.event.ProcessSample", "allPublicConstructors": true},
+    {"type": "one.convert.Arguments",       "allPublicFields": true}
+  ],
+  "resources": [
+    {"glob": "/*.html"}
+  ]
+}
