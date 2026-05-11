@@ -357,6 +357,7 @@ public class JfrReader implements Closeable {
 
         types.clear();
         typesByName.clear();
+        customEvents.clear();
 
         readMeta(chunkStart + metaOffset);
         readConstantPool(chunkStart + cpOffset);
