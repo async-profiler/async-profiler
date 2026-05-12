@@ -47,7 +47,7 @@ Below are the sampling numbers:
 - `func4()`: 1 sample
 - `func1()->func5()`: 2 samples
 - `func2()->func8()`: 4 samples
-- `func2()->func6()`: 1 sample
+- `func2()->func6()`: 5 samples
 
 ## Sorting samples
 
