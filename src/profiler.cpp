@@ -34,6 +34,7 @@
 #include "frameName.h"
 #include "os.h"
 #include "otlp.h"
+#include "lookup.h"
 #include "safeAccess.h"
 #include "stackFrame.h"
 #include "stackWalker.h"
@@ -1398,7 +1399,12 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
 
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
-    Otlp::Recorder recorder(activeEngine(), fn, _start_time * 1000ULL, (OS::micros() - _start_time) * 1000ULL);
+    // MethodMap is populated lazily by Lookup::resolveMethod() via JVMTI queries.
+    // Safe to call here since dumpOtlp() runs on the caller thread, not in a signal handler.
+    MethodMap method_map;
+    Index packages, symbols;
+    Lookup lookup(&method_map, classMap(), &packages, &symbols, OUTPUT_OTLP);
+    Otlp::Recorder recorder(activeEngine(), fn, &lookup, _start_time * 1000ULL, (OS::micros() - _start_time) * 1000ULL);
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
     recorder.record(call_trace_samples, args._counter == COUNTER_SAMPLES);

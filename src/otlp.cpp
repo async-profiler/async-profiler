@@ -8,6 +8,33 @@
 
 namespace Otlp {
 
+size_t Recorder::getLocationIndex(const char* name, const ASGCT_CallFrame& frame) {
+    u32 func_idx = (u32)_functions.indexOf(name);
+    jint line = 0;
+
+    if (_lookup != nullptr && frame.bci > BCI_NATIVE_FRAME) {
+        // resolveMethod() caches MethodInfo per method_id in MethodMap (O(1) after first call).
+        // const_cast: resolveMethod() doesn't mutate the frame but its signature lacks const.
+        MethodInfo* mi = _lookup->resolveMethod(const_cast<ASGCT_CallFrame&>(frame));
+        if (mi != nullptr) {
+            jint bci = frame.bci;
+            bci = (bci & 0x10000) ? 0 : (bci & 0xffff);
+            line = mi->getLineNumber(bci);
+        }
+    }
+
+    // Dedup locations by (function, line) pair
+    u64 loc_key = ((u64)func_idx << 32) | (u32)line;
+    auto it = _location_keys.find(loc_key);
+    if (it != _location_keys.end()) {
+        return it->second;
+    }
+    size_t loc_idx = _location_entries.size();
+    _location_keys[loc_key] = loc_idx;
+    _location_entries.push_back({func_idx, line});
+    return loc_idx;
+}
+
 void Recorder::recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples) {
     protobuf_mark_t dictionary_mark = _otlp_buffer.startMessage(ProfilesData::dictionary);
 
@@ -24,15 +51,16 @@ void Recorder::recordProfilesDictionary(const std::vector<CallTraceSample*>& cal
         _otlp_buffer.commitMessage(function_mark);
     });
 
-    // Write location_table
-    for (size_t function_idx = 0; function_idx < _functions.size(); ++function_idx) {
+    // Write location_table with line numbers
+    for (size_t i = 0; i < _location_entries.size(); ++i) {
+        const LocationEntry& entry = _location_entries[i];
         protobuf_mark_t location_mark = _otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
-        // TODO: set to the proper mapping when new mappings are added.
-        // For now we keep a dummy default mapping_index for all locations because some parsers
-        // would fail otherwise
         _otlp_buffer.field(Location::mapping_index, (u64)0);
         protobuf_mark_t line_mark = _otlp_buffer.startMessage(Location::lines, 1);
-        _otlp_buffer.field(Line::function_index, function_idx);
+        _otlp_buffer.field(Line::function_index, entry.function_index);
+        if (entry.line_number > 0) {
+            _otlp_buffer.field(Line::line, (u64)entry.line_number);
+        }
         _otlp_buffer.commitMessage(line_mark);
         _otlp_buffer.commitMessage(location_mark);
     }
@@ -78,7 +106,8 @@ void Recorder::recordStacks(const std::vector<CallTraceSample*>& call_trace_samp
                 continue;
             }
 
-            size_t location_idx = _functions.indexOf(_fn.name(trace->frames[j]));
+            const char* name = _fn.name(trace->frames[j]);
+            size_t location_idx = getLocationIndex(name, trace->frames[j]);
             _otlp_buffer.putVarInt(location_idx);
         }
         _otlp_buffer.commitMessage(location_indices_mark);

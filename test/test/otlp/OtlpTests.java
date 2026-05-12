@@ -124,6 +124,27 @@ public class OtlpTests {
         assert actual.isAfter(before) : actual;
     }
 
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
+    public void lineNumbers(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+        ProfilesDictionary dictionary = profilesData.getDictionary();
+
+        // Find the "burn" function and verify it has a resolved line number
+        boolean foundBurnWithLine = false;
+        for (Location location : dictionary.getLocationTableList()) {
+            for (Line line : location.getLinesList()) {
+                Function function = dictionary.getFunctionTable(line.getFunctionIndex());
+                String name = dictionary.getStringTable(function.getNameStrindex());
+                if (name.contains("CpuBurner.burn") && line.getLine() > 0) {
+                    foundBurnWithLine = true;
+                    break;
+                }
+            }
+            if (foundBurnWithLine) break;
+        }
+        assert foundBurnWithLine : "CpuBurner.burn should have a resolved line number";
+    }
+
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;

@@ -9,8 +9,10 @@
 #include "engine.h"
 #include "frameName.h"
 #include "index.h"
+#include "lookup.h"
 #include "protobuf.h"
 #include "writer.h"
+#include <unordered_map>
 #include <vector>
 
 struct CallTraceSample;
@@ -78,6 +80,7 @@ namespace Function {
 
 namespace Line {
     const protobuf_index_t function_index = 1;
+    const protobuf_index_t line = 2;
 }
 
 namespace KeyValueAndUnit {
@@ -95,12 +98,20 @@ struct SampleInfo {
     size_t thread_name_index;
 };
 
+struct LocationEntry {
+    u32 function_index;
+    jint line_number;
+};
+
 class Recorder {
   private:
     ProtoBuffer _otlp_buffer;
     FrameName& _fn;
+    Lookup* _lookup;
     Index _thread_names;
     Index _functions;
+    std::unordered_map<u64, size_t> _location_keys;
+    std::vector<LocationEntry> _location_entries;
     Index _strings;
     std::vector<SampleInfo> _samples_info;
     const u64 _start_nanos;
@@ -115,12 +126,17 @@ class Recorder {
     void recordStacks(const std::vector<CallTraceSample*>& call_trace_samples);
     void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);
 
+    size_t getLocationIndex(const char* name, const ASGCT_CallFrame& frame);
+
   public:
-    Recorder(Engine* engine, FrameName& fn, u64 start_nanos, u64 duration_nanos) :
+    Recorder(Engine* engine, FrameName& fn, Lookup* lookup, u64 start_nanos, u64 duration_nanos) :
         _otlp_buffer(Otlp::OTLP_BUFFER_INITIAL_SIZE),
         _fn(fn),
+        _lookup(lookup),
         _thread_names(),
         _functions(),
+        _location_keys(),
+        _location_entries(),
         _strings(),
         _samples_info(),
         _engine_type_strindex(_strings.indexOf(engine->type())),
