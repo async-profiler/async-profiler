@@ -21,7 +21,6 @@ public class Heatmap {
 
     private final Arguments args;
     private State state;
-    private long startMs;
 
     public Heatmap(Arguments args, JfrConverter converter) {
         this.args = args;
@@ -41,8 +40,7 @@ public class Heatmap {
         state.includeCache.clear();
     }
 
-    public void finish(long startMs) {
-        this.startMs = startMs;
+    public void finish() {
         state.methodCache.clear();
         state.stackTracesCache.clear();
         state.includeCache.clear();
@@ -97,7 +95,7 @@ public class Heatmap {
         stream.print(args.title != null ? args.title : "Heatmap");
 
         tail = ResourceProcessor.printTill(stream, tail, "/*startMs:*/0");
-        stream.print(startMs);
+        stream.print(evaluationContext.sampleList.firstBlockMs);
 
         tail = ResourceProcessor.printTill(stream, tail, "/*cpool:*/");
         printConstantPool(stream, evaluationContext);

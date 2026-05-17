@@ -74,7 +74,7 @@ public class SampleList {
             blockSizes[currentBlockIndex] = currentBlockSize;
         }
 
-        return new Result(blockSizes, stackIds);
+        return new Result(blockSizes, stackIds, initialTime + firstBlockId * blockDurationMs);
     }
 
     public int getRecordsCount() {
@@ -84,10 +84,12 @@ public class SampleList {
     public static class Result {
         public final int[] blockSizes;
         public final int[] stackIds;
+        public final long firstBlockMs;
 
-        public Result(int[] blockSizes, int[] stackIds) {
+        public Result(int[] blockSizes, int[] stackIds, long firstBlockMs) {
             this.blockSizes = blockSizes;
             this.stackIds = stackIds;
+            this.firstBlockMs = firstBlockMs;
         }
     }
 

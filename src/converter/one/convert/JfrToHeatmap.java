@@ -82,7 +82,7 @@ public class JfrToHeatmap extends JfrConverter {
 
             @Override
             public boolean finish() {
-                heatmap.finish(jfr.startNanos / 1_000_000);
+                heatmap.finish();
                 return false;
             }
 
