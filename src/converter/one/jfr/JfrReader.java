@@ -65,6 +65,18 @@ public class JfrReader implements Closeable {
 
     private final Dictionary<Constructor<? extends Event>> customEvents = new Dictionary<>();
 
+    private final Map<String, Class<? extends Event>> registeredEvents = new HashMap<>();
+
+    // The following classes are instantiated reflectively.
+    // Make sure to list them in reachability-metadata.json.
+    {
+        registeredEvents.put("jdk.CPULoad", CPULoad.class);
+        registeredEvents.put("jdk.GCHeapSummary", GCHeapSummary.class);
+        registeredEvents.put("jdk.ObjectCount", ObjectCount.class);
+        registeredEvents.put("jdk.ObjectCountAfterGC", ObjectCount.class);
+        registeredEvents.put("profiler.ProcessSample", ProcessSample.class);
+    }
+
     private int executionSample;
     private int nativeMethodSample;
     private int wallClockSample;
@@ -129,6 +141,7 @@ public class JfrReader implements Closeable {
     }
 
     public <E extends Event> void registerEvent(String name, Class<E> eventClass) {
+        registeredEvents.put(name, eventClass);
         JfrClass type = typesByName.get(name);
         if (type != null) {
             try {
@@ -617,13 +630,9 @@ public class JfrReader implements Closeable {
         cpuTimeSample = getTypeId("jdk.CPUTimeSample");
         nativeLock = getTypeId("profiler.NativeLock");
 
-        // The following classes are instantiated reflectively.
-        // Make sure to list them in reachability-metadata.json.
-        registerEvent("jdk.CPULoad", CPULoad.class);
-        registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);
-        registerEvent("jdk.ObjectCount", ObjectCount.class);
-        registerEvent("jdk.ObjectCountAfterGC", ObjectCount.class);
-        registerEvent("profiler.ProcessSample", ProcessSample.class);
+        for (Map.Entry<String, Class<? extends Event>> e: registeredEvents.entrySet()) {
+            registerEvent(e.getKey(), e.getValue());
+        }
 
         JfrClass wallClass = typesByName.get("profiler.WallClockSample");
         hasWallTimeSpan = wallClass != null && wallClass.field("timeSpan") != null;
