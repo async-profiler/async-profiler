@@ -286,11 +286,19 @@ SigAction OS::replaceCrashHandler(SigAction action) {
     return old_action;
 }
 
+// Prefer standard signals, because they don't queue up, unlike real-time signals
+static int nextAllowedSignal(int signo) {
+    switch (signo) {
+        case SIGPROF:   return SIGVTALRM;
+        case SIGVTALRM: return SIGSTKFLT;
+        case SIGSTKFLT: return SIGPWR;
+        case SIGPWR:    return SIGRTMIN;
+        default:        return signo < SIGRTMAX ? signo + 1 : SIGPROF;
+    }
+}
+
 int OS::getProfilingSignal(int mode) {
     static int preferred_signals[2] = {SIGPROF, SIGVTALRM};
-
-    const u64 allowed_signals =
-        1ULL << SIGPROF | 1ULL << SIGVTALRM | 1ULL << SIGSTKFLT | 1ULL << SIGPWR | -(1ULL << SIGRTMIN);
 
     int& signo = preferred_signals[mode];
     int initial_signo = signo;
@@ -298,12 +306,12 @@ int OS::getProfilingSignal(int mode) {
 
     do {
         struct sigaction sa;
-        if ((allowed_signals & (1ULL << signo)) != 0 && signo != other_signo && sigaction(signo, NULL, &sa) == 0) {
+        if (signo != other_signo && sigaction(signo, NULL, &sa) == 0) {
             if (sa.sa_handler == SIG_DFL || sa.sa_handler == SIG_IGN || sa.sa_sigaction == installed_sigaction[signo]) {
                 return signo;
             }
         }
-    } while ((signo = (signo + 53) & 63) != initial_signo);
+    } while ((signo = nextAllowedSignal(signo)) != initial_signo);
 
     return signo;
 }
