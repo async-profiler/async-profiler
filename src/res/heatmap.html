@@ -965,9 +965,6 @@
 		if (className === '') {
 			return methodName + locationSuffix;
 		}
-		if (type >= 3 && type <= 5) {
-			return methodName + locationSuffix;
-		}
 
 		return className + "." + methodName + locationSuffix;
 	}
@@ -989,11 +986,11 @@
 			const line = data.nextInt18();
 			const type = data.nextInt6();
 
-			const noline = bci === 0xffff && line === 0xffff;
+			const isNative = type >= 3 && type <= 5;
 
-			names.push(methodName(cpool[className], cpool[name], noline ? 0 : bci, noline ? 0 : line, type));
+			names.push(methodName(cpool[className], cpool[name], bci === 0xffff ? 0 : bci, line === 0xffff ? 0 : line, type));
 			colors.push(getColorStable(palette[type], i + 1));
-			bcis[i + 1] = noline ? "" : ", bci: " + bci;
+			bcis[i + 1] = isNative || bci === 0xffff ? "" : ", bci: " + bci;
 		}
 
 		return {n: names, c: colors, b: bcis};
