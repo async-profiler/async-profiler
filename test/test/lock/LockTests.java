@@ -11,15 +11,15 @@ import one.profiler.test.TestProcess;
 
 public class LockTests {
 
-    @Test(mainClass = DatagramTest.class, debugNonSafepoints = true, jvmVer = {11, Integer.MAX_VALUE})
-    public void datagramSocketLock(TestProcess p) throws Exception {
+    @Test(mainClass = ReentrantLockTest.class, debugNonSafepoints = true, jvmVer = {11, Integer.MAX_VALUE})
+    public void reentrantLockContention(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed --cstack dwarf");
-        assert out.ratio("(ReentrantLock.lock|ReentrantLock.unlock)") > 0.1;
+        assert out.ratio("(ReentrantLock.lock|ReentrantLock.unlock)") > 0.9;
         assert out.contains("ReentrantLock.lock");
         assert out.contains("ReentrantLock.unlock");
         assert out.contains("Unsafe.park");
         assert out.contains("Unsafe.unpark");
         out = p.profile("-e lock -d 3 -o collapsed");
-        assert out.contains("sun/nio/ch/DatagramChannelImpl.send");
+        assert out.contains("test/lock/ReentrantLockTest.contendLoop");
     }
 }
