@@ -64,18 +64,7 @@ public class JfrReader implements Closeable {
     public final Map<String, Map<Integer, String>> enums = new HashMap<>();
 
     private final Dictionary<Constructor<? extends Event>> customEvents = new Dictionary<>();
-
-    private final Map<String, Class<? extends Event>> registeredEvents = new HashMap<>();
-
-    // The following classes are instantiated reflectively.
-    // Make sure to list them in reachability-metadata.json.
-    {
-        registeredEvents.put("jdk.CPULoad", CPULoad.class);
-        registeredEvents.put("jdk.GCHeapSummary", GCHeapSummary.class);
-        registeredEvents.put("jdk.ObjectCount", ObjectCount.class);
-        registeredEvents.put("jdk.ObjectCountAfterGC", ObjectCount.class);
-        registeredEvents.put("profiler.ProcessSample", ProcessSample.class);
-    }
+    private final Map<String, Class<? extends Event>> customEventsByName = new HashMap<>();
 
     private int executionSample;
     private int nativeMethodSample;
@@ -141,7 +130,11 @@ public class JfrReader implements Closeable {
     }
 
     public <E extends Event> void registerEvent(String name, Class<E> eventClass) {
-        registeredEvents.put(name, eventClass);
+        customEventsByName.put(name, eventClass);
+        registerCustomEvent(name, eventClass);
+    }
+
+    private <E extends Event> void registerCustomEvent(String name, Class<E> eventClass) {
         JfrClass type = typesByName.get(name);
         if (type != null) {
             try {
@@ -149,6 +142,22 @@ public class JfrReader implements Closeable {
             } catch (NoSuchMethodException e) {
                 throw new IllegalArgumentException("No suitable constructor found");
             }
+        }
+    }
+
+    private void registerCustomEvents() {
+        customEvents.clear();
+
+        // The following classes are instantiated reflectively.
+        // Make sure to list them in reachability-metadata.json.
+        registerCustomEvent("jdk.CPULoad", CPULoad.class);
+        registerCustomEvent("jdk.GCHeapSummary", GCHeapSummary.class);
+        registerCustomEvent("jdk.ObjectCount", ObjectCount.class);
+        registerCustomEvent("jdk.ObjectCountAfterGC", ObjectCount.class);
+        registerCustomEvent("profiler.ProcessSample", ProcessSample.class);
+
+        for (Map.Entry<String, Class<? extends Event>> entry : customEventsByName.entrySet()) {
+            registerCustomEvent(entry.getKey(), entry.getValue());
         }
     }
 
@@ -370,11 +379,11 @@ public class JfrReader implements Closeable {
 
         types.clear();
         typesByName.clear();
-        customEvents.clear();
 
         readMeta(chunkStart + metaOffset);
         readConstantPool(chunkStart + cpOffset);
         cacheEventTypes();
+        registerCustomEvents();
 
         seek(chunkStart + CHUNK_HEADER_SIZE);
         state = STATE_READING;
@@ -629,10 +638,6 @@ public class JfrReader implements Closeable {
         free = getTypeId("profiler.Free");
         cpuTimeSample = getTypeId("jdk.CPUTimeSample");
         nativeLock = getTypeId("profiler.NativeLock");
-
-        for (Map.Entry<String, Class<? extends Event>> e: registeredEvents.entrySet()) {
-            registerEvent(e.getKey(), e.getValue());
-        }
 
         JfrClass wallClass = typesByName.get("profiler.WallClockSample");
         hasWallTimeSpan = wallClass != null && wallClass.field("timeSpan") != null;
