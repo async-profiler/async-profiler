@@ -1272,8 +1272,10 @@ void JNICALL Instrument::recordExit0(JNIEnv* jni, jobject unused, jlong startTim
     if (shouldRecordSample()) {
         u64 now_ticks = TSC::ticks();
         u64 duration_ns = OS::nanotime() - (u64) startTimeNs;
-        u64 duration_ticks = (u64) ((double) duration_ns * TSC::frequency() / NANOTIME_FREQ);
-        MethodTraceEvent event(now_ticks - duration_ticks, duration_ticks);
+
+        MethodTraceEvent event;
+        event._duration = (u64) ((double) duration_ns * TSC::frequency() / NANOTIME_FREQ);
+        event._start_time = now_ticks - event._duration;
         Profiler::instance()->recordSample(NULL, duration_ns, METHOD_TRACE, &event);
     }
 }

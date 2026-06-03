@@ -10,6 +10,8 @@
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
+#include "threadLocalData.h"
+#include "tsc.h"
 #include "vmStructs.h"
 
 
@@ -148,19 +150,51 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     }
 }
 
+extern "C" DLLEXPORT jint JNICALL
+Java_one_profiler_Recording_registerNatives(JNIEnv* env, jclass cls) {
+    return RecordingAPI::registerNatives(env, cls);
+}
 
-#define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
+extern "C" DLLEXPORT jobject JNICALL
+Java_one_profiler_Recording_getThreadLocalBuffer(JNIEnv* env, jclass cls) {
+    asprof_thread_local_data* tld = ThreadLocalData::get();
+    return tld == nullptr ? nullptr : env->NewDirectByteBuffer(tld, sizeof(*tld));
+}
+
+extern "C" DLLEXPORT void JNICALL
+Java_one_profiler_Recording_emitSpan(JNIEnv* env, jclass cls, jlong startTime, jlong endTime, jstring tag) {
+    if ((u64)startTime > (u64)endTime) return;
+
+    SpanEvent event;
+    event._start_time = startTime;
+    event._end_time = endTime;
+    event._tag = tag != nullptr ? env->GetStringUTFChars(tag, nullptr) : nullptr;
+
+    Profiler::instance()->recordEventOnly(SPAN, &event);
+
+    if (tag != nullptr) {
+        env->ReleaseStringUTFChars(tag, event._tag);
+    }
+}
+
+
+#define F(cls, name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_##cls##_##name}
 
 static const JNINativeMethod profiler_natives[] = {
-    F(start0,        "(Ljava/lang/String;JZ)V"),
-    F(stop0,         "()V"),
-    F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
-    F(execute1,      "(Ljava/lang/String;)[B"),
-    F(getSamples,    "()J"),
-    F(filterThread0, "(Ljava/lang/Thread;Z)V"),
+    F(AsyncProfiler, start0,        "(Ljava/lang/String;JZ)V"),
+    F(AsyncProfiler, stop0,         "()V"),
+    F(AsyncProfiler, execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(AsyncProfiler, execute1,      "(Ljava/lang/String;)[B"),
+    F(AsyncProfiler, getSamples,    "()J"),
+    F(AsyncProfiler, filterThread0, "(Ljava/lang/Thread;Z)V"),
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];
+
+static const JNINativeMethod recording_natives[] = {
+    F(Recording, getThreadLocalBuffer, "()Ljava/nio/ByteBuffer;"),
+    F(Recording, emitSpan,             "(JJLjava/lang/String;)V"),
+};
 
 #undef F
 
@@ -213,4 +247,82 @@ bool JavaAPI::startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address)
 
     jni->ExceptionDescribe();
     return false;
+}
+
+
+jclass RecordingAPI::_recording_class = nullptr;
+jfieldID RecordingAPI::_state_field;
+jmethodID RecordingAPI::_update_clock_method;
+bool RecordingAPI::_tsc_enabled = false;
+
+void RecordingAPI::updateClock(JNIEnv* env) {
+    if (_tsc_enabled == TSC::enabled()) return;
+    _tsc_enabled = TSC::enabled();
+
+    do {
+        jobject lookup = nullptr;
+        if (_tsc_enabled) {
+            jclass lookup_class = env->FindClass("java/lang/invoke/MethodHandles$Lookup");
+            if (lookup_class == nullptr) break;
+
+            jfieldID impl_field = env->GetStaticFieldID(lookup_class, "IMPL_LOOKUP", "java/lang/invoke/MethodHandles$Lookup");
+            if (impl_field == nullptr) break;
+
+            lookup = env->GetStaticObjectField(lookup_class, impl_field);
+        }
+        env->CallStaticVoidMethod(_recording_class, _update_clock_method, lookup);
+    } while (false);
+
+    env->ExceptionClear();
+}
+
+RecordingAPI::State RecordingAPI::registerNatives(JNIEnv* env, jclass recording_class) {
+    if (env->RegisterNatives(recording_class, recording_natives, sizeof(recording_natives) / sizeof(recording_natives[0])) != 0) {
+        return UNAVAILABLE;
+    }
+
+    _state_field = env->GetStaticFieldID(recording_class, "state", "I");
+    if (_state_field == nullptr) {
+        return UNAVAILABLE;
+    }
+
+    _update_clock_method = env->GetStaticMethodID(recording_class, "updateClock", "(Ljava/lang/invoke/MethodHandles$Lookup;)V");
+    if (_update_clock_method == nullptr) {
+        return UNAVAILABLE;
+    }
+
+    _recording_class = (jclass) env->NewGlobalRef(recording_class);
+    updateClock(env);
+
+    return Profiler::instance()->jfr()->active() ? RUNNING : STOPPED;
+}
+
+void RecordingAPI::bind(jvmtiEnv* jvmti, JNIEnv* env) {
+    jclass recording_class = env->FindClass("one/profiler/Recording");
+    if (recording_class == nullptr) {
+        env->ExceptionClear();
+        return;
+    }
+
+    jint status;
+    if (jvmti->GetClassStatus(recording_class, &status) == 0 && (status & JVMTI_CLASS_STATUS_INITIALIZED)) {
+        if (registerNatives(env, recording_class) == UNAVAILABLE) {
+            env->ExceptionClear();
+        }
+    }
+}
+
+void RecordingAPI::start() {
+    if (_recording_class == nullptr) return;
+
+    JNIEnv* env = VM::jni();
+    updateClock(env);
+    env->SetStaticIntField(_recording_class, _state_field, RUNNING);
+}
+
+void RecordingAPI::stop() {
+    if (_recording_class == nullptr) return;
+
+    JNIEnv* env = VM::jni();
+    env->SetStaticIntField(_recording_class, _state_field, STOPPED);
 }

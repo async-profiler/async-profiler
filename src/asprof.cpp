@@ -53,7 +53,7 @@ DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t out
 }
 
 DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void) {
-    return ThreadLocalData::getThreadLocalData();
+    return ThreadLocalData::get();
 }
 
 DLLEXPORT asprof_jfr_event_key asprof_register_jfr_event(const char* name) {

@@ -297,7 +297,9 @@ bool VM::init(JavaVM* vm, bool attach) {
     }
 
     if (attach) {
-        loadAllMethodIDs(jvmti(), jni());
+        JNIEnv* env = jni();
+        RecordingAPI::bind(_jvmti, env);
+        loadAllMethodIDs(_jvmti, env);
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
         _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
     } else {
