@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <map>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include "wallClock.h"
+#include "mutex.h"
 #include "profiler.h"
 #include "stackFrame.h"
 #include "tsc.h"
@@ -99,6 +101,8 @@ class ThreadCpuTimeBuffer {
 };
 
 static ThreadCpuTimeBuffer _thread_cpu_time_buf;
+static ThreadSleepMap _thread_sleep_state;
+static Mutex _thread_sleep_state_lock;
 
 
 long WallClock::_interval;
@@ -185,13 +189,24 @@ void WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
+void WallClock::flush() {
+    if (_mode != WALL_BATCH) return;
+
+    MutexLocker ml(_thread_sleep_state_lock);
+    for (ThreadSleepMap::iterator it = _thread_sleep_state.begin(); it != _thread_sleep_state.end(); ++it) {
+        if (it->second.counter != 0) {
+            recordWallClock(it->second, THREAD_SLEEPING, it->first);
+            it->second.counter = 0;
+        }
+    }
+}
+
 void WallClock::timerLoop() {
     int self = OS::threadId();
     ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     bool thread_filter_enabled = thread_filter->enabled();
     Mode mode = _mode;
 
-    ThreadSleepMap thread_sleep_state;
     ThreadList* thread_list = OS::listThreads();
     _thread_cpu_time_buf.reset();
     u64 cycle_start_time = OS::nanotime();
@@ -214,7 +229,8 @@ void WallClock::timerLoop() {
                     continue;
                 }
             } else if (mode == WALL_BATCH) {
-                ThreadSleepState& tss = thread_sleep_state[thread_id];
+                MutexLocker ml(_thread_sleep_state_lock);
+                ThreadSleepState& tss = _thread_sleep_state[thread_id];
                 u64 new_thread_cpu_time = enabled ? OS::threadCpuTime(thread_id) : 0;
                 if (new_thread_cpu_time != 0 && new_thread_cpu_time - tss.last_cpu_time <= RUNNABLE_THRESHOLD_NS) {
                     tss.last_time = TSC::ticks();
@@ -254,16 +270,12 @@ void WallClock::timerLoop() {
         }
 
         // Sync thread CPU times updated since the previous iteration
-        _thread_cpu_time_buf.drain(thread_sleep_state);
+        MutexLocker ml(_thread_sleep_state_lock);
+        _thread_cpu_time_buf.drain(_thread_sleep_state);
     }
 
     delete thread_list;
 
-    // Flush remaining WallClock batches
-    for (ThreadSleepMap::const_iterator it = thread_sleep_state.begin(); it != thread_sleep_state.end(); ++it) {
-        const ThreadSleepState& tss = it->second;
-        if (tss.counter != 0) {
-            recordWallClock(tss, THREAD_SLEEPING, it->first);
-        }
-    }
+    flush();
+    _thread_sleep_state.clear();
 }

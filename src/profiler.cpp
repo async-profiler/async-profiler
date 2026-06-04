@@ -1113,6 +1113,7 @@ Error Profiler::flushJfr() {
 
     updateJavaThreadNames();
     updateNativeThreadNames();
+    if (_event_mask & EM_WALL) wall_clock.flush();
 
     lockAll();
     _jfr.flush();
@@ -1132,6 +1133,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
     if (_state == RUNNING) {
         updateJavaThreadNames();
         updateNativeThreadNames();
+        if (_event_mask & EM_WALL) wall_clock.flush();
     }
 
     switch (args._output) {
