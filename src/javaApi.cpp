@@ -265,7 +265,7 @@ void RecordingAPI::updateClock(JNIEnv* env) {
             jclass lookup_class = env->FindClass("java/lang/invoke/MethodHandles$Lookup");
             if (lookup_class == nullptr) break;
 
-            jfieldID impl_field = env->GetStaticFieldID(lookup_class, "IMPL_LOOKUP", "java/lang/invoke/MethodHandles$Lookup");
+            jfieldID impl_field = env->GetStaticFieldID(lookup_class, "IMPL_LOOKUP", "Ljava/lang/invoke/MethodHandles$Lookup;");
             if (impl_field == nullptr) break;
 
             lookup = env->GetStaticObjectField(lookup_class, impl_field);
