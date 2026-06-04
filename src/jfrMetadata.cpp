@@ -208,7 +208,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
-                << field("method", T_METHOD, "Method", F_CPOOL))
+                << field("method", T_METHOD, "Method", F_CPOOL | F_CONTEXTUAL))
 
             << (type("profiler.Log", T_LOG, "Log Message")
                 << category("Profiler")
@@ -268,7 +268,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
                 << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
-                << field("tag", T_STRING, "Tag", F_CPOOL))
+                << field("tag", T_STRING, "Tag", F_CPOOL | F_CONTEXTUAL))
 
             << (type("profiler.UserEvent", T_USER_EVENT, "User-Defined Event")
                 << category("Profiler")
@@ -325,7 +325,9 @@ JfrMetadata::JfrMetadata() : Element("root") {
 
             << type("jdk.jfr.Unsigned", T_UNSIGNED, "Unsigned Value")
 
-            << type("jdk.jfr.Percentage", T_PERCENTAGE, "Percentage"))
+            << type("jdk.jfr.Percentage", T_PERCENTAGE, "Percentage")
+
+            << type("jdk.jfr.Contextual", T_CONTEXTUAL, "Context"))
 
         << element("region").attribute("locale", "en_US").attribute("gmtOffset", "0");
 }
