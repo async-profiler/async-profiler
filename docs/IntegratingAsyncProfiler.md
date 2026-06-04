@@ -79,7 +79,7 @@ try {
 ```
 
 The API is static and allocation-free, so it is cheap enough to leave in production code.
-When async-profiler is not loaded, all calls are no-ops.
+When async-profiler is not running, all calls are no-ops.
 
 - `Span.start()` returns a start timestamp; pass it to `end` to record the span.
 - For very frequent operations, use `Span.endIfProfiled(span, tag)` instead of `end`. It records
