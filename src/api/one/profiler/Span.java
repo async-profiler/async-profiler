@@ -17,9 +17,8 @@ import java.nio.ByteOrder;
  * not loaded or no JFR session is running, all methods are cheap no-ops.
  */
 public class Span {
-    // Used instead of a platform-thread-local buffer for virtual threads.
-    // Long.MAX_VALUE as the last profiler timestamp forces recording of every span.
-    private static final ByteBuffer SENTINEL_BUF =
+    // Long.MAX_VALUE as the last profiler timestamp forces recording of every span
+    private static final ByteBuffer FALLBACK_BUF =
             ByteBuffer.allocateDirect(8).order(ByteOrder.nativeOrder()).putLong(0, Long.MAX_VALUE);
 
     private static final Class<?> VIRTUAL_THREAD_CLASS = getVirtualThreadClass();
@@ -32,15 +31,16 @@ public class Span {
         }
     }
 
+    private static boolean isVirtualThread() {
+        return VIRTUAL_THREAD_CLASS != null && VIRTUAL_THREAD_CLASS.isInstance(Thread.currentThread());
+    }
+
     // Carries timestamp of the last profiling event in the current thread
     private static final ThreadLocal<ByteBuffer> LOCAL_BUF = new ThreadLocal<ByteBuffer>() {
         @Override
         protected ByteBuffer initialValue() {
-            if (VIRTUAL_THREAD_CLASS != null && VIRTUAL_THREAD_CLASS.isInstance(Thread.currentThread())) {
-                return SENTINEL_BUF;
-            }
             ByteBuffer buf = Recording.getThreadLocalBuffer();
-            return buf != null ? buf.order(ByteOrder.nativeOrder()) : SENTINEL_BUF;
+            return buf != null ? buf.order(ByteOrder.nativeOrder()) : FALLBACK_BUF;
         }
     };
 
@@ -57,7 +57,9 @@ public class Span {
         if (Recording.state != Recording.RUNNING) {
             return 0;
         }
-        LOCAL_BUF.get();  // force creation of a thread-local buffer
+        if (!isVirtualThread()) {
+            LOCAL_BUF.get();  // force creation of a thread-local buffer
+        }
         return Recording.timestamp();
     }
 
@@ -106,8 +108,10 @@ public class Span {
      * @param tag an arbitrary label, or {@code null}
      */
     public static void emitIfProfiled(long startTime, long endTime, String tag) {
-        if (Recording.state == Recording.RUNNING && LOCAL_BUF.get().getLong(0) >= startTime) {
-            Recording.emitSpan(startTime, endTime, tag);
+        if (Recording.state == Recording.RUNNING) {
+            if (isVirtualThread() || LOCAL_BUF.get().getLong(0) >= startTime) {
+                Recording.emitSpan(startTime, endTime, tag);
+            }
         }
     }
 }
