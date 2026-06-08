@@ -5,14 +5,12 @@
 
 package one.jfr.event;
 
-public class MethodTrace extends Event {
+public class MethodTrace extends IntervalEvent {
     public final int method;
-    public final long duration;
 
-    public MethodTrace(long time, int tid, int stackTraceId, int method, long duration) {
-        super(time, tid, stackTraceId);
+    public MethodTrace(long time, int tid, int stackTraceId, long duration, int method) {
+        super(time, tid, stackTraceId, duration);
         this.method = method;
-        this.duration = duration;
     }
 
     @Override
@@ -23,14 +21,9 @@ public class MethodTrace extends Event {
     @Override
     public boolean sameGroup(Event o) {
         if (o instanceof MethodTrace) {
-            MethodTrace c = (MethodTrace) o;
-            return method == c.method;
+            MethodTrace m = (MethodTrace) o;
+            return method == m.method;
         }
         return false;
-    }
-
-    @Override
-    public long value() {
-        return duration;
     }
 }

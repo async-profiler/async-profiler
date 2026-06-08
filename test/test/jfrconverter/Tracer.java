@@ -5,15 +5,13 @@
 
 package test.jfrconverter;
 
-import java.util.concurrent.CountDownLatch;
-
 final class Tracer {
 
     static final long TRACE_DURATION_MS = 500;
     private static final long SLEEP_DURATION_MS = 200;
 
-    private static void traceMethod(CountDownLatch latch) throws InterruptedException {
-        latch.await();
+    private static void traceMethod(Runnable work) {
+        work.run();
     }
 
     private static void showcase1() throws InterruptedException {
@@ -29,38 +27,27 @@ final class Tracer {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        CountDownLatch latch1 = new CountDownLatch(1);
-        long startNanos = System.nanoTime();
-        Thread t1 = new Thread(() -> {
+        // The latency filter is per-thread, so the work we expect to retain must run
+        // on the same thread as the enclosing traceMethod span.
+        Thread t1 = new Thread(() -> traceMethod(() -> {
             try {
-                traceMethod(latch1);
+                showcase1();
+                showcase2();
+                // Keep the span above the latency threshold so it is retained
+                Thread.sleep(TRACE_DURATION_MS - 2 * SLEEP_DURATION_MS);
             } catch (InterruptedException exception) {}
-        }, "thread1");
+        }), "thread1");
         t1.start();
-
-        // While traceMethod is waiting, we can do some stuff and expect to see it
-        // as part of the trace
-        showcase1();
-        showcase2();
-
-        while (System.nanoTime() - startNanos < TRACE_DURATION_MS * 1_000_000) {
-            Thread.sleep(50);
-        }
-        latch1.countDown();
         t1.join();
 
-        CountDownLatch latch2 = new CountDownLatch(1);
-        Thread t2 = new Thread(() -> {
+        // This span is too short to pass the latency threshold, so its samples
+        // (showcase3) should be filtered away
+        Thread t2 = new Thread(() -> traceMethod(() -> {
             try {
-                traceMethod(latch2);
+                showcase3();
             } catch (InterruptedException exception) {}
-        }, "thread2");
+        }), "thread2");
         t2.start();
-
-        // This should be filtered away, we won't let the trace last enough
-        showcase3();
-
-        latch2.countDown();
         t2.join();
     }
 }

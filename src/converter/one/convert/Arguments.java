@@ -46,6 +46,7 @@ public class Arguments {
     public long from;
     public long to;
     public long latency = -1;
+    public String tag;
     public final List<String> files = new ArrayList<>();
 
     public Arguments(String... args) {
@@ -77,7 +78,7 @@ public class Arguments {
                 } else if (type == double.class) {
                     f.setDouble(this, parseRatio(args[++i]));
                 } else if (type == long.class) {
-                    f.setLong(this, parseTimestamp(args[++i]));
+                    f.setLong(this, fieldName.equals("latency") ? parseDuration(args[++i]) : parseTimestamp(args[++i]));
                 } else if (type == Pattern.class) {
                     f.set(this, Pattern.compile(args[++i]));
                 }
@@ -123,6 +124,23 @@ public class Arguments {
             return Double.parseDouble(value.substring(0, value.length() - 1)) / 100;
         }
         return Double.parseDouble(value);
+    }
+
+    // Parses a number with units and returns duration in nanoseconds
+    private static long parseDuration(String time) {
+        if (time.endsWith("s")) {
+            int multiplier = 1000_000_000;
+            if (time.endsWith("ms")) {
+                multiplier = 1000_000;
+            } else if (time.endsWith("us")) {
+                multiplier = 1000;
+            } else if (time.endsWith("ns")) {
+                multiplier = 1;
+            }
+            int suffixLen = multiplier == 1000_000_000 ? 1 : 2;
+            return Long.parseLong(time.substring(0, time.length() - suffixLen)) * multiplier;
+        }
+        return Long.parseLong(time) * 1000_000;
     }
 
     // Milliseconds or HH:mm:ss.S or yyyy-MM-dd'T'HH:mm:ss.S
