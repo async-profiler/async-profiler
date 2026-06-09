@@ -44,6 +44,10 @@ public class Span {
         }
     };
 
+    private static boolean hasProfileSamples(long startTime) {
+        return LOCAL_BUF.get().getLong(0) >= startTime;
+    }
+
     private Span() {
     }
 
@@ -70,8 +74,8 @@ public class Span {
      * @param tag       an arbitrary label, or {@code null}
      */
     public static void end(long startTime, String tag) {
-        if (startTime != 0) {
-            emit(startTime, Recording.timestamp(), tag);
+        if (startTime != 0 && Recording.state == Recording.RUNNING) {
+            Recording.emitSpan(startTime, Recording.timestamp(), tag);
         }
     }
 
@@ -84,8 +88,10 @@ public class Span {
      * @param tag       an arbitrary label, or {@code null}
      */
     public static void endIfProfiled(long startTime, String tag) {
-        if (startTime != 0) {
-            emitIfProfiled(startTime, Recording.timestamp(), tag);
+        if (startTime != 0 && Recording.state == Recording.RUNNING) {
+            if (isVirtualThread() || hasProfileSamples(startTime)) {
+                Recording.emitSpan(startTime, Recording.timestamp(), tag);
+            }
         }
     }
 
@@ -109,7 +115,7 @@ public class Span {
      */
     public static void emitIfProfiled(long startTime, long endTime, String tag) {
         if (Recording.state == Recording.RUNNING) {
-            if (isVirtualThread() || LOCAL_BUF.get().getLong(0) >= startTime) {
+            if (isVirtualThread() || hasProfileSamples(startTime)) {
                 Recording.emitSpan(startTime, endTime, tag);
             }
         }
