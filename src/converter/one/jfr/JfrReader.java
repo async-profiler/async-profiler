@@ -69,11 +69,12 @@ public class JfrReader implements Closeable {
     private int executionSample;
     private int nativeMethodSample;
     private int wallClockSample;
-    private int methodTrace;
     private int allocationInNewTLAB;
     private int allocationOutsideTLAB;
     private int allocationSample;
     private int liveObject;
+    private int span;
+    private int methodTrace;
     private int monitorEnter;
     private int threadPark;
     private int activeSetting;
@@ -208,14 +209,16 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(false);
             } else if (type == wallClockSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(true);
-            } else if (type == methodTrace) {
-                if (cls == null || cls == MethodTrace.class) return (E) readMethodTrace();
             } else if (type == allocationInNewTLAB) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
             } else if (type == cpuTimeSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readCPUTimeSample();
+            } else if (type == span) {
+                if (cls == null || cls.isAssignableFrom(SpanEvent.class)) return (E) readSpan();
+            } else if (type == methodTrace) {
+                if (cls == null || cls.isAssignableFrom(MethodTrace.class)) return (E) readMethodTrace();
             } else if (type == malloc) {
                 if (cls == null || cls == MallocEvent.class) return (E) readMallocEvent(true);
             } else if (type == free) {
@@ -262,15 +265,6 @@ public class JfrReader implements Closeable {
         return new ExecutionSample(time, tid, stackTraceId, threadState, samples);
     }
 
-    private MethodTrace readMethodTrace() {
-        long startTime = getVarlong();
-        long duration = getVarlong();
-        int tid = getVarint();
-        int stackTraceId = getVarint();
-        int method = getVarint();
-        return new MethodTrace(startTime, tid, stackTraceId, method, duration);
-    }
-
     private AllocationSample readAllocationSample(boolean tlab) {
         long time = getVarlong();
         int tid = getVarint();
@@ -289,6 +283,23 @@ public class JfrReader implements Closeable {
         long samplingPeriod = getVarlong();
         boolean biased = getBoolean();
         return new ExecutionSample(time, tid, stackTraceId, ExecutionSample.CPU_TIME_SAMPLE, 1);
+    }
+
+    private SpanEvent readSpan() {
+        long startTime = getVarlong();
+        long duration = getVarlong();
+        int tid = getVarint();
+        String tag = strings.get(getVarlong());
+        return new SpanEvent(startTime, tid, duration, tag);
+    }
+
+    private MethodTrace readMethodTrace() {
+        long startTime = getVarlong();
+        long duration = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        int method = getVarint();
+        return new MethodTrace(startTime, tid, stackTraceId, duration, method);
     }
 
     private NativeLockEvent readNativeLockEvent() {
@@ -626,11 +637,12 @@ public class JfrReader implements Closeable {
         executionSample = getTypeId("jdk.ExecutionSample");
         nativeMethodSample = getTypeId("jdk.NativeMethodSample");
         wallClockSample = getTypeId("profiler.WallClockSample");
-        methodTrace = getTypeId("jdk.MethodTrace");
         allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
         allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
         allocationSample = getTypeId("jdk.ObjectAllocationSample");
         liveObject = getTypeId("profiler.LiveObject");
+        span = getTypeId("profiler.Span");
+        methodTrace = getTypeId("jdk.MethodTrace");
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
         activeSetting = getTypeId("jdk.ActiveSetting");

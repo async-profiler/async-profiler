@@ -19,10 +19,12 @@ public class Dictionary<T> {
     private int size;
 
     public Dictionary() {
-        this(INITIAL_CAPACITY);
+        this.keys = new long[INITIAL_CAPACITY];
+        this.values = new Object[INITIAL_CAPACITY];
     }
 
-    public Dictionary(int initialCapacity) {
+    public Dictionary(int count) {
+        int initialCapacity = Math.max(Integer.highestOneBit(count * 4 - 1), INITIAL_CAPACITY);
         this.keys = new long[initialCapacity];
         this.values = new Object[initialCapacity];
     }

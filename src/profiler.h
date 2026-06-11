@@ -185,6 +185,7 @@ class Profiler {
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
     CodeCacheArray* nativeLibs() { return &_native_libs; }
+    FlightRecorder* jfr() { return &_jfr; }
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, Writer& out);
@@ -203,8 +204,6 @@ class Profiler {
     void recordExternalSamples(u64 samples, u64 counter, int tid, u32 call_trace_id, EventType event_type, Event* event);
     void recordEventOnly(EventType event_type, Event* event);
     void tryResetCounters();
-    void writeLog(LogLevel level, const char* message);
-    void writeLog(LogLevel level, const char* message, size_t len);
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);

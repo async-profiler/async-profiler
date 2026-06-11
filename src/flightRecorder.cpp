@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include "flightRecorder.h"
 #include "incbin.h"
+#include "javaApi.h"
 #include "jfrMetadata.h"
 #include "lookup.h"
 #include "os.h"
@@ -235,6 +236,7 @@ class Recording {
     off_t _chunk_start;
     ThreadFilter _thread_set;
     MethodMap _method_map;
+    Dictionary _string_pool;
 
     u64 _start_time;
     u64 _start_ticks;
@@ -263,7 +265,7 @@ class Recording {
     }
 
   public:
-    Recording(int fd, const char* master_recording_file, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
+    Recording(int fd, const char* master_recording_file, Arguments& args) : _fd(fd) {
         _master_recording_file = master_recording_file == NULL ? NULL : strdup(master_recording_file);
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
@@ -829,7 +831,7 @@ class Recording {
         buf->putVar32(0);
         buf->putVar32(1);
 
-        buf->putVar32(11);
+        buf->putVar32(12);
 
         Index packages(1);
         Index symbols(1);
@@ -843,6 +845,7 @@ class Recording {
         writeClasses(buf, &lookup);
         writePackages(buf, &lookup);
         writeSymbols(buf, &lookup);
+        writeStrings(buf);
         writeUserEventTypes(buf);
         // Write log levels last. The order does not affect the JFR's validity,
         // but log levels have an easily-visible format that makes it easy
@@ -859,8 +862,17 @@ class Recording {
             // Write a dummy String pool of 1 element instead.
             buf->putVar32(T_STRING);
             buf->putVar32(1);
-            buf->putVar32(1);  // key
+            buf->putVar32(0);  // key
             buf->put8(0);      // null string
+        }
+    }
+
+    void writeStringMap(Buffer* buf, JfrType type, std::map<u32, const char*>& strings) {
+        writePoolHeader(buf, type, strings.size());
+        for (std::map<u32, const char*>::const_iterator it = strings.begin(); it != strings.end(); ++it) {
+            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
+            buf->putVar32(it->first);
+            buf->putUtf8(it->second);
         }
     }
 
@@ -1019,24 +1031,29 @@ class Recording {
         });
     }
 
-    void writeLogLevels(Buffer* buf) {
-        buf->putVar32(T_LOG_LEVEL);
-        buf->putVar32(LOG_ERROR - LOG_TRACE + 1);
-        for (int i = LOG_TRACE; i <= LOG_ERROR; i++) {
-            buf->putVar32(i);
-            buf->putUtf8(Log::LEVEL_NAME[i]);
-        }
+    void writeStrings(Buffer* buf) {
+        std::map<u32, const char*> strings;
+        _string_pool.collect(strings);
+
+        writeStringMap(buf, T_STRING, strings);
+
+        // String pool is only updated under the lock - safe to clear here
+        _string_pool.clear();
     }
 
     void writeUserEventTypes(Buffer* buf) {
         std::map<u32, const char*> events;
         UserEvents::collect(events);
 
-        writePoolHeader(buf, T_USER_EVENT_TYPE, events.size());
-        for (std::map<u32, const char*>::const_iterator it = events.begin(); it != events.end(); ++it) {
-            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
-            buf->putVar32(it->first);
-            buf->putUtf8(it->second);
+        writeStringMap(buf, T_USER_EVENT_TYPE, events);
+    }
+
+    void writeLogLevels(Buffer* buf) {
+        buf->putVar32(T_LOG_LEVEL);
+        buf->putVar32(LOG_ERROR - LOG_TRACE + 1);
+        for (int i = LOG_TRACE; i <= LOG_ERROR; i++) {
+            buf->putVar32(i);
+            buf->putUtf8(Log::LEVEL_NAME[i]);
         }
     }
 
@@ -1212,12 +1229,22 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordWindow(Buffer* buf, int tid, ProfilingWindow* event) {
+    void recordWindow(Buffer* buf, int tid, SpanEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_WINDOW);
         buf->putVar64(event->_start_time);
         buf->putVar64(event->_end_time - event->_start_time);
         buf->putVar32(tid);
+        buf->put8(start, buf->offset() - start);
+    }
+
+    void recordSpan(Buffer* buf, int tid, SpanEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_SPAN);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_end_time - event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(event->_tag == nullptr ? 0 : _string_pool.lookup(event->_tag));
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1296,6 +1323,8 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         free(filename_tmp);
     }
 
+    RecordingAPI::start();
+
     _rec = new Recording(fd, master_recording_file, args);
     _rec_lock.unlock();
     return Error::OK;
@@ -1304,6 +1333,8 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
 void FlightRecorder::stop() {
     if (_rec != NULL) {
         _rec_lock.lock();
+
+        RecordingAPI::stop();
 
         if (_rec->hasMasterRecording()) {
             stopMasterRecording();
@@ -1421,9 +1452,13 @@ void FlightRecorder::stopMasterRecording() {
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                                  EventType event_type, Event* event) {
     if (_rec != NULL) {
-        // Recording an event, increment the sample counter to allow
-        // user code to attach metadata.
-        ThreadLocalData::incrementSampleCounter();
+        // Update per-thread monotonic counter with the last event timestamp
+        if (event_type < PROFILING_WINDOW) {
+            asprof_thread_local_data* tld = ThreadLocalData::getIfPresent();
+            if (tld != nullptr && event->_start_time > tld->sample_counter) {
+                tld->sample_counter = event->_start_time;
+            }
+        }
 
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
@@ -1460,7 +1495,10 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 _rec->recordNativeLockSample(buf, tid, call_trace_id, (NativeLockEvent*)event);
                 break;
             case PROFILING_WINDOW:
-                _rec->recordWindow(buf, tid, (ProfilingWindow*)event);
+                _rec->recordWindow(buf, tid, (SpanEvent*)event);
+                break;
+            case SPAN:
+                _rec->recordSpan(buf, tid, (SpanEvent*)event);
                 break;
             case USER_EVENT:
                 _rec->recordUserEvent(buf, tid, (UserEvent*)event);

@@ -40,12 +40,13 @@ typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t 
 
 // This API is UNSTABLE and might change or be removed in the next version of async-profiler.
 typedef struct {
-    // A thread-local sample counter, which increments (not necessarily by 1) every time a
-    // stack profiling sample is taken using a profiling signal.
+    // Timestamp of the most recent profiling sample taken on this thread, in async-profiler's
+    // internal clock (the same clock used for JFR event timestamps). The value is monotonically
+    // increasing and changes whenever a new sample is recorded.
     //
-    // The counter might be initialized lazily, only starting counting from 0 the first time
-    // `asprof_get_thread_local_data` is called on a given thread. Further calls to
-    // `asprof_get_thread_local_data` on a given thread will of course not reset the counter.
+    // The value is 0 until the first sample. The field might be initialized lazily, only the first
+    // time `asprof_get_thread_local_data` is called on a given thread. Further calls to
+    // `asprof_get_thread_local_data` on a given thread will of course not reset it.
     volatile uint64_t sample_counter;
 } asprof_thread_local_data;
 

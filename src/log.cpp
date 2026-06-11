@@ -102,7 +102,7 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
     buf[prefix_len + msg_len] = '\n';
 
     if (level < LOG_ERROR && level >= FlightRecorder::MIN_LOG_LEVEL) {
-        Profiler::instance()->writeLog(level, buf + prefix_len, msg_len);
+        Profiler::instance()->jfr()->recordLog(level, buf + prefix_len, msg_len);
     }
 
     // Write a message with a prefix to a file

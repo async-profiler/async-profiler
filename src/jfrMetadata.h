@@ -65,9 +65,10 @@ enum JfrType {
     T_WALL_CLOCK_SAMPLE = 119,
     T_MALLOC = 120,
     T_FREE = 121,
-    T_USER_EVENT = 122,
-    T_PROCESS_SAMPLE = 123,
-    T_NATIVE_LOCK = 124,
+    T_NATIVE_LOCK = 122,
+    T_SPAN = 123,
+    T_USER_EVENT = 124,
+    T_PROCESS_SAMPLE = 125,
 
     // types after T_ANNOTATION inherit from java.lang.annotation.Annotation, see JfrMetadata::type
     T_ANNOTATION = 200,
@@ -82,6 +83,7 @@ enum JfrType {
     T_UNSIGNED = 208,
     T_PERCENTAGE = 209,
     T_LAST_CONTENT_TYPE = 209,
+    T_CONTEXTUAL = 210,
 };
 
 
@@ -143,6 +145,7 @@ class JfrMetadata : Element {
         F_DURATION_MILLIS = 0x100,
         F_ADDRESS         = 0x200,
         F_PERCENTAGE      = 0x400,
+        F_CONTEXTUAL      = 0x800,
     };
 
     static Element& element(const char* name) {
@@ -200,6 +203,9 @@ class JfrMetadata : Element {
             e << annotation(T_UNSIGNED) << annotation(T_MEMORY_ADDRESS);
         } else if (flags & F_PERCENTAGE) {
             e << annotation(T_PERCENTAGE);
+        }
+        if (flags & F_CONTEXTUAL) {
+            e << annotation(T_CONTEXTUAL);
         }
         return e;
     }

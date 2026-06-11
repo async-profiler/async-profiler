@@ -26,10 +26,13 @@ enum EventType {
     LOCK_SAMPLE,
     PARK_SAMPLE,
     PROFILING_WINDOW,
+    SPAN,
     USER_EVENT,
 };
 
 class Event {
+  public:
+    u64 _start_time;
 };
 
 class EventWithClassId : public Event {
@@ -39,23 +42,21 @@ class EventWithClassId : public Event {
 
 class ExecutionEvent : public Event {
   public:
-    u64 _start_time;
     ThreadState _thread_state;
 
-    ExecutionEvent(u64 start_time) : _start_time(start_time), _thread_state(THREAD_UNKNOWN) {}
+    ExecutionEvent(u64 start_time) {
+        _start_time = start_time;
+        _thread_state = THREAD_UNKNOWN;
+    }
 };
 
 class MethodTraceEvent : public Event {
   public:
-    u64 _start_time;
     u64 _duration;
-
-    MethodTraceEvent(u64 start_time, u64 duration) : _start_time(start_time), _duration(duration) {}
 };
 
 class WallClockEvent : public Event {
   public:
-    u64 _start_time;
     u64 _time_span;
     ThreadState _thread_state;
     u32 _samples;
@@ -63,14 +64,12 @@ class WallClockEvent : public Event {
 
 class AllocEvent : public EventWithClassId {
   public:
-    u64 _start_time;
     u64 _total_size;
     u64 _instance_size;
 };
 
 class LockEvent : public EventWithClassId {
   public:
-    u64 _start_time;
     u64 _end_time;
     uintptr_t _address;
     long long _timeout;
@@ -78,34 +77,30 @@ class LockEvent : public EventWithClassId {
 
 class NativeLockEvent : public Event {
   public:
-    u64 _start_time;
     u64 _end_time;
     uintptr_t _address;
 };
 
 class LiveObject : public EventWithClassId {
   public:
-    u64 _start_time;
     u64 _alloc_size;
     u64 _alloc_time;
 };
 
-class ProfilingWindow : public Event {
-  public:
-    u64 _start_time;
-    u64 _end_time;
-};
-
 class MallocEvent : public Event {
   public:
-    u64 _start_time;
     uintptr_t _address;
     u64 _size;
 };
 
+class SpanEvent : public Event {
+  public:
+    u64 _end_time;
+    const char* _tag;
+};
+
 class UserEvent : public Event {
   public:
-    u64 _start_time;
     asprof_jfr_event_key _type;
     const uint8_t* _data;
     size_t _len;

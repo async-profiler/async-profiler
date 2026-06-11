@@ -11,32 +11,27 @@
 
 class ThreadLocalData {
   public:
-    // Increment the thread-local sample counter. See the `asprof_thread_local_data` docs.
-    //
-    // This function *is* async-signal safe, and therefore will not initialize the thread-local
-    // storage by itself, but will rather do nothing if it's not initialized already. This works
-    // fine with the `sample_counter` API since only changes in `sample_counter` matter.
-    static void incrementSampleCounter(void)  {
-        if (_profiler_data_key == -1) return;
-
-        asprof_thread_local_data* data = (asprof_thread_local_data*) pthread_getspecific(_profiler_data_key);
-        if (data != NULL) {
-            data->sample_counter++;
+    // Get the `asprof_thread_local_data` or nullptr if not present.
+    // This function *is* async-signal safe.
+    static asprof_thread_local_data* getIfPresent()  {
+        if (_profiler_data_key == -1) {
+            return nullptr;
         }
+
+        return (asprof_thread_local_data*) pthread_getspecific(_profiler_data_key);
     }
 
     // Get the `asprof_thread_local_data`. See the `asprof_get_thread_local_data` docs.
-    static asprof_thread_local_data* getThreadLocalData(void)  {
+    static asprof_thread_local_data* get()  {
         if (_profiler_data_key == -1) {
-            return NULL;
+            return nullptr;
         }
 
-        asprof_thread_local_data* val = (asprof_thread_local_data*) pthread_getspecific(_profiler_data_key);
-        if (val == NULL) {
+        asprof_thread_local_data* tld = (asprof_thread_local_data*) pthread_getspecific(_profiler_data_key);
+        if (tld == nullptr) {
             return initThreadLocalData(_profiler_data_key);
         }
-
-        return val;
+        return tld;
     }
 
   private:

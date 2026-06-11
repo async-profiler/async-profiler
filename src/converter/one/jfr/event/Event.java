@@ -6,6 +6,7 @@
 package one.jfr.event;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 
 public abstract class Event implements Comparable<Event> {
     public final long time;
@@ -34,11 +35,15 @@ public abstract class Event implements Comparable<Event> {
                 .append("{time=").append(time)
                 .append(",tid=").append(tid)
                 .append(",stackTraceId=").append(stackTraceId);
-        for (Field f : getClass().getDeclaredFields()) {
-            try {
-                sb.append(',').append(f.getName()).append('=').append(f.get(this));
-            } catch (ReflectiveOperationException e) {
-                break;
+        for (Class<?> c = getClass(); c != Event.class; c = c.getSuperclass()) {
+            for (Field f : c.getDeclaredFields()) {
+                if ((f.getModifiers() & Modifier.STATIC) == 0) {
+                    try {
+                        sb.append(',').append(f.getName()).append('=').append(f.get(this));
+                    } catch (ReflectiveOperationException e) {
+                        break;
+                    }
+                }
             }
         }
         return sb.append('}').toString();

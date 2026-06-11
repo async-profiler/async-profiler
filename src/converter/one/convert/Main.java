@@ -160,7 +160,8 @@ public class Main {
                 "     --dot              Dotted class names\n" +
                 "     --from TIME        Start time in ms (absolute or relative)\n" +
                 "     --to TIME          End time in ms (absolute or relative)\n" +
-                "     --latency MS       Retain only samples within MethodTraces of at least MS milliseconds\n" +
+                "     --latency MS       Retain only samples within same-thread spans of at least MS milliseconds\n" +
+                "     --tag STRING       Retain only samples within same-thread spans labeled with the given tag\n" +
                 "\n" +
                 "Flame Graph options:\n" +
                 "     --title STRING     Flame Graph title\n" +
