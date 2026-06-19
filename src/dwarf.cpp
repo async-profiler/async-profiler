@@ -59,22 +59,20 @@ FrameDesc FrameDesc::empty_frame = {0, DW_REG_SP | EMPTY_FRAME_SIZE << 8, DW_SAM
 FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | LINKED_FRAME_SIZE << 8, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT};
 
 
-DwarfParser::DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr) {
+DwarfParser::DwarfParser(const char* name, const char* image_base) {
     _name = name;
     _image_base = image_base;
 
     _capacity = 128;
     _count = 0;
     _table = (FrameDesc*)malloc(_capacity * sizeof(FrameDesc));
-    _prev = NULL;
+    _prev = nullptr;
 
     _code_align = sizeof(instruction_t);
     _data_align = -(int)sizeof(void*);
-
-    parse(eh_frame_hdr);
 }
 
-void DwarfParser::parse(const char* eh_frame_hdr) {
+void DwarfParser::parseEhFrame(const char* eh_frame_hdr) {
     u8 version = eh_frame_hdr[0];
     u8 eh_frame_ptr_enc = eh_frame_hdr[1];
     u8 fde_count_enc = eh_frame_hdr[2];
@@ -100,12 +98,10 @@ void DwarfParser::parseCie() {
         return;
     }
 
-    const char* cie_start = _ptr;
     _ptr += 5;
     while (*_ptr++) {}
     _code_align = getLeb();
     _data_align = getSLeb();
-    _ptr = cie_start + cie_len;
 }
 
 void DwarfParser::parseFde() {
@@ -127,6 +123,65 @@ void DwarfParser::parseFde() {
     _ptr += getLeb();
     parseInstructions(range_start, fde_start + fde_len);
     addRecord(range_start + range_len, DW_REG_FP, LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT);
+}
+
+// Unlike .eh_frame, .debug_frame has no sorted index
+void DwarfParser::parseDebugFrame(const char* debug_frame_start, size_t size) {
+    _ptr = debug_frame_start;
+    const char* debug_frame_end = debug_frame_start + size;
+
+    while (_ptr < debug_frame_end) {
+        _ptr = parseDebugFde(debug_frame_start, debug_frame_end);
+    }
+
+    qsort(_table, _count, sizeof(FrameDesc), FrameDesc::comparator);
+}
+
+// CIE in .debug_frame differs from .eh_frame: it has no augmentation data,
+// and DWARF v4 adds address_size and segment_selector_size after the augmentation string.
+void DwarfParser::parseDebugCie() {
+    u32 cie_len = get32();
+    bool dwarf64 = cie_len == 0xffffffff;
+    _ptr += dwarf64 ? 8 + 8 : 4;
+
+    u8 version = get8();
+    while (*_ptr++) {}        // augmentation string
+    if (version >= 4) {
+        _ptr += 2;            // address_size + segment_selector_size
+    }
+    _code_align = getLeb();
+    _data_align = getSLeb();
+}
+
+const char* DwarfParser::parseDebugFde(const char* debug_frame_start, const char* debug_frame_end) {
+    u64 fde_len = get32();
+    bool dwarf64 = fde_len == 0xffffffff;
+    if (dwarf64) {
+        fde_len = get64();
+    }
+
+    const char* fde_end = _ptr + fde_len;
+    if (fde_end <= _ptr || fde_end > debug_frame_end) {
+        return debug_frame_end;  // stop parsing the whole section
+    }
+
+    u64 cie_ptr;
+    if (dwarf64) {
+        if ((cie_ptr = get64()) == 0xffffffffffffffffULL) return fde_end;
+    } else {
+        if ((cie_ptr = get32()) == 0xffffffff) return fde_end;
+    }
+
+    const char* fde_start = _ptr;
+    _ptr = debug_frame_start + cie_ptr;
+    parseDebugCie();
+    _ptr = fde_start;
+
+    u32 range_start = getWord() - (uintptr_t)_image_base;
+    u32 range_len = getWord();
+    parseInstructions(range_start, fde_end);
+    addRecord(range_start + range_len, DW_REG_FP, LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT);
+    return fde_end;
 }
 
 void DwarfParser::parseInstructions(u32 loc, const char* end) {
@@ -336,7 +391,7 @@ int DwarfParser::parseExpression() {
 
 void DwarfParser::addRecord(u32 loc, u32 cfa_reg, int cfa_off, int fp_off, int pc_off) {
     int cfa = cfa_reg | cfa_off << 8;
-    if (_prev == NULL || (_prev->loc == loc && --_count >= 0) ||
+    if (_prev == nullptr || (_prev->loc == loc && --_count >= 0) ||
             _prev->cfa != cfa || _prev->fp_off != fp_off || _prev->pc_off != pc_off) {
         _prev = addRecordRaw(loc, cfa, fp_off, pc_off);
     }

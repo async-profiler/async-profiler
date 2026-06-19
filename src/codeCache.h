@@ -177,6 +177,10 @@ class CodeCache {
         _debug_symbols = debug_symbols;
     }
 
+    bool hasDwarfTable() const {
+        return _dwarf_table != NULL;
+    }
+
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void updateBounds(const void* start, const void* end);
     void sort();
