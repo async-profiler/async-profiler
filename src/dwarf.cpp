@@ -68,6 +68,7 @@ DwarfParser::DwarfParser(const char* name, const char* image_base) {
     _table = (FrameDesc*)malloc(_capacity * sizeof(FrameDesc));
     _prev = nullptr;
 
+    _last_cie = (u64)-1;
     _code_align = sizeof(instruction_t);
     _data_align = -(int)sizeof(void*);
 }
@@ -118,7 +119,7 @@ void DwarfParser::parseFde() {
         _ptr = fde_start + 4;
     }
 
-    u32 range_start = getPtr() - _image_base;
+    u32 range_start = getRelAddr() - _image_base;
     u32 range_len = get32();
     _ptr += getLeb();
     parseInstructions(range_start, fde_start + fde_len);
@@ -172,15 +173,20 @@ const char* DwarfParser::parseDebugFde(const char* debug_frame_start, const char
         if ((cie_ptr = get32()) == 0xffffffff) return fde_end;
     }
 
-    const char* fde_start = _ptr;
-    _ptr = debug_frame_start + cie_ptr;
-    parseDebugCie();
-    _ptr = fde_start;
+    // Parse the linked CIE only if it is different from the previously parsed one
+    if (cie_ptr != _last_cie) {
+        const char* fde_start = _ptr;
+        _ptr = debug_frame_start + cie_ptr;
+        parseDebugCie();
+        _ptr = fde_start;
+        _last_cie = cie_ptr;
+    }
 
-    u32 range_start = getWord() - (uintptr_t)_image_base;
-    u32 range_len = getWord();
-    parseInstructions(range_start, fde_end);
-    addRecord(range_start + range_len, DW_REG_FP, LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT);
+    u32 range_start = getAddr() - _image_base;
+    if (range_start != 0) {  // zero-address FDEs are leftovers from garbage‑collected functions
+        getAddr();           // skip range_len
+        parseInstructions(range_start, fde_end);
+    }
     return fde_end;
 }
 

@@ -94,6 +94,7 @@ class DwarfParser {
     FrameDesc* _table;
     FrameDesc* _prev;
 
+    u64 _last_cie;
     u32 _code_align;
     int _data_align;
 
@@ -119,11 +120,11 @@ class DwarfParser {
         return *(u64*)add(8);
     }
 
-    uintptr_t getWord() {
-        return *(uintptr_t*)add(sizeof(uintptr_t));
+    const char* getAddr() {
+        return *(char**)add(sizeof(char*));
     }
 
-    const char* getPtr() {
+    const char* getRelAddr() {
         const char* ptr = _ptr;
         return ptr + *(int*)add(4);
     }
