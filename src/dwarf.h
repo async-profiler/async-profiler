@@ -6,7 +6,7 @@
 #ifndef _DWARF_H
 #define _DWARF_H
 
-#include <stdint.h>
+#include <stddef.h>
 #include "arch.h"
 
 
