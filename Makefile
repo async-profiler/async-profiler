@@ -256,6 +256,11 @@ ifeq ($(OS_TAG),linux)
 
 	$(AS) -o $(TEST_LIB_DIR)/twiceatzero.o test/native/libs/twiceatzero.s
 	$(LD) -shared -o $(TEST_LIB_DIR)/libtwiceatzero.$(SOEXT) $(TEST_LIB_DIR)/twiceatzero.o --section-start=.seg1=0x4000 -z max-page-size=0x1000
+
+	$(CC) -shared -fPIC -O2 -g -fno-asynchronous-unwind-tables -fno-unwind-tables -fomit-frame-pointer -fno-optimize-sibling-calls $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libdebugframe.$(SOEXT) test/native/libs/debugframe.c
+	objcopy --only-keep-debug $(TEST_LIB_DIR)/libdebugframe.$(SOEXT) $(TEST_LIB_DIR)/libdebugframe.$(SOEXT).debug
+	objcopy --strip-all $(TEST_LIB_DIR)/libdebugframe.$(SOEXT)
+	objcopy --add-gnu-debuglink=$(TEST_LIB_DIR)/libdebugframe.$(SOEXT).debug $(TEST_LIB_DIR)/libdebugframe.$(SOEXT)
 endif
 	@touch $@
 

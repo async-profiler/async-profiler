@@ -5,6 +5,7 @@
 
 package test.stackwalker;
 
+import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
@@ -91,5 +92,19 @@ public class StackwalkerTests {
 
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
         assert !output.contains("Java_test_stackwalker_StackGenerator_largeInnerFrame;unknown;largeInnerFrameFinal");
+    }
+
+    // DebugFrameApp loads a library whose only DWARF unwinding info (.debug_frame)
+    // lives in a separate debuginfo file
+    @Test(mainClass = DebugFrameApp.class, agentArgs = "start,event=cpu,file=%f.jfr", os = Os.LINUX)
+    public void debugFrame(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+        Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
+        assert output.contains("test/stackwalker/DebugFrameApp.run[^;]*;" +
+                "Java_test_stackwalker_DebugFrameApp_run[^;]*;" +
+                "level1[^;]*;" +
+                "level2[^;]*;" +
+                "level3") : output;
     }
 }
