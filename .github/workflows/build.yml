@@ -27,9 +27,6 @@ jobs:
       image: ${{ inputs.container-image && format('public.ecr.aws/async-profiler/asprof-builder-{0}', inputs.container-image) || '' }}
     name: "build and unit test (${{ inputs.platform }})"
     steps:
-      - name: Run container setup
-        if: inputs.container-image != ''
-        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
       - name: Setup Java
         uses: actions/setup-java@v4
         with:

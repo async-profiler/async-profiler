@@ -25,9 +25,6 @@ on:
       container-image:
         type: string
         required: false
-      container-volumes:
-        type: string
-        required: false
       use-builtin-jdk:
         type: boolean
         required: false
@@ -46,12 +43,8 @@ jobs:
     container:
       image: ${{ inputs.container-image && format('public.ecr.aws/async-profiler/asprof-builder-{0}', inputs.container-image) || '' }}
       options: --privileged
-      volumes: ${{ fromJSON(inputs.container-volumes || '[]') }}
     name: "${{ inputs.test-platform }}, ${{ inputs.java-distribution }} ${{ inputs.java-version }}"
     steps:
-      - name: Run container setup
-        if: inputs.container-image != ''
-        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
       - name: Setup Java
         uses: actions/setup-java@v4
         # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753

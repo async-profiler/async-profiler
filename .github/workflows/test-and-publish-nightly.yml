@@ -67,13 +67,6 @@ jobs:
             use-builtin-jdk: true
             java-distribution: corretto
             java-version: 11
-          - test-platform: linux-x64-AL2
-            container-image: amazonlinux:2
-            # GHA provides Node.js by attaching a volume to the container. The container path is
-            # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
-            container-volumes: '["/tmp/node20:/__e/node20"]'
-            java-version: 11
-            java-distribution: corretto
           - test-platform: linux-x64-AL2023
             container-image: amazonlinux:2023
             java-version: 11
@@ -89,7 +82,6 @@ jobs:
       test-platform: ${{ matrix.test-platform }}
       runner: ubuntu-latest
       container-image: ${{ matrix.container-image }}
-      container-volumes: ${{ matrix.container-volumes || '' }}
       java-version: ${{ matrix.java-version }}
       java-distribution: ${{ matrix.java-distribution }}
       use-builtin-jdk: ${{ matrix.use-builtin-jdk || false }}
@@ -110,7 +102,6 @@ jobs:
       test-platform: ${{ matrix.test-platform }}
       runner: ubuntu-24.04-arm
       container-image: ${{ matrix.container-image }}
-      container-volumes: ${{ matrix.container-volumes || '' }}
       java-version: ${{ matrix.java-version }}
       java-distribution: ${{ matrix.java-distribution }}
 
