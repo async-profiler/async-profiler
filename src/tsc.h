@@ -83,6 +83,8 @@ class TSC {
     static u64 _offset;
     static u64 _frequency;
 
+    static bool syncWithJvm();
+
   public:
     static void enable(Clock clock);
 
