@@ -35,6 +35,7 @@ void TSC::enable(Clock clock) {
 
 // Try to use the same clock source with the same offset/frequency as the JVM does
 bool TSC::syncWithJvm() {
+#if defined(__x86_64__) || defined(__i386__)
     JVMFlag* f = JVMFlag::find("UseFastUnorderedTimeStamps");
     if (f == nullptr || !f->get()) {
         return false;
@@ -51,13 +52,15 @@ bool TSC::syncWithJvm() {
     }
 
     u64 frequency = 0;
+    // Method is static since JDK 22
     if ((getTicksFrequency = env->GetStaticMethodID(cls, "getTicksFrequency", "()J")) != nullptr) {
-        // Method is static in JDK 22+
         frequency = env->CallStaticLongMethod(cls, getTicksFrequency);
-    } else if ((getTicksFrequency = env->GetMethodID(cls, "getTicksFrequency", "()J")) != nullptr &&
-               (jvm = env->GetStaticFieldID(cls, "jvm", "Ljdk/jfr/internal/JVM;")) != nullptr) {
-        // Non-static method before JDK 22
-        frequency = env->CallLongMethod(env->GetStaticObjectField(cls, jvm), getTicksFrequency);
+    } else {
+        env->ExceptionClear();
+        if ((getTicksFrequency = env->GetMethodID(cls, "getTicksFrequency", "()J")) != nullptr &&
+                (jvm = env->GetStaticFieldID(cls, "jvm", "Ljdk/jfr/internal/JVM;")) != nullptr) {
+            frequency = env->CallLongMethod(env->GetStaticObjectField(cls, jvm), getTicksFrequency);
+        }
     }
     env->ExceptionClear();
 
@@ -71,4 +74,8 @@ bool TSC::syncWithJvm() {
 
     env->ExceptionClear();
     return true;
+#else
+    // HotSpot supports UseFastUnorderedTimeStamps on x86 only
+    return false;
+#endif
 }
