@@ -7,7 +7,9 @@ package test.jfr;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
+import one.profiler.test.Arch;
 import one.profiler.test.Assert;
+import one.profiler.test.Jvm;
 import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
@@ -237,6 +239,38 @@ public class JfrTests {
         assert p.exitCode() == 0;
 
         assert out.contains("begin and end symbols should not resolve to the same address");
+    }
+
+    /**
+     * Async-profiler should timestamp its events with the same clock the JVM uses for the JFR.
+     */
+    @Test(mainClass = Hello.class, arch = {Arch.X64, Arch.X86}, jvm = Jvm.HOTSPOT,
+            jvmArgs = "-XX:+UnlockExperimentalVMOptions -XX:+UseFastUnorderedTimeStamps",
+            agentArgs = "start,event=cpu,file=%f.jfr",
+            inputs = "tsc", nameSuffix = "tsc")
+    @Test(mainClass = Hello.class, arch = {Arch.X64, Arch.X86}, jvm = Jvm.HOTSPOT,
+            jvmArgs = "-XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps",
+            agentArgs = "start,event=cpu,file=%f.jfr",
+            inputs = "monotonic", nameSuffix = "monotonic")
+    public void clockSource(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        String expectedClock = p.inputs()[0];
+        String actualClock = null;
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                if (event.getEventType().getName().equals("jdk.ActiveSetting")
+                        && "clock".equals(event.getString("name"))) {
+                    actualClock = event.getString("value");
+                    break;
+                }
+            }
+        }
+
+        assert expectedClock.equals(actualClock)
+                : "Expected clock=" + expectedClock + " aligned with the JVM, but found clock=" + actualClock;
     }
 
     private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {
