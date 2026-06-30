@@ -143,12 +143,12 @@ void DwarfParser::parseDebugFrame(const char* debug_frame_start, size_t size) {
 void DwarfParser::parseDebugCie() {
     u32 cie_len = get32();
     bool dwarf64 = cie_len == 0xffffffff;
-    _ptr += dwarf64 ? 8 + 8 : 4;
+    _ptr += dwarf64 ? 16 : 4;  // 8-byte CIE_length + 8-byte CIE_id or 4-byte CIE_id
 
     u8 version = get8();
-    while (*_ptr++) {}        // augmentation string
+    while (*_ptr++) {}         // augmentation string
     if (version >= 4) {
-        _ptr += 2;            // address_size + segment_selector_size
+        _ptr += 2;             // address_size + segment_selector_size
     }
     _code_align = getLeb();
     _data_align = getSLeb();
