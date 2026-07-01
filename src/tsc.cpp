@@ -35,7 +35,6 @@ void TSC::enable(Clock clock) {
 
 // Try to use the same clock source with the same offset/frequency as the JVM does
 bool TSC::syncWithJvm() {
-#if defined(__x86_64__) || defined(__i386__)
     JVMFlag* f = JVMFlag::find("UseFastUnorderedTimeStamps");
     if (f == nullptr || !f->get()) {
         return false;
@@ -74,8 +73,4 @@ bool TSC::syncWithJvm() {
 
     env->ExceptionClear();
     return true;
-#else
-    // HotSpot supports UseFastUnorderedTimeStamps on x86 only
-    return false;
-#endif
 }
