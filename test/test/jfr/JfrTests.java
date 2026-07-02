@@ -7,6 +7,8 @@ package test.jfr;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
+import one.jfr.JfrReader;
+import one.jfr.event.ExecutionSample;
 import one.profiler.test.Assert;
 import one.profiler.test.Os;
 import one.profiler.test.Output;
@@ -33,11 +35,11 @@ public class JfrTests {
         assert !out.contains(spikePattern);
         assert out.contains(normalLoadPattern);
 
-        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "1500", "--to", "3500");
+        out = Output.convertJfrToCollapsed(jfrOutPath, "--from", "1500", "--to", "3500");
         assert out.contains(spikePattern);
         assert out.contains(normalLoadPattern);
 
-        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "3500");
+        out = Output.convertJfrToCollapsed(jfrOutPath, "--from", "3500");
         assert !out.contains(spikePattern);
         assert out.contains(normalLoadPattern);
     }
@@ -237,6 +239,44 @@ public class JfrTests {
         assert p.exitCode() == 0;
 
         assert out.contains("begin and end symbols should not resolve to the same address");
+    }
+
+    /**
+     * Async-profiler should timestamp its events with the same clock the JVM uses for the JFR.
+     */
+    @Test(mainClass = Hello.class, nameSuffix = "tsc",
+            agentArgs = "start,event=cpu,file=%f.jfr,jfrsync")
+    @Test(mainClass = Hello.class, nameSuffix = "monotonic",
+            jvmArgs = "-XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps",
+            agentArgs = "start,event=cpu,file=%f.jfr,jfrsync")
+    public void clockSource(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
+            jfr.stopAtNewChunk = true;
+            // Read JDK chunk
+            jfr.readAllEvents(ExecutionSample.class);
+            long ticksPerSec1 = jfr.ticksPerSec;
+            // Read Async-profiler chunk
+            jfr.readAllEvents(ExecutionSample.class);
+            long ticksPerSec2 = jfr.ticksPerSec;
+
+            String clock = jfr.settings.get("clock");
+            if (clock.equals("monotonic")) {
+                // Monotonic clock has fixed 1GHz frequency
+                Assert.isEqual(ticksPerSec1, 1_000_000_000);
+                Assert.isEqual(ticksPerSec2, 1_000_000_000);
+            }
+
+            if (p.test().jvmArgs().contains("-UseFastUnorderedTimeStamps")) {
+                assert clock.equals("monotonic") : clock;
+            }
+
+            // Clock frequency must be aligned
+            Assert.isGreater(ticksPerSec1, ticksPerSec2 * 0.95);
+            Assert.isLess(ticksPerSec1, ticksPerSec2 * 1.05);
+        }
     }
 
     private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {
