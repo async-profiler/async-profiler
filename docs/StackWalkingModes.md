@@ -14,8 +14,8 @@ Since version 4.2, the default was changed to [VM Structs](#vm-structs).
 ## DWARF
 
 DWARF stack walking is a method to reconstruct call stacks using unwinding information embedded in executables
-(typically in `.eh_frame` section). Unlike frame-pointer-based unwinding, it works reliably even with optimized code
-where frame pointers are omitted.
+(typically in the `.eh_frame` or `.debug_frame` section). Unlike frame-pointer-based
+unwinding, it works reliably even with optimized code where frame pointers are omitted.
 
 DWARF unwinding requires extra memory (e.g. the lookup table for `libjvm.so` is about 2MB).
 It is also slower than the traditional FP-based stack walker, but it's still fast enough for on-the-fly unwinding

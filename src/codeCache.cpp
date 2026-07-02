@@ -287,8 +287,13 @@ bool CodeCache::makeImportsPatchable() {
 }
 
 void CodeCache::setDwarfTable(FrameDesc* table, int length) {
-    _dwarf_table = table;
-    _dwarf_table_length = length;
+    // CodeCache captures ownership of the table and becomes responsible for its cleanup
+    if (length > 0) {
+        _dwarf_table = table;
+        _dwarf_table_length = length;
+    } else {
+        free(table);
+    }
 }
 
 FrameDesc* CodeCache::findFrameDesc(const void* pc) {

@@ -94,6 +94,7 @@ class DwarfParser {
     FrameDesc* _table;
     FrameDesc* _prev;
 
+    u64 _last_cie;
     u32 _code_align;
     int _data_align;
 
@@ -113,6 +114,19 @@ class DwarfParser {
 
     u32 get32() {
         return *(u32*)add(4);
+    }
+
+    u64 get64() {
+        return *(u64*)add(8);
+    }
+
+    const char* getAddr() {
+        return *(char**)add(sizeof(char*));
+    }
+
+    const char* getRelAddr() {
+        const char* ptr = _ptr;
+        return ptr + *(int*)add(4);
     }
 
     u32 getLeb() {
@@ -144,14 +158,10 @@ class DwarfParser {
         while (*_ptr++ & 0x80) {}
     }
 
-    const char* getPtr() {
-        const char* ptr = _ptr;
-        return ptr + *(int*)add(4);
-    }
-
-    void parse(const char* eh_frame_hdr);
     void parseCie();
     void parseFde();
+    void parseDebugCie();
+    const char* parseDebugFde(const char* debug_frame_start, const char* debug_frame_end);
     void parseInstructions(u32 loc, const char* end);
     int parseExpression();
 
@@ -159,7 +169,10 @@ class DwarfParser {
     FrameDesc* addRecordRaw(u32 loc, int cfa, int fp_off, int pc_off);
 
   public:
-    DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr);
+    DwarfParser(const char* name, const char* image_base);
+
+    void parseEhFrame(const char* eh_frame_hdr);
+    void parseDebugFrame(const char* debug_frame_start, size_t size);
 
     FrameDesc* table() const {
         return _table;

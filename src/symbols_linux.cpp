@@ -265,7 +265,8 @@ class ElfParser {
 
     void calcVirtualLoadAddress();
     void parseDynamicSection();
-    void parseDwarfInfo();
+    void parseUnwindInfo();
+    void parseDebugFrameSection();
     uint32_t getSymbolCount(uint32_t* gnu_hash);
     void loadSymbols(bool use_debug);
     bool loadSymbolsFromDebug(const char* build_id, const int build_id_len);
@@ -327,6 +328,10 @@ bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name
         if (elf.validHeader()) {
             elf.calcVirtualLoadAddress();
             elf.loadSymbols(use_debug);
+            if (!use_debug || elf.findProgramHeader(PT_GNU_EH_FRAME) == NULL) {
+                // Prefer .debug_frame to .eh_frame_hdr only for external debuginfo objects
+                elf.parseDebugFrameSection();
+            }
         }
         munmap(addr, length);
     }
@@ -339,7 +344,7 @@ void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base, const char*
         cc->setTextBase(base);
         elf.calcVirtualLoadAddress();
         elf.parseDynamicSection();
-        elf.parseDwarfInfo();
+        elf.parseUnwindInfo();
     }
 }
 
@@ -453,17 +458,31 @@ void ElfParser::parseDynamicSection() {
     }
 }
 
-void ElfParser::parseDwarfInfo() {
-    if (!DWARF_SUPPORTED) return;
+void ElfParser::parseUnwindInfo() {
+    if (!DWARF_SUPPORTED || _cc->hasDwarfTable()) return;
 
     ElfProgramHeader* eh_frame_hdr = findProgramHeader(PT_GNU_EH_FRAME);
     if (eh_frame_hdr != NULL && eh_frame_hdr->p_vaddr != 0) {
-        DwarfParser dwarf(_cc->name(), _base, at(eh_frame_hdr));
+        DwarfParser dwarf(_cc->name(), _base);
+        dwarf.parseEhFrame(at(eh_frame_hdr));
         _cc->setDwarfTable(dwarf.table(), dwarf.count());
     } else if (strcmp(_cc->name(), "[vdso]") == 0) {
         FrameDesc* table = (FrameDesc*)malloc(sizeof(FrameDesc));
         *table = FrameDesc::empty_frame;
         _cc->setDwarfTable(table, 1);
+    }
+}
+
+void ElfParser::parseDebugFrameSection() {
+    if (!DWARF_SUPPORTED || _cc->hasDwarfTable()) return;
+
+    ElfSection* debug_frame = findSection(SHT_PROGBITS, ".debug_frame");
+    if (debug_frame != NULL) {
+        // Subtract the load bias from the runtime load address
+        DwarfParser dwarf(_cc->name(), _base - (uintptr_t)base());
+        dwarf.parseDebugFrame(at(debug_frame), debug_frame->sh_size);
+        _cc->setDwarfTable(dwarf.table(), dwarf.count());
+        _cc->setTextBase(_base);
     }
 }
 
