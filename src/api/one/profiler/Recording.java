@@ -25,6 +25,8 @@ public class Recording {
     /** A JFR session is running. */
     public static final int RUNNING = 2;
 
+    static volatile long clockFrequency = 1_000_000_000;  // 1 GHz
+
     static volatile int state;
 
     static {
@@ -46,6 +48,19 @@ public class Recording {
     }
 
     /**
+     * Returns the tick rate of the {@link #timestamp()} clock. The frequency is not a constant:
+     * it may change when a recording starts, since async-profiler can switch the clock source
+     * between recordings.
+     * <p>
+     * The frequency alone is enough to convert durations to profiler ticks.
+     *
+     * @return the number of ticks per second of the profiler clock
+     */
+    public static long clockFrequency() {
+        return clockFrequency;
+    }
+
+    /**
      * @return the current time in the same clock async-profiler uses for its events,
      *         so span and sample timestamps are comparable
      */
@@ -53,20 +68,16 @@ public class Recording {
         try {
             return (long) TIMESTAMP_INVOKER.invokeExact();
         } catch (Throwable e) {
-            throw new RuntimeException(e);
+            return 0;
         }
     }
 
     private static MethodHandle getTimestampMH(MethodHandles.Lookup privateLookup) {
-        if (privateLookup != null) {
-            try {
+        try {
+            if (privateLookup != null) {
                 Class<?> jvmClass = Class.forName("jdk.jfr.internal.JVM");
                 return privateLookup.findStatic(jvmClass, "counterTime", MethodType.methodType(long.class));
-            } catch (Exception e) {
-                // Fallback to System.nanoTime
             }
-        }
-        try {
             return MethodHandles.publicLookup().findStatic(System.class, "nanoTime", MethodType.methodType(long.class));
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -74,8 +85,9 @@ public class Recording {
     }
 
     // Called from JNI to replace the MethodHandle for timestamps
-    private static void updateClock(MethodHandles.Lookup privateLookup) {
+    private static void updateClock(MethodHandles.Lookup privateLookup, long frequency) {
         TIMESTAMP_CS.setTarget(getTimestampMH(privateLookup));
+        clockFrequency = frequency;
         MutableCallSite.syncAll(new MutableCallSite[]{TIMESTAMP_CS});
     }
 

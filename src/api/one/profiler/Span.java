@@ -97,7 +97,8 @@ public class Span {
 
     /**
      * Records a span with explicit start and end timestamps obtained from
-     * {@link Recording#timestamp()}.
+     * {@link Recording#timestamp()} or converted from another clock
+     * using {@link Recording#clockFrequency()}.
      *
      * @param tag an arbitrary label, or {@code null}
      */

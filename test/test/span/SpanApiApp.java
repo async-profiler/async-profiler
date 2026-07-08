@@ -36,9 +36,17 @@ public class SpanApiApp {
         profiler.execute("start,event=cpu,interval=1ms,file=" + args[0]);
         assert Recording.state() == Recording.RUNNING;
 
+        long frequency = Recording.clockFrequency();
+        assert frequency > 0 : frequency;
+
+        long start = Recording.timestamp();
         long span = Span.start();
         busy(300);
         Span.end(span, "duringSession");
+
+        // Check that clockFrequency() matches the timestamp() clock.
+        long elapsedMillis = (Recording.timestamp() - start) * 1000 / frequency;
+        assert elapsedMillis >= 250 && elapsedMillis <= 500 : elapsedMillis;
 
         profiler.execute("stop");
         assert Recording.state() == Recording.STOPPED;

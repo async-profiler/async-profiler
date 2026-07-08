@@ -270,7 +270,7 @@ void RecordingAPI::updateClock(JNIEnv* env) {
 
             lookup = env->GetStaticObjectField(lookup_class, impl_field);
         }
-        env->CallStaticVoidMethod(_recording_class, _update_clock_method, lookup);
+        env->CallStaticVoidMethod(_recording_class, _update_clock_method, lookup, TSC::frequency());
     } while (false);
 
     env->ExceptionClear();
@@ -286,7 +286,7 @@ RecordingAPI::State RecordingAPI::registerNatives(JNIEnv* env, jclass recording_
         return UNAVAILABLE;
     }
 
-    _update_clock_method = env->GetStaticMethodID(recording_class, "updateClock", "(Ljava/lang/invoke/MethodHandles$Lookup;)V");
+    _update_clock_method = env->GetStaticMethodID(recording_class, "updateClock", "(Ljava/lang/invoke/MethodHandles$Lookup;J)V");
     if (_update_clock_method == nullptr) {
         return UNAVAILABLE;
     }
