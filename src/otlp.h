@@ -25,6 +25,7 @@ namespace ProfilesDictionary {
     const protobuf_index_t mapping_table = 1;
     const protobuf_index_t location_table = 2;
     const protobuf_index_t function_table = 3;
+    const protobuf_index_t link_table = 4;
     const protobuf_index_t string_table = 5;
     const protobuf_index_t attribute_table = 6;
     const protobuf_index_t stack_table = 7;
@@ -53,13 +54,17 @@ namespace Profile {
 namespace ValueType {
     const protobuf_index_t type_strindex = 1;
     const protobuf_index_t unit_strindex = 2;
-    const protobuf_index_t aggregation_temporality = 3;
 }
 
 namespace Sample {
     const protobuf_index_t stack_index = 1;
-    const protobuf_index_t values = 2;
-    const protobuf_index_t attribute_indices = 3;
+    const protobuf_index_t attribute_indices = 2;
+    const protobuf_index_t values = 4;
+}
+
+namespace Link {
+    const protobuf_index_t trace_id = 1;
+    const protobuf_index_t span_id = 2;
 }
 
 namespace Stack {
