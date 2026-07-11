@@ -41,7 +41,7 @@ static inline u16 alignUp4(u16 i) {
 
 static bool matchesPattern(const char* value, size_t len, const std::string& pattern) {
     if (len == 0 || pattern.empty()) return false;
-    return (
+    return
         // wildcard match
         (
             pattern[pattern.length() - 1] == '*' &&
@@ -49,8 +49,7 @@ static bool matchesPattern(const char* value, size_t len, const std::string& pat
             memcmp(pattern.c_str(), value, pattern.length() - 1) == 0
         ) ||
         // full match
-        memcmp(pattern.c_str(), value, len) == 0
-    );
+        (len == pattern.length() && memcmp(pattern.c_str(), value, len) == 0);
 }
 
 static const MethodTargets* findMethodTargets(const Targets* targets, const char* class_name, size_t len) {
