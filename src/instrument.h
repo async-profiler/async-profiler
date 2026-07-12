@@ -45,6 +45,10 @@ class Instrument : public Engine {
         return "calls";
     }
 
+    long interval() {
+        return _interval;
+    }
+
     Error start(Arguments& args);
     void stop();
 

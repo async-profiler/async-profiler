@@ -39,6 +39,10 @@ class AllocTracer : public Engine {
         return "bytes";
     }
 
+    long interval() {
+        return _interval;
+    }
+
     Error start(Arguments& args);
     void stop();
 

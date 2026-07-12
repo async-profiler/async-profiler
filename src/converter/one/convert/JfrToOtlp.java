@@ -37,6 +37,7 @@ public class JfrToOtlp extends JfrConverter {
     // Chunk-private cache to remember mappings from stacktrace ID to OTLP stack index
     private final Map<Integer, Integer> stacksIndexCache = new HashMap<>();
     private double chunkCounterFactor;
+    private boolean writeValues;
 
     private final Proto proto = new Proto(1024);
 
@@ -52,9 +53,10 @@ public class JfrToOtlp extends JfrConverter {
     protected EventCollector createCollector(Arguments args) {
         return new EventCollector() {
             public void beforeChunk() {
-                chunkCounterFactor = counterFactor();
                 aggregatedEvents.clear();
                 stacksIndexCache.clear();
+                chunkCounterFactor = counterFactor();
+                writeValues = false;
             }
 
             public void collect(Event e) {
@@ -71,6 +73,10 @@ public class JfrToOtlp extends JfrConverter {
 
                 long recordedValue = !args.total ? e.samples() : chunkCounterFactor == 1.0 ? e.value() : (long) (e.value() * chunkCounterFactor);
                 ec.recordEvent(getUnixTimestampNanos(e.time), recordedValue);
+
+                if (recordedValue != 1) {
+                    writeValues = true;
+                }
             }
 
             private long getUnixTimestampNanos(long jfrTimestamp) {
@@ -113,6 +119,12 @@ public class JfrToOtlp extends JfrConverter {
                     stringPool.index(args.total ? getTotalUnits() : getSampleUnits()));
         proto.commitField(sttMark);
 
+        long ptMark = proto.startField(PROFILE_period_type, MSG_SMALL);
+        proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
+        proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
+        proto.commitField(ptMark);
+        proto.field(PROFILE_period, getPeriod());
+
         proto.fieldFixed64(PROFILE_time_unix_nano, jfr.chunkStartNanos);
         proto.field(PROFILE_duration_nano, jfr.chunkDurationNanos());
 
@@ -123,6 +135,33 @@ public class JfrToOtlp extends JfrConverter {
         });
 
         proto.commitField(pMark);
+    }
+
+    private long getPeriod() {
+        if (args.nativemem) {
+            return getPeriodFrom("nativemem", 1);
+        } else if (args.alloc || args.live) {
+            return getPeriodFrom("alloc", 524287);
+        } else if (args.lock) {
+            return getPeriodFrom("lock", 10_000);
+        } else if (args.nativelock) {
+            return getPeriodFrom("nativelock", 10_000);
+        } else if (args.wall) {
+            return getPeriodFrom("wall", 50_000_000);
+        } else {
+            return getPeriodFrom("interval", 10_000_000);
+        }
+    }
+
+    private long getPeriodFrom(String setting, long defaultValue) {
+        String value = jfr.settings.get(setting);
+        if (value != null) {
+            long period = Long.parseLong(value);
+            if (period > 0) {
+                return period;
+            }
+        }
+        return defaultValue;
     }
 
     private IntArray makeStack(int stackTraceId) {
@@ -161,11 +200,13 @@ public class JfrToOtlp extends JfrConverter {
         }
         proto.commitField(tMark);
 
-        long vMark = proto.startField(SAMPLE_values, varintSize(10 * ae.eventsCount));
-        for (int i = 0; i < ae.eventsCount; ++i) {
-            proto.writeLong(ae.values[i]);
+        if (writeValues) {
+            long vMark = proto.startField(SAMPLE_values, varintSize(10 * ae.eventsCount));
+            for (int i = 0; i < ae.eventsCount; ++i) {
+                proto.writeLong(ae.values[i]);
+            }
+            proto.commitField(vMark);
         }
-        proto.commitField(vMark);
 
         proto.commitField(sMark);
     }

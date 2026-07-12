@@ -49,6 +49,8 @@ namespace Profile {
     const protobuf_index_t samples = 2;
     const protobuf_index_t time_unix_nano = 3;
     const protobuf_index_t duration_nano = 4;
+    const protobuf_index_t period_type = 5;
+    const protobuf_index_t period = 6;
 }
 
 namespace ValueType {
@@ -110,13 +112,14 @@ class Recorder {
     std::vector<SampleInfo> _samples_info;
     const u64 _start_nanos;
     const u64 _duration_nanos;
+    const u64 _period;
     const size_t _engine_type_strindex;
     const size_t _engine_unit_strindex;
     const size_t _count_strindex;
 
     // Record a profile with a specified sample type
     void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples);
-    void recordSampleType(size_t type_strindex, size_t unit_strindex);
+    void recordValueType(protobuf_index_t field_index, size_t type_strindex, size_t unit_strindex);
     void recordStacks(const std::vector<CallTraceSample*>& call_trace_samples);
     void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);
 
@@ -132,7 +135,8 @@ class Recorder {
         _engine_unit_strindex(_strings.indexOf(engine->units())),
         _count_strindex(_strings.indexOf("count")),
         _start_nanos(start_nanos),
-        _duration_nanos(duration_nanos) {}
+        _duration_nanos(duration_nanos),
+        _period(engine->interval()) {}
 
     void record(const std::vector<CallTraceSample*>& call_trace_samples, bool samples);
 

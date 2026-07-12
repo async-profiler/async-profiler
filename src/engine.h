@@ -46,6 +46,10 @@ class Engine {
         return "total";
     }
 
+    virtual long interval() {
+        return 1;
+    }
+
     virtual Error start(Arguments& args);
     virtual void stop();
 

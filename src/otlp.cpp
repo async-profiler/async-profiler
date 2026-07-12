@@ -99,11 +99,11 @@ void Recorder::recordStacks(const std::vector<CallTraceSample*>& call_trace_samp
     }
 }
 
-void Recorder::recordSampleType(size_t type_strindex, size_t unit_strindex) {
-    protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Profile::sample_type, 1);
+void Recorder::recordValueType(protobuf_index_t field_index, size_t type_strindex, size_t unit_strindex) {
+    protobuf_mark_t value_type_mark = _otlp_buffer.startMessage(field_index, 1);
     _otlp_buffer.field(ValueType::type_strindex, type_strindex);
     _otlp_buffer.field(ValueType::unit_strindex, unit_strindex);
-    _otlp_buffer.commitMessage(sample_type_mark);
+    _otlp_buffer.commitMessage(value_type_mark);
 }
 
 void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples) {
@@ -112,7 +112,9 @@ void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, boo
     _otlp_buffer.fieldFixed64(Profile::time_unix_nano, _start_nanos);
     _otlp_buffer.field(Profile::duration_nano, _duration_nanos);
 
-    recordSampleType(type_strindex, unit_strindex);
+    recordValueType(Profile::sample_type, type_strindex, unit_strindex);
+    recordValueType(Profile::period_type, _engine_type_strindex, _engine_unit_strindex);
+    _otlp_buffer.field(Profile::period, _period > 0 ? _period : 1);
 
     for (size_t i = 0; i < _samples_info.size(); ++i) {
         const SampleInfo& si = _samples_info[i];

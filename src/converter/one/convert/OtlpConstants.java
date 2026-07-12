@@ -30,7 +30,9 @@ final class OtlpConstants {
             PROFILE_sample_type = 1,
             PROFILE_samples = 2,
             PROFILE_time_unix_nano = 3,
-            PROFILE_duration_nano = 4;
+            PROFILE_duration_nano = 4,
+            PROFILE_period_type = 5,
+            PROFILE_period = 6;
 
     static final int
             VALUE_TYPE_type_strindex = 1,

@@ -45,6 +45,10 @@ class CpuEngine : public Engine {
         return "ns";
     }
 
+    long interval() {
+        return _interval;
+    }
+
     static void onThreadStart();
     static void onThreadEnd();
 };
