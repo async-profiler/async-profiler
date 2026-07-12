@@ -191,7 +191,11 @@ static bool isEssentialLibrary(const char* path, const mach_header* image_base) 
     }
 
     const char* base_name = path != NULL ? strrchr(path, '/') : NULL;
-    return base_name != NULL && (strncmp(base_name + 1, "libjvm.", 7) == 0 || strncmp(base_name + 1, "libj9", 5) == 0);
+    return base_name != NULL && (
+               strncmp(base_name + 1, "libjvm.", 7) == 0 ||
+               strncmp(base_name + 1, "libj9", 5) == 0 ||
+               strncmp(base_name + 1, "libazsys", 8) == 0
+           );
 }
 
 

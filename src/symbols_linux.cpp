@@ -747,7 +747,11 @@ static bool isEssentialLibrary(const char* file, const char* map_start, const ch
     }
 
     const char* base_name = strrchr(file, '/');
-    return base_name != NULL && (strncmp(base_name + 1, "libjvm.", 7) == 0 || strncmp(base_name + 1, "libj9", 5) == 0);
+    return base_name != NULL && (
+               strncmp(base_name + 1, "libjvm.", 7) == 0 ||
+               strncmp(base_name + 1, "libj9", 5) == 0 ||
+               strncmp(base_name + 1, "libazsys", 8) == 0
+           );
 }
 
 static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count, bool essential_only) {

@@ -35,7 +35,7 @@ class LateInitializer {
   private:
     bool checkJvmLoaded() {
         // Parsing all libraries in the constructor may cause a long time-to-safepoint pause.
-        // Parse only libraries needed at load time: libjvm, libj9*, and the async-profiler library itself.
+        // Parse only essential libraries: libjvm, libj9*, libazsys, and the async-profiler library itself.
         Profiler* profiler = Profiler::instance();
         Symbols::parseLibraries(profiler->nativeLibs(), false, true);
 
