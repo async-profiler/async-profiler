@@ -178,16 +178,36 @@ bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
 static std::unordered_set<const void*> _parsed_libraries;
 
+static const void* getProfilerImageBase() {
+    Dl_info dl_info;
+    return dladdr((const void*)getProfilerImageBase, &dl_info) != 0 ? dl_info.dli_fbase : NULL;
+}
+
+static const void* _profiler_image_base = getProfilerImageBase();
+
+static bool isEssentialLibrary(const char* path, const mach_header* image_base) {
+    if (image_base == _profiler_image_base) {
+        return true;  // async-profiler's own library
+    }
+
+    const char* base_name = path != NULL ? strrchr(path, '/') : NULL;
+    return base_name != NULL && (strncmp(base_name + 1, "libjvm.", 7) == 0 || strncmp(base_name + 1, "libj9", 5) == 0);
+}
+
+
 void Symbols::parseKernelSymbols(CodeCache* cc) {
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, bool essential_only) {
     MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
 
     for (uint32_t i = 0; i < images; i++) {
         const mach_header* image_base = _dyld_get_image_header(i);
-        if (image_base == NULL || !_parsed_libraries.insert(image_base).second) {
+        if (image_base == NULL || (essential_only && !isEssentialLibrary(_dyld_get_image_name(i), image_base))) {
+            continue;
+        }
+        if (!_parsed_libraries.insert(image_base).second) {
             continue;  // the library was already parsed
         }
 

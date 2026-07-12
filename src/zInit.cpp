@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include "hooks.h"
 #include "profiler.h"
+#include "symbols.h"
 #include "vmStructs.h"
 
 
@@ -33,8 +34,10 @@ class LateInitializer {
 
   private:
     bool checkJvmLoaded() {
+        // Parsing all libraries in the constructor may cause a long time-to-safepoint pause.
+        // Parse only libraries needed at load time: libjvm, libj9*, and the async-profiler library itself.
         Profiler* profiler = Profiler::instance();
-        profiler->updateSymbols(false);
+        Symbols::parseLibraries(profiler->nativeLibs(), false, true);
 
         CodeCache* libjvm = profiler->findLibraryByName(OS::isLinux() ? "libjvm.so" : "libjvm.dylib");
         if (libjvm != NULL && libjvm->findSymbol("AsyncGetCallTrace") != NULL) {
