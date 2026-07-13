@@ -38,6 +38,10 @@ class NativeLockTracer : public Engine {
         return "ns";
     }
 
+    long interval() {
+        return (long) (_interval * _ticks_to_nanos);
+    }
+
     Error start(Arguments& args);
     void stop();
 

@@ -341,7 +341,7 @@ public abstract class JfrConverter extends Classifier {
     public String getValueType() {
         if (args.nativemem) return "malloc";
         if (args.alloc || args.live) return "allocations";
-        if (args.lock) return "locks";
+        if (args.lock || args.nativelock) return "locks";
         return "cpu";
     }
 

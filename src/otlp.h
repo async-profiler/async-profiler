@@ -25,6 +25,7 @@ namespace ProfilesDictionary {
     const protobuf_index_t mapping_table = 1;
     const protobuf_index_t location_table = 2;
     const protobuf_index_t function_table = 3;
+    const protobuf_index_t link_table = 4;
     const protobuf_index_t string_table = 5;
     const protobuf_index_t attribute_table = 6;
     const protobuf_index_t stack_table = 7;
@@ -48,18 +49,24 @@ namespace Profile {
     const protobuf_index_t samples = 2;
     const protobuf_index_t time_unix_nano = 3;
     const protobuf_index_t duration_nano = 4;
+    const protobuf_index_t period_type = 5;
+    const protobuf_index_t period = 6;
 }
 
 namespace ValueType {
     const protobuf_index_t type_strindex = 1;
     const protobuf_index_t unit_strindex = 2;
-    const protobuf_index_t aggregation_temporality = 3;
 }
 
 namespace Sample {
     const protobuf_index_t stack_index = 1;
-    const protobuf_index_t values = 2;
-    const protobuf_index_t attribute_indices = 3;
+    const protobuf_index_t attribute_indices = 2;
+    const protobuf_index_t values = 4;
+}
+
+namespace Link {
+    const protobuf_index_t trace_id = 1;
+    const protobuf_index_t span_id = 2;
 }
 
 namespace Stack {
@@ -105,13 +112,14 @@ class Recorder {
     std::vector<SampleInfo> _samples_info;
     const u64 _start_nanos;
     const u64 _duration_nanos;
+    const u64 _period;
     const size_t _engine_type_strindex;
     const size_t _engine_unit_strindex;
     const size_t _count_strindex;
 
     // Record a profile with a specified sample type
     void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples);
-    void recordSampleType(size_t type_strindex, size_t unit_strindex);
+    void recordValueType(protobuf_index_t field_index, size_t type_strindex, size_t unit_strindex);
     void recordStacks(const std::vector<CallTraceSample*>& call_trace_samples);
     void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);
 
@@ -127,7 +135,8 @@ class Recorder {
         _engine_unit_strindex(_strings.indexOf(engine->units())),
         _count_strindex(_strings.indexOf("count")),
         _start_nanos(start_nanos),
-        _duration_nanos(duration_nanos) {}
+        _duration_nanos(duration_nanos),
+        _period(engine->interval()) {}
 
     void record(const std::vector<CallTraceSample*>& call_trace_samples, bool samples);
 

@@ -55,6 +55,10 @@ class WallClock : public Engine {
         return "ns";
     }
 
+    long interval() {
+        return _interval;
+    }
+
     Error start(Arguments& args);
     void stop();
     void flush();

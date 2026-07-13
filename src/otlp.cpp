@@ -17,6 +17,14 @@ void Recorder::recordProfilesDictionary(const std::vector<CallTraceSample*>& cal
     protobuf_mark_t mapping_mark = _otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
     _otlp_buffer.commitMessage(mapping_mark);
 
+    // Links are not used, but link_table[0] must be present.
+    // Zero-filled 16/8 byte IDs are preferred over empty ones for compatibility
+    const unsigned char zero_ids[16] = {0};
+    protobuf_mark_t link_mark = _otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
+    _otlp_buffer.field(Link::trace_id, zero_ids, 16);
+    _otlp_buffer.field(Link::span_id, zero_ids, 8);
+    _otlp_buffer.commitMessage(link_mark);
+
     // Write function_table
     _functions.forEachOrdered([&] (size_t idx, const std::string& function_name) {
         protobuf_mark_t function_mark = _otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
@@ -24,31 +32,34 @@ void Recorder::recordProfilesDictionary(const std::vector<CallTraceSample*>& cal
         _otlp_buffer.commitMessage(function_mark);
     });
 
-    // Write location_table
+    // Write location_table; location_table[0] must be the zero value (Location{})
     for (size_t function_idx = 0; function_idx < _functions.size(); ++function_idx) {
         protobuf_mark_t location_mark = _otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
-        // TODO: set to the proper mapping when new mappings are added.
-        // For now we keep a dummy default mapping_index for all locations because some parsers
-        // would fail otherwise
-        _otlp_buffer.field(Location::mapping_index, (u64)0);
-        protobuf_mark_t line_mark = _otlp_buffer.startMessage(Location::lines, 1);
-        _otlp_buffer.field(Line::function_index, function_idx);
-        _otlp_buffer.commitMessage(line_mark);
+        if (function_idx != 0) {
+            // TODO: set to the proper mapping when new mappings are added.
+            // For now we keep a dummy default mapping_index for all locations because some parsers
+            // would fail otherwise
+            _otlp_buffer.field(Location::mapping_index, (u64)0);
+            protobuf_mark_t line_mark = _otlp_buffer.startMessage(Location::lines, 1);
+            _otlp_buffer.field(Line::function_index, function_idx);
+            _otlp_buffer.commitMessage(line_mark);
+        }
         _otlp_buffer.commitMessage(location_mark);
     }
 
-    // Write attribute_table (only threads for now)
-    if (!_thread_names.empty()) {
-        size_t thread_name_key_strindex = _strings.indexOf(OTLP_THREAD_NAME);
-        _thread_names.forEachOrdered([&] (size_t idx, const std::string& s) {
-            protobuf_mark_t attr_mark = _otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
+    // Write attribute_table (only threads for now);
+    // attribute_table[0] must be the zero value (KeyValueAndUnit{})
+    size_t thread_name_key_strindex = _strings.indexOf(OTLP_THREAD_NAME);
+    _thread_names.forEachOrdered([&] (size_t idx, const std::string& s) {
+        protobuf_mark_t attr_mark = _otlp_buffer.startMessage(ProfilesDictionary::attribute_table);
+        if (idx != 0) {
             _otlp_buffer.field(KeyValueAndUnit::key_strindex, thread_name_key_strindex);
             protobuf_mark_t value_mark = _otlp_buffer.startMessage(KeyValueAndUnit::value);
             _otlp_buffer.field(AnyValue::string_value, s.data(), s.length());
             _otlp_buffer.commitMessage(value_mark);
-            _otlp_buffer.commitMessage(attr_mark);
-        });
-    }
+        }
+        _otlp_buffer.commitMessage(attr_mark);
+    });
 
     // Write string_table
     _strings.forEachOrdered([&] (size_t idx, const std::string& s) {
@@ -88,11 +99,11 @@ void Recorder::recordStacks(const std::vector<CallTraceSample*>& call_trace_samp
     }
 }
 
-void Recorder::recordSampleType(size_t type_strindex, size_t unit_strindex) {
-    protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Profile::sample_type, 1);
+void Recorder::recordValueType(protobuf_index_t field_index, size_t type_strindex, size_t unit_strindex) {
+    protobuf_mark_t value_type_mark = _otlp_buffer.startMessage(field_index, 1);
     _otlp_buffer.field(ValueType::type_strindex, type_strindex);
     _otlp_buffer.field(ValueType::unit_strindex, unit_strindex);
-    _otlp_buffer.commitMessage(sample_type_mark);
+    _otlp_buffer.commitMessage(value_type_mark);
 }
 
 void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples) {
@@ -101,7 +112,9 @@ void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, boo
     _otlp_buffer.fieldFixed64(Profile::time_unix_nano, _start_nanos);
     _otlp_buffer.field(Profile::duration_nano, _duration_nanos);
 
-    recordSampleType(type_strindex, unit_strindex);
+    recordValueType(Profile::sample_type, type_strindex, unit_strindex);
+    recordValueType(Profile::period_type, _engine_type_strindex, _engine_unit_strindex);
+    _otlp_buffer.field(Profile::period, _period > 0 ? _period : 1);
 
     for (size_t i = 0; i < _samples_info.size(); ++i) {
         const SampleInfo& si = _samples_info[i];

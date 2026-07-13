@@ -6,7 +6,6 @@
 package test.otlp;
 
 import java.io.ByteArrayOutputStream;
-import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -25,18 +24,43 @@ public class OtlpTests {
     public void sampleType(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
-        ValueType sampleType = getProfile(profilesData, 0).getSampleType();
+        Profile profile = getProfile(profilesData, 0);
+        ValueType sampleType = profile.getSampleType();
         assertString(profilesData.getDictionary().getStringTable(sampleType.getTypeStrindex()), "itimer");
         assertString(profilesData.getDictionary().getStringTable(sampleType.getUnitStrindex()), "count");
+
+        ValueType periodType = profile.getPeriodType();
+        assertString(profilesData.getDictionary().getStringTable(periodType.getTypeStrindex()), "itimer");
+        assertString(profilesData.getDictionary().getStringTable(periodType.getUnitStrindex()), "ns");
+        assert profile.getPeriod() == 10_000_000 : profile.getPeriod(); // default sampling interval
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,total,file=%f.pb")
     public void sampleTypeTotal(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
-        ValueType sampleType = getProfile(profilesData, 0).getSampleType();
+        Profile profile = getProfile(profilesData, 0);
+        ValueType sampleType = profile.getSampleType();
         assertString(profilesData.getDictionary().getStringTable(sampleType.getTypeStrindex()), "itimer");
         assertString(profilesData.getDictionary().getStringTable(sampleType.getUnitStrindex()), "ns");
+
+        ValueType periodType = profile.getPeriodType();
+        assertString(profilesData.getDictionary().getStringTable(periodType.getTypeStrindex()), "itimer");
+        assertString(profilesData.getDictionary().getStringTable(periodType.getUnitStrindex()), "ns");
+        assert profile.getPeriod() == 10_000_000 : profile.getPeriod(); // default sampling interval
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,event=itimer,interval=20ms,file=%f")
+    public void periodFromJfr(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
+        Profile profile = getProfile(profilesData, 0);
+        ValueType periodType = profile.getPeriodType();
+        assertString(profilesData.getDictionary().getStringTable(periodType.getTypeStrindex()), "cpu");
+        assertString(profilesData.getDictionary().getStringTable(periodType.getUnitStrindex()), "nanoseconds");
+        assert profile.getPeriod() == 20_000_000 : profile.getPeriod();
     }
 
     private static void assertString(String actual, String expected) {
@@ -96,10 +120,11 @@ public class OtlpTests {
         ProfilesData profilesData = profilesDataFromJfr(p.getFilePath("%f"), new Arguments("--cpu", "--output", "otlp"));
         boolean found = false;
         for (Sample sample : getProfile(profilesData, 0).getSamplesList()) {
-            assert(sample.getValuesList().size() == sample.getTimestampsUnixNanoList().size());
-            found = found || sample.getValuesList().size() > 1;
+            // When all values are 1, only timestamps are recorded
+            assert sample.getValuesList().isEmpty() : sample.getValuesList();
+            found = found || sample.getTimestampsUnixNanoList().size() > 1;
         }
-        assert found : "No sample contains more than one value/timestamp pair";
+        assert found : "No sample contains more than one timestamp";
     }
 
     @Test(mainClass = OtlpProfileTimeTest.class)
@@ -156,7 +181,9 @@ public class OtlpTests {
             }
             stackTrace.append(getFrameName(locations.get(0), dictionary));
 
-            stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValues(valueIdx) + (oldValue == null ? 0 : oldValue));
+            // Samples with no values imply the value of 1 per timestamp
+            long value = sample.getValuesList().isEmpty() ? sample.getTimestampsUnixNanoList().size() : sample.getValues(valueIdx);
+            stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> value + (oldValue == null ? 0 : oldValue));
         }
         List<String> lines = stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).collect(Collectors.toList());
         return new Output(lines.toArray(new String[0]));
