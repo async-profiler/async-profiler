@@ -1,5 +1,35 @@
 # Changelog
 
+## [4.5]
+
+### Features
+
+ - #1755: Span API for latency profiling
+ - #1758: Parse DWARF unwinding info in the `.debug_frame` section
+ - #1768: Compatibility with OpenTelemetry Profiles Alpha
+
+### Improvements
+
+ - #1765: JDK 27 support
+ - #1737: Hot Code Heap support (JDK-8326205)
+ - #1739: Build jfr-converter as a GraalVM Native Image
+
+### Breaking changes
+
+ - #1768: `otlp` format has changed in accordance with opentelemetry-proto v1.10.0
+ - #1728: `AsyncProfiler.dumpOtlp()` now accepts `Counter` argument
+
+### Bug fixes
+
+ - #1406: Long time-to-safepoint pause when attaching asprof
+ - #1740: Re-register custom events on every JFR chunk
+ - #1746: Flush wall-clock events on dump or JFR chunk rotation
+ - #1749: Prefer non-real-time signals for profiling
+ - #1752: Heatmap visualization fixes
+ - #1756: Runtime attach fails on JVMs with many native libraries
+ - #1760: Async-profiler should choose the same clock for timestamps as JFR
+ - #1766: Method Tracing retransformed redundant classes
+
 ## [4.4] - 2026-04-20
 
 ### Features
