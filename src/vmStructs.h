@@ -49,6 +49,7 @@ class VMStructs {
     static bool _has_perm_gen;
     static bool _can_dereference_jmethod_id;
     static bool _compact_object_headers;
+    static bool _compressed_class_pointers;
 
     static int _klass_name_offset;
     static int _symbol_length_offset;

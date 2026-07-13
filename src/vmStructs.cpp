@@ -23,6 +23,7 @@ bool VMStructs::_has_native_thread_id = false;
 bool VMStructs::_has_perm_gen = false;
 bool VMStructs::_can_dereference_jmethod_id = false;
 bool VMStructs::_compact_object_headers = false;
+bool VMStructs::_compressed_class_pointers = false;
 
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
@@ -175,6 +176,10 @@ void VMStructs::initOffsets() {
             } else if (strcmp(type, "oopDesc") == 0) {
                 if (strcmp(field, "_metadata._klass") == 0) {
                     _oop_klass_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_compressed_klass") == 0) {
+                    // Since JDK 27, class pointers are always compressed
+                    _oop_klass_offset = *(int*)(entry + offset_offset);
+                    _compressed_class_pointers = true;
                 }
             } else if (strcmp(type, "Universe") == 0 || strcmp(type, "CompressedKlassPointers") == 0) {
                 if (strcmp(field, "_narrow_klass._base") == 0 || strcmp(field, "_base") == 0) {
@@ -448,8 +453,11 @@ void VMStructs::resolveOffsets() {
         _klass = (jfieldID)(uintptr_t)(*_klass_offset_addr << 2 | 2);
     }
 
-    JVMFlag* ccp = JVMFlag::find("UseCompressedClassPointers");
-    if (ccp != NULL && ccp->get() && _narrow_klass_base_addr != NULL && _narrow_klass_shift_addr != NULL) {
+    if (!_compressed_class_pointers) {
+        JVMFlag* ccp = JVMFlag::find("UseCompressedClassPointers");
+        _compressed_class_pointers = ccp != NULL && ccp->get();
+    }
+    if (_compressed_class_pointers && _narrow_klass_base_addr != NULL && _narrow_klass_shift_addr != NULL) {
         _narrow_klass_base = *_narrow_klass_base_addr;
         _narrow_klass_shift = *_narrow_klass_shift_addr;
     }
