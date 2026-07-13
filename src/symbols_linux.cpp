@@ -740,7 +740,21 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     fclose(f);
 }
 
-static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count) {
+static bool isEssentialLibrary(const char* file, const char* map_start, const char* map_end) {
+    const void* this_lib = (const void*)isEssentialLibrary;
+    if (this_lib >= map_start && this_lib < map_end) {
+        return true;  // async-profiler's own library
+    }
+
+    const char* base_name = strrchr(file, '/');
+    return base_name != NULL && (
+               strncmp(base_name + 1, "libjvm.", 7) == 0 ||
+               strncmp(base_name + 1, "libj9", 5) == 0 ||
+               strncmp(base_name + 1, "libazsys", 8) == 0
+           );
+}
+
+static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count, bool essential_only) {
     FILE* f = fopen("/proc/self/maps", "r");
     if (f == NULL) {
         return;
@@ -776,6 +790,9 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
         }
 
         if (map.isExecutable()) {
+            if (essential_only && !isEssentialLibrary(map.file(), map_start, map_end)) {
+                continue;
+            }
             SharedLibrary& lib = libs[inode];
             if (lib.file == nullptr) {
                 lib.file = strdup(map.file());
@@ -794,7 +811,7 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     fclose(f);
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, bool essential_only) {
     MutexLocker ml(_parse_lock);
 
     if (_in_parse_libraries || array->count() >= MAX_NATIVE_LIBS) {
@@ -815,7 +832,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     }
 
     std::unordered_map<u64, SharedLibrary> libs;
-    collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
+    collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count(), essential_only);
 
     for (auto& it : libs) {
         u64 inode = it.first;
