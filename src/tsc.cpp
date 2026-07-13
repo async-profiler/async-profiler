@@ -63,7 +63,7 @@ bool TSC::syncWithJvm() {
     }
     env->ExceptionClear();
 
-    if (frequency == 0) {
+    if (frequency == 0 || !JFR_ALLOWED_FREQUENCY(frequency)) {
         return false;
     }
 

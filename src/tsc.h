@@ -19,6 +19,9 @@ const u64 NANOTIME_FREQ = 1000000000;
 
 #define TSC_SUPPORTED true
 
+// JFR prefers TSC only if its frequency is higher than 1GHz
+#define JFR_ALLOWED_FREQUENCY(freq) ((freq) > NANOTIME_FREQ)
+
 static inline u64 rdtsc() {
 #if defined(__x86_64__)
     u32 lo, hi;
@@ -51,6 +54,7 @@ static bool cpuHasGoodTimestampCounter() {
 #elif defined(__aarch64__)
 
 #define TSC_SUPPORTED true
+#define JFR_ALLOWED_FREQUENCY(freq) true
 
 static inline u64 rdtsc() {
     u64 value;
@@ -66,6 +70,7 @@ static bool cpuHasGoodTimestampCounter() {
 #else
 
 #define TSC_SUPPORTED false
+#define JFR_ALLOWED_FREQUENCY(freq) false
 #define rdtsc() 0
 
 static bool cpuHasGoodTimestampCounter() {
