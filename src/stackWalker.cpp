@@ -406,10 +406,13 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                     continue;
                 }
 
-                if (depth > 1 && nm->frameSize() > 0) {
+                if (nm->frameSize() > 0) {
                     sp += nm->frameSize() * sizeof(void*);
                     fp = ((uintptr_t*)sp)[-FRAME_PC_SLOT - 1];
                     pc = ((const void**)sp)[-FRAME_PC_SLOT];
+                    if (inDeadZone(pc)) {
+                        fillFrame(frames[depth++], BCI_ERROR, "break_stub");
+                    }
                     continue;
                 }
             }
