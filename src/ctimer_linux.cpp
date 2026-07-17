@@ -74,10 +74,6 @@ void CTimer::destroyForThread(int tid) {
 }
 
 Error CTimer::start(Arguments& args) {
-    if (!setupThreadHook()) {
-        return Error("Could not set pthread hook");
-    }
-
     if (args._interval < 0) {
         return Error("interval must be positive");
     }
@@ -103,21 +99,20 @@ Error CTimer::start(Arguments& args) {
         OS::installSignalHandler(_signal, signalHandler);
     }
 
-    // Enable pthread hook before traversing currently running threads
-    enableThreadHook();
+    // allow pthread hook to create timers for new threads before traversing existing threads
+    enableEngine();
 
     // Create timers for all existing threads
     int err = createForAllThreads();
     if (err) {
-        disableThreadHook();
-        J9StackTraces::stop();
+        stop();
         return Error("Failed to create CPU timer");
     }
     return Error::OK;
 }
 
 void CTimer::stop() {
-    disableThreadHook();
+    disableEngine();
     for (int i = 0; i < _max_timers; i++) {
         destroyForThread(i);
     }
