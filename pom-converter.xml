@@ -40,6 +40,12 @@
             <resource>
                 <directory>src/res</directory>
             </resource>
+            <resource>
+                <directory>src/converter</directory>
+                <includes>
+                    <include>META-INF/**</include>
+                </includes>
+            </resource>
         </resources>
         <plugins>
             <plugin>
