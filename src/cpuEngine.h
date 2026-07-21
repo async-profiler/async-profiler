@@ -24,10 +24,8 @@ class CpuEngine : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
 
-    static bool setupThreadHook();
-
-    void enableThreadHook();
-    void disableThreadHook();
+    void enableEngine();
+    void disableEngine();
 
     bool isResourceLimit(int err);
 
@@ -51,6 +49,10 @@ class CpuEngine : public Engine {
 
     static void onThreadStart();
     static void onThreadEnd();
+
+    static bool setupThreadHook();
+    static void enableThreadHook();
+    static void disableThreadHook();
 };
 
 #endif // _CPUENGINE_H

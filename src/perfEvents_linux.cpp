@@ -817,10 +817,6 @@ Error PerfEvents::start(Arguments& args) {
         return Error("Only arguments 1-4 can be counted");
     }
 
-    if (!setupThreadHook()) {
-        return Error("Could not set pthread hook");
-    }
-
     _target_cpu = args._target_cpu;
     _record_cpu = args._record_cpu;
 
@@ -870,8 +866,8 @@ Error PerfEvents::start(Arguments& args) {
         OS::installSignalHandler(_signal, signalHandler);
     }
 
-    // Enable pthread hook before traversing currently running threads
-    enableThreadHook();
+    // allow pthread hook to create perf events for new threads before traversing existing threads
+    enableEngine();
 
     // Create perf_events for all existing threads
     int err = createForAllThreads();
@@ -889,7 +885,7 @@ Error PerfEvents::start(Arguments& args) {
 }
 
 void PerfEvents::stop() {
-    disableThreadHook();
+    disableEngine();
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);
     }
