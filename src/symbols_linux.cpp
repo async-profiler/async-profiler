@@ -243,7 +243,10 @@ class ElfParser {
     }
 
     const char* at(ElfProgramHeader* pheader) {
-        return _header->e_type == ET_EXEC ? (const char*)pheader->p_vaddr : _vaddr_diff + pheader->p_vaddr;
+        if (_header->e_type == ET_EXEC) {
+            return (const char*)pheader->p_vaddr;
+        }
+        return _vaddr_diff == NULL ? (const char*)pheader->p_vaddr : _vaddr_diff + pheader->p_vaddr;
     }
 
     const char* base() {
