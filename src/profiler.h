@@ -131,6 +131,10 @@ class Profiler {
 
     void logEmptyOutput(Arguments& args, u64 printed_samples_count, Writer& out);
 
+    bool hasEvent(EventCategory category) const {
+        return (_event_mask & (1 << category)) != 0;
+    }
+
     static void jvmtiTimerEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         instance()->timerLoop(arg);
     }

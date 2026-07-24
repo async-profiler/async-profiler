@@ -28,6 +28,7 @@ enum EventType {
     PROFILING_WINDOW,
     SPAN,
     USER_EVENT,
+    EVENT_TYPES
 };
 
 class Event {

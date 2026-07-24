@@ -93,6 +93,7 @@ static const char USAGE_STRING[] =
     "  --ttsp              only time-to-safepoint profiling \n"
     "  --nostop            do not stop profiling outside --begin/--end window\n"
     "  --memlimit bytes    limit size of the stack trace storage\n"
+    "  --ratelimit limits  limit the number of JFR events emitted per second\n"
     "  --jfropts opts      JFR recording options: mem\n"
     "  --jfrsync config    synchronize profiler with JFR recording\n"
     "  --libpath path      full path to libasyncProfiler.so in the container\n"
@@ -519,6 +520,9 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--all-user") {
             params << ",alluser";
+
+        } else if (arg == "--ratelimit") {
+            params << ",ratelimit=" << String(args.next()).replace(',', ";");
 
         } else if (arg == "--jfrsync" || arg == "--jfropts") {
             params << "," << (arg.str() + 2) << "=" << args.next();

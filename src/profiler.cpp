@@ -34,6 +34,7 @@
 #include "frameName.h"
 #include "os.h"
 #include "otlp.h"
+#include "rateLimit.h"
 #include "safeAccess.h"
 #include "stackFrame.h"
 #include "stackWalker.h"
@@ -393,6 +394,14 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     atomicInc(_total_samples);
 
     int tid = OS::threadId();
+    if (!RateLimit::allow(event_type)) {
+        if (event_type == PERF_SAMPLE) {
+            // Need to reset PerfEvents ring buffer, even though we discard the sample
+            PerfEvents::resetBuffer(tid);
+        }
+        return 0;
+    }
+
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
@@ -487,6 +496,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, int num_frames, ASGCT_CallFrame* frames) {
     atomicInc(_total_samples);
 
+    if (!RateLimit::allow(event_type)) {
+        return;
+    }
+
     if (_add_thread_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
@@ -512,6 +525,10 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
 }
 
 void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call_trace_id, EventType event_type, Event* event) {
+    if (!RateLimit::allow(event_type)) {
+        return;
+    }
+
     _call_trace_storage.add(call_trace_id, samples, counter);
 
     u32 lock_index = getLockIndex(tid);
@@ -528,7 +545,7 @@ void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call
 }
 
 void Profiler::recordEventOnly(EventType event_type, Event* event) {
-    if (!_jfr.active()) {
+    if (!_jfr.active() || !RateLimit::allow(event_type)) {
         return;
     }
 
@@ -777,17 +794,17 @@ Engine* Profiler::selectAllocEngine(bool tlab) {
 
 Engine* Profiler::activeEngine() {
     switch (_event_mask) {
-        case EM_ALLOC:
+        case 1 << EC_ALLOC:
             return _alloc_engine;
-        case EM_LOCK:
+        case 1 << EC_LOCK:
             return &lock_tracer;
-        case EM_WALL:
+        case 1 << EC_WALL:
             return &wall_clock;
-        case EM_NATIVEMEM:
+        case 1 << EC_NATIVEMEM:
             return &malloc_tracer;
-        case EM_NATIVELOCK:
+        case 1 << EC_NATIVELOCK:
             return &native_lock_tracer;
-        case EM_METHOD_TRACE:
+        case 1 << EC_TRACE:
             return &instrument;
         default:
             return _engine;
@@ -841,7 +858,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
         return Error("Only JFR output supports multiple events");
-    } else if (!VM::loaded() && (_event_mask & (EM_ALLOC | EM_LOCK | EM_METHOD_TRACE))) {
+    } else if (!VM::loaded() && (_event_mask & (1 << EC_ALLOC | 1 << EC_LOCK | 1 << EC_TRACE))) {
         return Error("Profiling event is not supported with non-Java processes");
     }
 
@@ -972,38 +989,38 @@ Error Profiler::start(Arguments& args, bool reset) {
         goto error1;
     }
 
-    if (_event_mask & EM_ALLOC) {
+    if (hasEvent(EC_ALLOC)) {
         _alloc_engine = selectAllocEngine(args._tlab);
         error = _alloc_engine->start(args);
         if (error) {
             goto error2;
         }
     }
-    if (_event_mask & EM_LOCK) {
+    if (hasEvent(EC_LOCK)) {
         error = lock_tracer.start(args);
         if (error) {
             goto error3;
         }
     }
-    if (_event_mask & EM_WALL) {
+    if (hasEvent(EC_WALL)) {
         error = wall_clock.start(args);
         if (error) {
             goto error4;
         }
     }
-    if (_event_mask & EM_NATIVEMEM) {
+    if (hasEvent(EC_NATIVEMEM)) {
         error = malloc_tracer.start(args);
         if (error) {
             goto error5;
         }
     }
-    if (_event_mask & EM_NATIVELOCK) {
+    if (hasEvent(EC_NATIVELOCK)) {
         error = native_lock_tracer.start(args);
         if (error) {
             goto error6;
         }
     }
-    if (_event_mask & EM_METHOD_TRACE) {
+    if (hasEvent(EC_TRACE)) {
         error = instrument.start(args);
         if (error) {
             goto error7;
@@ -1027,19 +1044,19 @@ Error Profiler::start(Arguments& args, bool reset) {
     return Error::OK;
 
 error7:
-    if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
+    if (hasEvent(EC_NATIVELOCK)) native_lock_tracer.stop();
 
 error6:
-    if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
+    if (hasEvent(EC_NATIVEMEM)) malloc_tracer.stop();
 
 error5:
-    if (_event_mask & EM_WALL) wall_clock.stop();
+    if (hasEvent(EC_WALL)) wall_clock.stop();
 
 error4:
-    if (_event_mask & EM_LOCK) lock_tracer.stop();
+    if (hasEvent(EC_LOCK)) lock_tracer.stop();
 
 error3:
-    if (_event_mask & EM_ALLOC) _alloc_engine->stop();
+    if (hasEvent(EC_ALLOC)) _alloc_engine->stop();
 
 error2:
     _engine->stop();
@@ -1064,12 +1081,12 @@ Error Profiler::stop(bool restart) {
 
     uninstallTraps();
 
-    if (_event_mask & EM_WALL) wall_clock.stop();
-    if (_event_mask & EM_LOCK) lock_tracer.stop();
-    if (_event_mask & EM_ALLOC) _alloc_engine->stop();
-    if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
-    if (_event_mask & EM_NATIVELOCK) native_lock_tracer.stop();
-    if (_event_mask & EM_METHOD_TRACE) instrument.stop();
+    if (hasEvent(EC_WALL)) wall_clock.stop();
+    if (hasEvent(EC_LOCK)) lock_tracer.stop();
+    if (hasEvent(EC_ALLOC)) _alloc_engine->stop();
+    if (hasEvent(EC_NATIVEMEM)) malloc_tracer.stop();
+    if (hasEvent(EC_NATIVELOCK)) native_lock_tracer.stop();
+    if (hasEvent(EC_TRACE)) instrument.stop();
 
     _engine->stop();
 
@@ -1105,7 +1122,7 @@ Error Profiler::flushJfr() {
 
     updateJavaThreadNames();
     updateNativeThreadNames();
-    if (_event_mask & EM_WALL) wall_clock.flush();
+    if (hasEvent(EC_WALL)) wall_clock.flush();
 
     lockAll();
     _jfr.flush();
@@ -1125,7 +1142,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
     if (_state == RUNNING) {
         updateJavaThreadNames();
         updateNativeThreadNames();
-        if (_event_mask & EM_WALL) wall_clock.flush();
+        if (hasEvent(EC_WALL)) wall_clock.flush();
     }
 
     switch (args._output) {
