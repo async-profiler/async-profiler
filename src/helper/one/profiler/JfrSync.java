@@ -22,13 +22,11 @@ import java.util.concurrent.locks.LockSupport;
  * Synchronize async-profiler recording with an existing JFR recording.
  */
 class JfrSync implements FlightRecorderListener {
-    // Keep in sync with EventMask
-    private static final int EM_CPU            = 1;
-    private static final int EM_ALLOC          = 2;
-    private static final int EM_LOCK           = 4;
-
-    // Keep in sync with EVENT_MASK_SIZE in C++
-    private static final int EVENT_MASK_SIZE = 7;
+    // Keep in sync with EventCategory
+    private static final int EC_CPU        = 0;
+    private static final int EC_ALLOC      = 1;
+    private static final int EC_LOCK       = 2;
+    private static final int EC_CATEGORIES = 8;
 
     // Keep in sync with JfrOption
     private static final int NO_SYSTEM_INFO  = 1;
@@ -99,26 +97,23 @@ class JfrSync implements FlightRecorderListener {
     }
 
     private static void disableBuiltinEvents(Recording recording, int eventMask) {
-        if ((eventMask & EM_CPU) != 0) {
+        if ((eventMask & (1 << EC_CPU)) != 0) {
             recording.disable("jdk.ExecutionSample");
             recording.disable("jdk.NativeMethodSample");
         }
-        if ((eventMask & EM_ALLOC) != 0) {
+        if ((eventMask & (1 << EC_ALLOC)) != 0) {
             recording.disable("jdk.ObjectAllocationInNewTLAB");
             recording.disable("jdk.ObjectAllocationOutsideTLAB");
             recording.disable("jdk.ObjectAllocationSample");
             recording.disable("jdk.OldObjectSample");
         }
-        if ((eventMask & EM_LOCK) != 0) {
+        if ((eventMask & (1 << EC_LOCK)) != 0) {
             recording.disable("jdk.JavaMonitorEnter");
             recording.disable("jdk.ThreadPark");
         }
-        // No built-in event related to EM_WALL
-        // No built-in event related to EM_NATIVEMEM
-        // No built-in event related to EM_NATIVELOCK
-        // No need to disable built-in event related to EM_METHOD_TRACE
+        // No need to disable jdk.MethodTrace, and no built-in events correspond to other event categories
 
-        eventMask >>>= EVENT_MASK_SIZE;
+        eventMask >>>= EC_CATEGORIES;
         // Shifted JfrOption values
         if ((eventMask & NO_SYSTEM_INFO) != 0) {
             recording.disable("jdk.OSInformation");
