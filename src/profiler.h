@@ -110,7 +110,8 @@ class Profiler {
     void onGarbageCollectionFinish();
 
     const char* asgctError(int code);
-    u32 getLockIndex(int tid);
+    int tryLock(int tid);
+    void unlock(int lock_index);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, u64* cpu);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
