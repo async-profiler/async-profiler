@@ -6,16 +6,12 @@
 #include <errno.h>
 #include <string.h>
 #include "asprof.h"
-#include "incbin.h"
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
 #include "threadLocalData.h"
 #include "tsc.h"
 #include "vmStructs.h"
-
-
-INCLUDE_HELPER_CLASS(SERVER_NAME, SERVER_CLASS, "one/profiler/Server")
 
 
 static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
@@ -189,8 +185,6 @@ static const JNINativeMethod profiler_natives[] = {
     F(AsyncProfiler, filterThread0, "(Ljava/lang/Thread;Z)V"),
 };
 
-static const JNINativeMethod* execute0 = &profiler_natives[2];
-
 static const JNINativeMethod recording_natives[] = {
     F(Recording, getThreadLocalBuffer, "()Ljava/nio/ByteBuffer;"),
     F(Recording, emitSpan,             "(JJLjava/lang/String;)V"),
@@ -227,26 +221,6 @@ void JavaAPI::registerNatives(jvmtiEnv* jvmti, JNIEnv* jni) {
     }
 
     jni->ExceptionClear();
-}
-
-bool JavaAPI::startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address) {
-    jclass handler = jni->FindClass("com/sun/net/httpserver/HttpHandler");
-    jobject loader;
-    if (handler != NULL && jvmti->GetClassLoader(handler, &loader) == 0) {
-        jclass cls = jni->DefineClass(SERVER_NAME, loader, (const jbyte*)SERVER_CLASS, INCBIN_SIZEOF(SERVER_CLASS));
-        if (cls != NULL && jni->RegisterNatives(cls, execute0, 1) == 0) {
-            jmethodID method = jni->GetStaticMethodID(cls, "start", "(Ljava/lang/String;)V");
-            if (method != NULL) {
-                jni->CallStaticVoidMethod(cls, method, jni->NewStringUTF(address));
-                if (!jni->ExceptionCheck()) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    jni->ExceptionDescribe();
-    return false;
 }
 
 

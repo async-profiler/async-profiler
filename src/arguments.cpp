@@ -285,12 +285,6 @@ Error Arguments::parse(const char* args) {
             CASE("quiet")
                 _quiet = true;
 
-            CASE("server")
-                if (value == NULL || value[0] == 0) {
-                    msg = "server address must not be empty";
-                }
-                _server = value;
-
             CASE("fdtransfer")
                 _fdtransfer = true;
                 if (value == NULL || value[0] == 0) {
