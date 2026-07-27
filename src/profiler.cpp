@@ -182,11 +182,20 @@ const char* Profiler::asgctError(int code) {
     }
 }
 
-inline u32 Profiler::getLockIndex(int tid) {
+inline int Profiler::tryLock(int tid) {
     u32 lock_index = tid;
     lock_index ^= lock_index >> 8;
     lock_index ^= lock_index >> 4;
-    return lock_index % CONCURRENCY_LEVEL;
+    if (_locks[lock_index %= CONCURRENCY_LEVEL].tryLock() ||
+        _locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() ||
+        _locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock()) {
+        return lock_index;
+    }
+    return -1;
+}
+
+inline void Profiler::unlock(int lock_index) {
+    _locks[lock_index].unlock();
 }
 
 void Profiler::updateSymbols(bool kernel_symbols) {
@@ -394,20 +403,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     atomicInc(_total_samples);
 
     int tid = OS::threadId();
-    if (!RateLimit::allow(event_type)) {
-        if (event_type == PERF_SAMPLE) {
-            // Need to reset PerfEvents ring buffer, even though we discard the sample
-            PerfEvents::resetBuffer(tid);
-        }
-        return 0;
-    }
+    int lock_index;
 
-    u32 lock_index = getLockIndex(tid);
-    if (!_locks[lock_index].tryLock() &&
-        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
-    {
-        // Too many concurrent signals already
+    if (!RateLimit::allow(event_type) || (lock_index = tryLock(tid)) < 0) {
+        // Too many events or too many concurrent signals
         atomicInc(_failures[-ticks_skipped]);
 
         if (event_type == PERF_SAMPLE) {
@@ -489,7 +488,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
-    _locks[lock_index].unlock();
+    unlock(lock_index);
     return (u64)tid << 32 | call_trace_id;
 }
 
@@ -497,6 +496,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
     atomicInc(_total_samples);
 
     if (!RateLimit::allow(event_type)) {
+        atomicInc(_failures[-ticks_skipped]);
         return;
     }
 
@@ -509,11 +509,8 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
 
-    u32 lock_index = getLockIndex(tid);
-    if (!_locks[lock_index].tryLock() &&
-        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
-    {
+    int lock_index = tryLock(tid);
+    if (lock_index < 0) {
         // Too many concurrent signals already
         atomicInc(_failures[-ticks_skipped]);
         return;
@@ -521,7 +518,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
 
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
-    _locks[lock_index].unlock();
+    unlock(lock_index);
 }
 
 void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call_trace_id, EventType event_type, Event* event) {
@@ -531,17 +528,11 @@ void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call
 
     _call_trace_storage.add(call_trace_id, samples, counter);
 
-    u32 lock_index = getLockIndex(tid);
-    if (!_locks[lock_index].tryLock() &&
-        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
-    {
-        return;
+    int lock_index = tryLock(tid);
+    if (lock_index >= 0) {
+        _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
+        unlock(lock_index);
     }
-
-    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
-
-    _locks[lock_index].unlock();
 }
 
 void Profiler::recordEventOnly(EventType event_type, Event* event) {
@@ -550,17 +541,11 @@ void Profiler::recordEventOnly(EventType event_type, Event* event) {
     }
 
     int tid = OS::threadId();
-    u32 lock_index = getLockIndex(tid);
-    if (!_locks[lock_index].tryLock() &&
-        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
-    {
-        return;
+    int lock_index = tryLock(tid);
+    if (lock_index >= 0) {
+        _jfr.recordEvent(lock_index, tid, 0, event_type, event);
+        unlock(lock_index);
     }
-
-    _jfr.recordEvent(lock_index, tid, 0, event_type, event);
-
-    _locks[lock_index].unlock();
 }
 
 void Profiler::tryResetCounters() {

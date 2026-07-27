@@ -100,7 +100,7 @@
                 </executions>
                 <configuration>
                     <archive>
-                        <manifestFile>src/api/one/profiler/MANIFEST.MF</manifestFile>
+                        <manifestFile>src/api/META-INF/MANIFEST.MF</manifestFile>
                     </archive>
                 </configuration>
             </plugin>
