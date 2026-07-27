@@ -89,3 +89,51 @@ TEST_CASE(Parse_proc_with_units) {
     Error error = args.parse(argument);
     ASSERT_EQ(args._proc, 120);
 }
+
+TEST_CASE(Parse_ratelimit) {
+    Arguments args;
+    char argument[] = "start,event=cpu,ratelimit=cpu:1000;alloc:200;span:100,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ(error.message(), NULL);
+    ASSERT_EQ(args._rate_limit[EC_CPU], 1000);
+    ASSERT_EQ(args._rate_limit[EC_ALLOC], 200);
+    ASSERT_EQ(args._rate_limit[EC_SPAN], 100);
+    for (int i = 0; i < EC_CATEGORIES; i++) {
+        if (i != EC_CPU && i != EC_ALLOC && i != EC_SPAN) {
+            ASSERT_EQ(args._rate_limit[i], -1);
+        }
+    }
+}
+
+TEST_CASE(Parse_ratelimit_all_categories) {
+    Arguments args;
+    char argument[] = "start,ratelimit=cpu:1;alloc:2;lock:3;wall:4;nativemem:5;nativelock:6;trace:7;span:0,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ(error.message(), NULL);
+    ASSERT_EQ(args._rate_limit[EC_CPU], 1);
+    ASSERT_EQ(args._rate_limit[EC_ALLOC], 2);
+    ASSERT_EQ(args._rate_limit[EC_LOCK], 3);
+    ASSERT_EQ(args._rate_limit[EC_WALL], 4);
+    ASSERT_EQ(args._rate_limit[EC_NATIVEMEM], 5);
+    ASSERT_EQ(args._rate_limit[EC_NATIVELOCK], 6);
+    ASSERT_EQ(args._rate_limit[EC_TRACE], 7);
+    ASSERT_EQ(args._rate_limit[EC_SPAN], 0);
+}
+
+TEST_CASE(Parse_ratelimit_invalid) {
+    const char* invalid_arguments[] = {
+        "start,ratelimit,file=%f.jfr",
+        "start,ratelimit=cpu,file=%f.jfr",
+        "start,ratelimit=cpu:,file=%f.jfr",
+        "start,ratelimit=cpu:-5,file=%f.jfr",
+        "start,ratelimit=foo:100,file=%f.jfr",
+        "start,ratelimit=cpu:100;;lock:200,file=%f.jfr",
+        "start,ratelimit=cpu:100@lock:200,file=%f.jfr",
+    };
+    for (size_t i = 0; i < sizeof(invalid_arguments) / sizeof(invalid_arguments[0]); i++) {
+        Arguments args;
+        Error error = args.parse(invalid_arguments[i]);
+        ASSERT_NE(error.message(), NULL);
+        ASSERT_EQ(strcmp(error.message(), "Invalid ratelimit"), 0);
+    }
+}

@@ -279,6 +279,34 @@ public class JfrTests {
         }
     }
 
+    private static void assertRateLimited(int actual, int limit, int duration) {
+        Assert.isLessOrEqual(actual, limit * (duration + 2));
+        Assert.isGreaterOrEqual(actual, limit * (duration - 2));
+    }
+
+    /**
+     * Rate limit categories are capped independently: the flood of CPU, allocation
+     * and span events largely exceeds the configured per-second limits.
+     */
+    @Test(mainClass = RateLimitApp.class, runIsolated = true)
+    public void rateLimit(TestProcess p) throws Exception {
+        p.profile("-e cpu -i 10ms --alloc 1k --ratelimit cpu:50,alloc:100,span:200 -d 4 -f %f.jfr");
+
+        Map<String, Integer> counts = new HashMap<>();
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                counts.merge(event.getEventType().getName(), 1, Integer::sum);
+            }
+        }
+
+        int duration = 4;
+        assertRateLimited(counts.getOrDefault("jdk.ExecutionSample", 0), 50, duration);
+        assertRateLimited(counts.getOrDefault("jdk.ObjectAllocationInNewTLAB", 0) +
+                          counts.getOrDefault("jdk.ObjectAllocationOutsideTLAB", 0), 100, duration);
+        assertRateLimited(counts.getOrDefault("profiler.Span", 0), 200, duration);
+    }
+
     private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {
         TreeMap<Instant, Instant> profilerWindows = new TreeMap<>();
         List<RecordedEvent> samples = new ArrayList<>();

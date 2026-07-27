@@ -23,6 +23,7 @@
 #include "os.h"
 #include "processSampler.h"
 #include "profiler.h"
+#include "rateLimit.h"
 #include "spinLock.h"
 #include "symbols.h"
 #include "threadFilter.h"
@@ -50,6 +51,17 @@ const u64 MIN_JLONG = 0x8000000000000000ULL;
 enum GCWhen {
     BEFORE_GC,
     AFTER_GC
+};
+
+static constexpr unsigned char JFR_TYPE_FOR_CATEGORY[EC_CATEGORIES] = {
+    T_EXECUTION_SAMPLE,   // EC_CPU
+    T_ALLOC_IN_NEW_TLAB,  // EC_ALLOC
+    T_MONITOR_ENTER,      // EC_LOCK
+    T_WALL_CLOCK_SAMPLE,  // EC_WALL
+    T_MALLOC,             // EC_NATIVEMEM
+    T_NATIVE_LOCK,        // EC_NATIVELOCK
+    T_METHOD_TRACE,       // EC_TRACE
+    T_SPAN,               // EC_SPAN
 };
 
 
@@ -647,6 +659,12 @@ class Recording {
         writeIntSetting(buf, T_ACTIVE_RECORDING, "chunksize", args._chunk_size);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "chunktime", args._chunk_time);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "memlimit", args._mem_limit);
+
+        for (int i = 0; i < EC_CATEGORIES; i++) {
+            if (args._rate_limit[i] >= 0) {
+                writeIntSetting(buf, JFR_TYPE_FOR_CATEGORY[i], "ratelimit", args._rate_limit[i]);
+            }
+        }
 
         char str[256];
         writeStringSetting(buf, T_ACTIVE_RECORDING, "features", getFeaturesString(str, sizeof(str), args._features));
@@ -1323,6 +1341,7 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         free(filename_tmp);
     }
 
+    RateLimit::enable(args);
     RecordingAPI::start();
 
     _rec = new Recording(fd, master_recording_file, args);
@@ -1335,6 +1354,7 @@ void FlightRecorder::stop() {
         _rec_lock.lock();
 
         RecordingAPI::stop();
+        RateLimit::disable();
 
         if (_rec->hasMasterRecording()) {
             stopMasterRecording();
@@ -1368,6 +1388,8 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
         // No active recording
         return false;
     }
+
+    RateLimit::refill();
 
     _rec->cpuMonitorCycle();
     _rec->heapMonitorCycle(gc_id);
@@ -1426,8 +1448,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
     jobject jfilename = env->NewStringUTF(filename);
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
 
-    int event_mask = args.eventMask() |
-                     ((args._jfr_options ^ JFR_SYNC_OPTS) << EVENT_MASK_SIZE);
+    int event_mask = args.eventMask() | (args._jfr_options ^ JFR_SYNC_OPTS) << EC_CATEGORIES;
 
     storeRelease(_jfr_starting, true);
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);

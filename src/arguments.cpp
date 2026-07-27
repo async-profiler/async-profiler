@@ -128,6 +128,11 @@ Error Arguments::parse(const char* args) {
             CASE("total")
                 _counter = COUNTER_TOTAL;
 
+            CASE("ratelimit")
+                if (value == NULL || !parseRateLimit(value)) {
+                    msg = "Invalid ratelimit";
+                }
+
             CASE("chunksize")
                 if (value == NULL || (_chunk_size = parseUnits(value, BYTES)) < 0) {
                     msg = "Invalid chunksize";
@@ -561,6 +566,33 @@ int Arguments::parseTimeout(const char* str) {
     int mm = p[1] >= '0' && p[1] <= '5' ? atoi(p + 1) : 0xff;
     int ss = (p = strchr(p + 1, ':')) != NULL && p[1] >= '0' && p[1] <= '5' ? atoi(p + 1) : 0xff;
     return 0xff000000 | hh << 16 | mm << 8 | ss;
+}
+
+bool Arguments::parseRateLimit(char* str) {
+    static constexpr char CATEGORY_NAMES[] = "0:cpu,1:alloc,2:lock,3:wall,4:nativemem,5:nativelock,6:trace,7:span";
+
+    while (*str != 0) {
+        char* value = strchr(str, ':');
+        if (value == NULL) {
+            return false;
+        }
+        *value++ = 0;
+
+        const char* c = strstr(CATEGORY_NAMES + 2, str);
+        if (c == NULL || c[-1] != ':' || c[strlen(str)] > ',') {
+            return false;
+        }
+        int category = c[-2] - '0';
+
+        long limit = strtol(value, &str, 10);
+        if (limit < 0 || limit > INT_MAX || str == value || *str > ';') {
+            return false;
+        }
+        if (*str) str++;
+
+        _rate_limit[category] = limit;
+    }
+    return true;
 }
 
 Arguments::~Arguments() {

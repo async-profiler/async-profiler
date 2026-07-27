@@ -110,7 +110,8 @@ class Profiler {
     void onGarbageCollectionFinish();
 
     const char* asgctError(int code);
-    u32 getLockIndex(int tid);
+    int tryLock(int tid);
+    void unlock(int lock_index);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, u64* cpu);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
@@ -130,6 +131,10 @@ class Profiler {
     void timerLoop(void* timer_id);
 
     void logEmptyOutput(Arguments& args, u64 printed_samples_count, Writer& out);
+
+    bool hasEvent(EventCategory category) const {
+        return (_event_mask & (1 << category)) != 0;
+    }
 
     static void jvmtiTimerEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         instance()->timerLoop(arg);
