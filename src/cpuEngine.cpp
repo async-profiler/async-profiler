@@ -32,10 +32,9 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
     }
 
     if (value != NULL) {
-        // workaround for https://github.com/async-profiler/async-profiler/issues/1743
-        // having 2 different set functions guarantees the TLS will be correct after both are executed
-        pthread_setspecific(key, value);
         int result = pthread_setspecific(key, value);
+        // Workaround for #1743: the second call repairs TLS if it was corrupted by the nested pthread_getspecific
+        pthread_setspecific(key, value);
         CpuEngine::onThreadStart();
         return result;
     } else {

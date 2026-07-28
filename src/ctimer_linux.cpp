@@ -99,7 +99,7 @@ Error CTimer::start(Arguments& args) {
         OS::installSignalHandler(_signal, signalHandler);
     }
 
-    // allow pthread hook to create timers for new threads before traversing existing threads
+    // Let pthread hook create timers for new threads before traversing existing threads
     enableEngine();
 
     // Create timers for all existing threads

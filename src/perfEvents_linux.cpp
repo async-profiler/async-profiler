@@ -866,7 +866,7 @@ Error PerfEvents::start(Arguments& args) {
         OS::installSignalHandler(_signal, signalHandler);
     }
 
-    // allow pthread hook to create perf events for new threads before traversing existing threads
+    // Let pthread hook create perf_events for new threads before traversing existing threads
     enableEngine();
 
     // Create perf_events for all existing threads
