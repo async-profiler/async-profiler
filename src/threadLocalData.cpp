@@ -23,16 +23,18 @@ pthread_key_t ThreadLocalData::_profiler_data_key = init_profiler_data_key();
 // should be initialized beforehand.
 asprof_thread_local_data* ThreadLocalData::initThreadLocalData(pthread_key_t profiler_data_key) {
     // Initialize. Since this is a thread-local, it is not racy.
-    asprof_thread_local_data* val = (asprof_thread_local_data*) malloc(sizeof(asprof_thread_local_data));
+    asprof_thread_local_data* val = (asprof_thread_local_data*) calloc(1, sizeof(asprof_thread_local_data));
     if (val == NULL) {
         // would rather not insert random aborts into code. This
         // will make the code try again next time, which is fine.
         return NULL;
     }
-    val->sample_counter = 0;
+
     if (pthread_setspecific(profiler_data_key, (void*)val) != 0) {
         free((void*)val);
         return NULL;
     }
+    // Workaround for #1743: the second call repairs TLS if it was corrupted by the nested pthread_getspecific
+    pthread_setspecific(profiler_data_key, (void*)val);
     return val;
 }

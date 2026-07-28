@@ -33,6 +33,8 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
 
     if (value != NULL) {
         int result = pthread_setspecific(key, value);
+        // Workaround for #1743: the second call repairs TLS if it was corrupted by the nested pthread_getspecific
+        pthread_setspecific(key, value);
         CpuEngine::onThreadStart();
         return result;
     } else {
@@ -80,11 +82,17 @@ bool CpuEngine::setupThreadHook() {
 
 void CpuEngine::enableThreadHook() {
     *_pthread_entry = (void*)pthread_setspecific_hook;
+}
+
+void CpuEngine::enableEngine() {
     storeRelease(_current, this);
 }
 
 void CpuEngine::disableThreadHook() {
     *_pthread_entry = (void*)pthread_setspecific;
+}
+
+void CpuEngine::disableEngine() {
     storeRelease(_current, nullptr);
 }
 

@@ -847,6 +847,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiling event is not supported with non-Java processes");
     }
 
+    if (!CpuEngine::setupThreadHook()) {
+        return Error("Could not set pthread hook");
+    }
+
     if (args._jfr_sync && !VM::loaded()) {
         return Error("jfrsync is not supported with non-Java processes");
     }
@@ -969,6 +973,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    CpuEngine::enableThreadHook();
     error = _engine->start(args);
     if (error) {
         goto error1;
@@ -1047,6 +1052,7 @@ error2:
     _engine->stop();
 
 error1:
+    CpuEngine::disableThreadHook();
     uninstallTraps();
     switchLibraryTrap(false);
 
@@ -1064,6 +1070,7 @@ Error Profiler::stop(bool restart) {
         return Error("Profiler is not active");
     }
 
+    CpuEngine::disableThreadHook();
     uninstallTraps();
 
     if (hasEvent(EC_WALL)) wall_clock.stop();
