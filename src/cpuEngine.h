@@ -13,7 +13,6 @@
 // Base class for CPU sampling engines: PerfEvents, CTimer, ITimer
 class CpuEngine : public Engine {
   protected:
-    static void** _pthread_entry;
     static CpuEngine* _current;
 
     static long _interval;

@@ -4,7 +4,6 @@
  */
 
 #include <errno.h>
-#include <pthread.h>
 #include "cpuEngine.h"
 #include "j9StackTraces.h"
 #include "profiler.h"
@@ -13,8 +12,7 @@
 #include "vmStructs.h"
 
 
-void** CpuEngine::_pthread_entry = NULL;
-CpuEngine* CpuEngine::_current = NULL;
+CpuEngine* CpuEngine::_current = nullptr;
 
 long CpuEngine::_interval;
 CStack CpuEngine::_cstack;
@@ -23,18 +21,17 @@ bool CpuEngine::_count_overrun;
 
 void CpuEngine::onThreadStart() {
     CpuEngine* current = loadAcquire(_current);
-    if (current != NULL) {
+    if (current != nullptr) {
         current->createForThread(OS::threadId());
     }
 }
 
 void CpuEngine::onThreadEnd() {
     CpuEngine* current = loadAcquire(_current);
-    if (current != NULL) {
+    if (current != nullptr) {
         current->destroyForThread(OS::threadId());
     }
 }
-
 
 void CpuEngine::enableEngine() {
     storeRelease(_current, this);

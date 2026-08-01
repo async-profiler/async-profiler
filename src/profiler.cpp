@@ -842,7 +842,6 @@ Error Profiler::checkJvmCapabilities() {
         }
 
         if (_pthread_setspecific_entry == NULL) {
-
             // Depending on Zing version, pthread_setspecific is called either from libazsys.so or from libjvm.so
             if (VM::isZing()) {
                 CodeCache* libazsys = findLibraryByName("libazsys");
