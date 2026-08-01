@@ -23,8 +23,8 @@ class CpuEngine : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
 
-    void enableEngine();
-    void disableEngine();
+    void enableThreadEvents();
+    void disableThreadEvents();
 
     bool isResourceLimit(int err);
 

@@ -867,7 +867,7 @@ Error PerfEvents::start(Arguments& args) {
     }
 
     // Let pthread hook create perf_events for new threads before traversing existing threads
-    enableEngine();
+    enableThreadEvents();
 
     // Create perf_events for all existing threads
     int err = createForAllThreads();
@@ -885,7 +885,7 @@ Error PerfEvents::start(Arguments& args) {
 }
 
 void PerfEvents::stop() {
-    disableEngine();
+    disableThreadEvents();
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);
     }

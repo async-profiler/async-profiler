@@ -9,7 +9,6 @@
 #include "profiler.h"
 #include "stackWalker.h"
 #include "tsc.h"
-#include "vmStructs.h"
 
 
 CpuEngine* CpuEngine::_current = nullptr;
@@ -33,11 +32,11 @@ void CpuEngine::onThreadEnd() {
     }
 }
 
-void CpuEngine::enableEngine() {
+void CpuEngine::enableThreadEvents() {
     storeRelease(_current, this);
 }
 
-void CpuEngine::disableEngine() {
+void CpuEngine::disableThreadEvents() {
     storeRelease(_current, nullptr);
 }
 

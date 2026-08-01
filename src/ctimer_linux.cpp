@@ -100,7 +100,7 @@ Error CTimer::start(Arguments& args) {
     }
 
     // Let pthread hook create timers for new threads before traversing existing threads
-    enableEngine();
+    enableThreadEvents();
 
     // Create timers for all existing threads
     int err = createForAllThreads();
@@ -112,7 +112,7 @@ Error CTimer::start(Arguments& args) {
 }
 
 void CTimer::stop() {
-    disableEngine();
+    disableThreadEvents();
     for (int i = 0; i < _max_timers; i++) {
         destroyForThread(i);
     }

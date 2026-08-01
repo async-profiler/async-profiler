@@ -590,7 +590,7 @@ int Profiler::pthread_setspecific_hook(pthread_key_t key, const void* value) {
 }
 
 
-void Profiler::switchLibraryTrap(bool enable) {
+void Profiler::switchLibcHooks(bool enable) {
     if (_dlopen_entry != NULL) {
         void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
         storeRelease(*_dlopen_entry, impl);
@@ -1001,13 +1001,13 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (error) {
         return error;
     }
-    switchLibraryTrap(true);
+    switchLibcHooks(true);
 
     if (args._output == OUTPUT_JFR) {
         error = _jfr.start(args, reset);
         if (error) {
             uninstallTraps();
-            switchLibraryTrap(false);
+            switchLibcHooks(false);
             return error;
         }
     }
@@ -1091,7 +1091,7 @@ error2:
 
 error1:
     uninstallTraps();
-    switchLibraryTrap(false);
+    switchLibcHooks(false);
 
     lockAll();
     _jfr.stop();
@@ -1118,7 +1118,7 @@ Error Profiler::stop(bool restart) {
 
     _engine->stop();
 
-    switchLibraryTrap(false);
+    switchLibcHooks(false);
     switchThreadEvents(JVMTI_DISABLE);
     updateJavaThreadNames();
     updateNativeThreadNames();

@@ -96,11 +96,11 @@ class Profiler {
 
     // dlopen() hook support
     void** _dlopen_entry;
+    static void* dlopen_hook(const char* filename, int flags);
     // pthread_setspecific() hook support
     void** _pthread_setspecific_entry;
-    static void* dlopen_hook(const char* filename, int flags);
     static int pthread_setspecific_hook(pthread_key_t key, const void* value);
-    void switchLibraryTrap(bool enable);
+    void switchLibcHooks(bool enable);
 
     Error installTraps(const char* begin, const char* end, bool nostop);
     void uninstallTraps();
