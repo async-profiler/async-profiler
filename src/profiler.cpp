@@ -567,10 +567,38 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
     return result;
 }
 
+// Intercept thread creation/termination by patching libjvm's GOT entry for pthread_setspecific().
+// HotSpot puts VMThread into TLS on thread start, and resets on thread end.
+int Profiler::pthread_setspecific_hook(pthread_key_t key, const void* value) {
+    if (key != VMThread::key()) {
+        return pthread_setspecific(key, value);
+    }
+    if (pthread_getspecific(key) == value) {
+        return 0;
+    }
+
+    if (value != NULL) {
+        int result = pthread_setspecific(key, value);
+        // Workaround for #1743: the second call repairs TLS if it was corrupted by the nested pthread_getspecific
+        pthread_setspecific(key, value);
+        CpuEngine::onThreadStart();
+        return result;
+    } else {
+        CpuEngine::onThreadEnd();
+        return pthread_setspecific(key, value);
+    }
+}
+
+
 void Profiler::switchLibraryTrap(bool enable) {
     if (_dlopen_entry != NULL) {
         void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
         storeRelease(*_dlopen_entry, impl);
+    }
+
+    if (_pthread_setspecific_entry != NULL) {
+        void* impl = enable ? (void*)pthread_setspecific_hook : (void*)pthread_setspecific;
+        storeRelease(*_pthread_setspecific_entry, impl);
     }
 }
 
@@ -813,6 +841,21 @@ Error Profiler::checkJvmCapabilities() {
             }
         }
 
+        if (_pthread_setspecific_entry == NULL) {
+            // Depending on Zing version, pthread_setspecific is called either from libazsys.so or from libjvm.so
+            if (VM::isZing()) {
+                CodeCache* libazsys = findLibraryByName("libazsys");
+                _pthread_setspecific_entry = libazsys ? libazsys->findImport(im_pthread_setspecific) : NULL;
+            }
+
+            if (_pthread_setspecific_entry == NULL) {
+                CodeCache* lib = findJvmLibrary("libj9thr");
+                if (lib == NULL || (_pthread_setspecific_entry = lib->findImport(im_pthread_setspecific)) == NULL) {
+                    return Error("Could not set pthread_setspecific hook. Unsupported JVM?");
+                }
+            }
+        }
+
         if (!VMStructs::libjvm()->hasDebugSymbols()) {
             Log::warn("Install JVM debug symbols to improve profile accuracy");
         }
@@ -845,10 +888,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Only JFR output supports multiple events");
     } else if (!VM::loaded() && (_event_mask & (1 << EC_ALLOC | 1 << EC_LOCK | 1 << EC_TRACE))) {
         return Error("Profiling event is not supported with non-Java processes");
-    }
-
-    if (!CpuEngine::setupThreadHook()) {
-        return Error("Could not set pthread hook");
     }
 
     if (args._jfr_sync && !VM::loaded()) {
@@ -973,7 +1012,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    CpuEngine::enableThreadHook();
     error = _engine->start(args);
     if (error) {
         goto error1;
@@ -1052,7 +1090,6 @@ error2:
     _engine->stop();
 
 error1:
-    CpuEngine::disableThreadHook();
     uninstallTraps();
     switchLibraryTrap(false);
 
@@ -1070,7 +1107,6 @@ Error Profiler::stop(bool restart) {
         return Error("Profiler is not active");
     }
 
-    CpuEngine::disableThreadHook();
     uninstallTraps();
 
     if (hasEvent(EC_WALL)) wall_clock.stop();

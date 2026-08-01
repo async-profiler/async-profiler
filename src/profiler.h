@@ -96,7 +96,10 @@ class Profiler {
 
     // dlopen() hook support
     void** _dlopen_entry;
+    // pthread_setspecific() hook support
+    void** _pthread_setspecific_entry;
     static void* dlopen_hook(const char* filename, int flags);
+    static int pthread_setspecific_hook(pthread_key_t key, const void* value);
     void switchLibraryTrap(bool enable);
 
     Error installTraps(const char* begin, const char* end, bool nostop);
@@ -173,7 +176,8 @@ class Profiler {
         _stubs_lock(),
         _runtime_stubs("[stubs]"),
         _native_libs(),
-        _dlopen_entry(NULL) {
+        _dlopen_entry(NULL),
+        _pthread_setspecific_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;
