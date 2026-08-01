@@ -49,10 +49,6 @@ class CpuEngine : public Engine {
 
     static void onThreadStart();
     static void onThreadEnd();
-
-    static bool setupThreadHook();
-    static void enableThreadHook();
-    static void disableThreadHook();
 };
 
 #endif // _CPUENGINE_H
