@@ -229,6 +229,9 @@ public class FlameGraph implements Comparator<Frame> {
         tail = printTill(out, tail, "/*inverted:*/false");
         out.print(args.reverse ^ args.inverted);
 
+        tail = printTill(out, tail, "/*treeview:*/false");
+        out.print(args.tree);
+
         tail = printTill(out, tail, "/*maxdiff:*/-1");
         out.print(maxdiff);
 

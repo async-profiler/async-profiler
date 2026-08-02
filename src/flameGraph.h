@@ -77,29 +77,28 @@ class FlameGraph {
     char _buf[4096];
 
     const char* _title;
-    Counter _counter;
     double _minwidth;
     bool _reverse;
     bool _inverted;
+    bool _tree;
 
     int _last_level;
     u64 _last_x;
     u64 _last_total;
 
     void printFrame(Writer& out, u32 key, const Trie& f, int level, u64 x);
-    void printTreeFrame(Writer& out, const Trie& f, int level, const char** names);
     void printCpool(Writer& out);
     const char* printTill(Writer& out, const char* data, const char* till);
 
   public:
-    FlameGraph(const char* title, Counter counter, double minwidth, bool reverse, bool inverted) :
+    FlameGraph(const char* title, double minwidth, bool reverse, bool inverted, bool tree) :
         _root(),
         _cpool(),
         _title(title),
-        _counter(counter),
         _minwidth(minwidth),
         _reverse(reverse),
         _inverted(inverted),
+        _tree(tree),
         _last_level(0),
         _last_x(0),
         _last_total(0) {
@@ -112,7 +111,7 @@ class FlameGraph {
 
     Trie* addChild(Trie* f, const char* name, FrameTypeId type, u64 value);
 
-    void dump(Writer& out, bool tree);
+    void dump(Writer& out);
 };
 
 #endif // _FLAMEGRAPH_H

@@ -152,7 +152,7 @@ class Profiler {
     void unlockAll();
 
     void dumpCollapsed(Writer& out, Arguments& args);
-    void dumpFlameGraph(Writer& out, Arguments& args, bool tree);
+    void dumpFlameGraph(Writer& out, Arguments& args);
     void dumpText(Writer& out, Arguments& args);
     void dumpOtlp(Writer& out, Arguments& args);
 

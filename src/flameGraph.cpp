@@ -15,7 +15,6 @@
 const int MAX_CANVAS_HEIGHT = 32767;
 
 INCBIN(FLAMEGRAPH_TEMPLATE, "src/res/flame.html")
-INCBIN(TREE_TEMPLATE, "src/res/tree.html")
 
 
 class StringUtils {
@@ -77,10 +76,6 @@ class Node {
     static bool orderByName(const Node& a, const Node& b) {
         return a._order < b._order;
     }
-
-    static bool orderByTotal(const Node& a, const Node& b) {
-        return a._trie->_total > b._trie->_total;
-    }
 };
 
 
@@ -111,60 +106,39 @@ Trie* FlameGraph::addChild(Trie* f, const char* name, FrameTypeId type, u64 valu
     }
 }
 
-void FlameGraph::dump(Writer& out, bool tree) {
+void FlameGraph::dump(Writer& out) {
     _name_order = new u32[_cpool.size() + 1]();
-    _mintotal = _minwidth == 0 && tree ? _root._total / 1000 : (u64)(_root._total * _minwidth / 100);
+    _mintotal = (u64)(_root._total * _minwidth / 100);
     int depth = _root.depth(_mintotal, _name_order);
 
-    if (tree) {
-        const char* tail = TREE_TEMPLATE;
+    const char* tail = FLAMEGRAPH_TEMPLATE;
 
-        tail = printTill(out, tail, "/*title:*/");
-        out << (_reverse ? "Backtrace" : "Call tree");
+    tail = printTill(out, tail, "/*height:*/300");
+    out << std::min(depth * 16, MAX_CANVAS_HEIGHT);
 
-        tail = printTill(out, tail, "/*type:*/");
-        out << (_counter == COUNTER_SAMPLES ? "samples" : "counter");
+    tail = printTill(out, tail, "/*title:*/");
+    out << _title;
 
-        tail = printTill(out, tail, "/*count:*/");
-        out << Format().thousands(_root._total);
+    tail = printTill(out, tail, "/*inverted:*/false");
+    // _inverted toggles the layout for reversed stacktraces from icicle to flamegraph
+    // and for default stacktraces from flamegraphs to icicle.
+    out << (_reverse ^ _inverted ? "true" : "false");
 
-        tail = printTill(out, tail, "/*tree:*/");
+    tail = printTill(out, tail, "/*treeview:*/false");
+    out << (_tree ? "true" : "false");
 
-        const char** names = new const char*[_cpool.size() + 1];
-        for (std::map<std::string, u32>::const_iterator it = _cpool.begin(); it != _cpool.end(); ++it) {
-            names[it->second] = it->first.c_str();
-        }
-        printTreeFrame(out, _root, 0, names);
-        delete[] names;
+    tail = printTill(out, tail, "/*depth:*/0");
+    out << depth;
 
-        out << tail;
-    } else {
-        const char* tail = FLAMEGRAPH_TEMPLATE;
+    tail = printTill(out, tail, "/*cpool:*/");
+    printCpool(out);
 
-        tail = printTill(out, tail, "/*height:*/300");
-        out << std::min(depth * 16, MAX_CANVAS_HEIGHT);
+    tail = printTill(out, tail, "/*frames:*/");
+    printFrame(out, FRAME_NATIVE << 28, _root, 0, 0);
 
-        tail = printTill(out, tail, "/*title:*/");
-        out << _title;
+    tail = printTill(out, tail, "/*highlight:*/");
 
-        tail = printTill(out, tail, "/*inverted:*/false");
-        // _inverted toggles the layout for reversed stacktraces from icicle to flamegraph
-        // and for default stacktraces from flamegraphs to icicle.
-        out << (_reverse ^ _inverted ? "true" : "false");
-
-        tail = printTill(out, tail, "/*depth:*/0");
-        out << depth;
-
-        tail = printTill(out, tail, "/*cpool:*/");
-        printCpool(out);
-
-        tail = printTill(out, tail, "/*frames:*/");
-        printFrame(out, FRAME_NATIVE << 28, _root, 0, 0);
-
-        tail = printTill(out, tail, "/*highlight:*/");
-
-        out << tail;
-    }
+    out << tail;
 
     delete[] _name_order;
 }
@@ -216,53 +190,6 @@ void FlameGraph::printFrame(Writer& out, u32 key, const Trie& f, int level, u64 
             printFrame(out, key, *trie, level + 1, x);
         }
         x += trie->_total;
-    }
-}
-
-void FlameGraph::printTreeFrame(Writer& out, const Trie& f, int level, const char** names) {
-    std::vector<Node> children;
-    children.reserve(f._children.size());
-    for (auto it = f._children.begin(); it != f._children.end(); ++it) {
-        children.push_back(Node(it->first, 0, it->second));
-    }
-    std::sort(children.begin(), children.end(), Node::orderByTotal);
-
-    double pct = 100.0 / _root._total;
-    for (size_t i = 0; i < children.size(); i++) {
-        u32 key = children[i]._key;
-        const Trie* trie = children[i]._trie;
-
-        u32 type = trie->type(key);
-        std::string name = names[trie->nameIndex(key)];
-        StringUtils::replace(name, '&', "&amp;", 5);
-        StringUtils::replace(name, '<', "&lt;", 4);
-        StringUtils::replace(name, '>', "&gt;", 4);
-
-        const char* div_class = trie->_children.empty() ? " class=\"o\"" : "";
-
-        if (_reverse) {
-            snprintf(_buf, sizeof(_buf) - 1,
-                     "<li><div%s>%.2f%% [%s]</div> <span class=\"t%d\">%s</span>\n",
-                     div_class, trie->_total * pct, Format().thousands(trie->_total),
-                     type, name.c_str());
-        } else {
-            snprintf(_buf, sizeof(_buf) - 1,
-                     "<li><div%s>%.2f%% [%s] &#8226; self: %.2f%% [%s]</div> <span class=\"t%d\">%s</span>\n",
-                     div_class, trie->_total * pct, Format().thousands(trie->_total),
-                     trie->_self * pct, Format().thousands(trie->_self),
-                     type, name.c_str());
-        }
-        out << _buf;
-
-        if (!trie->_children.empty()) {
-            out << "<ul>\n";
-            if (trie->_total >= _mintotal) {
-                printTreeFrame(out, *trie, level + 1, names);
-            } else {
-                out << "<li>...\n";
-            }
-            out << "</ul>\n";
-        }
     }
 }
 
