@@ -6,7 +6,6 @@
 #ifndef _STACKWALKER_H
 #define _STACKWALKER_H
 
-#include <stdint.h>
 #include "arguments.h"
 #include "event.h"
 #include "vmEntry.h"
