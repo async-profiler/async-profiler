@@ -355,11 +355,11 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public double counterFactor() {
-        return (args.lock || args.nativelock) ? jfr.nanosPerTick : 1.0;
+        return (args.lock || args.nativelock || args.trace) ? jfr.nanosPerTick : 1.0;
     }
 
     // Select sum(samples) or sum(value) depending on the --total option.
-    // For lock and nativelock events, convert lock duration from ticks to nanoseconds.
+    // For lock, nativelock and trace events, convert duration from ticks to nanoseconds.
     protected abstract class AggregatedEventVisitor implements EventCollector.Visitor {
         private final double factor = !args.total ? 0.0 : counterFactor();
 

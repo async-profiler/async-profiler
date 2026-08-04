@@ -115,8 +115,7 @@ public class JfrToOtlp extends JfrConverter {
 
         long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
         proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
-        proto.field(VALUE_TYPE_unit_strindex,
-                    stringPool.index(args.total ? getTotalUnits() : getSampleUnits()));
+        proto.field(VALUE_TYPE_unit_strindex, stringPool.index(args.total ? getTotalUnits() : getSampleUnits()));
         proto.commitField(sttMark);
 
         long ptMark = proto.startField(PROFILE_period_type, MSG_SMALL);

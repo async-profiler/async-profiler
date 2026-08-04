@@ -127,6 +127,9 @@ void FlameGraph::dump(Writer& out) {
     tail = printTill(out, tail, "/*treeview:*/false");
     out << (_tree ? "true" : "false");
 
+    tail = printTill(out, tail, "/*units:*/");
+    out << _units;
+
     tail = printTill(out, tail, "/*depth:*/0");
     out << depth;
 
