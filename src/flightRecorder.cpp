@@ -1524,6 +1524,8 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
             case USER_EVENT:
                 _rec->recordUserEvent(buf, tid, (UserEvent*)event);
                 break;
+            default:
+                assert(false);  // should not reach here
         }
         _rec->flushIfNeeded(buf);
         _rec->addThread(tid);
