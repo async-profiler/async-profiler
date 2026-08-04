@@ -171,6 +171,7 @@ public class Main {
                 "  -r --reverse          Reverse stack traces (defaults to icicle graph)\n" +
                 "  -i --inverted         Toggles the layout for reversed stacktraces from icicle to flamegraph\n" +
                 "                        and for default stacktraces from flamegraph to icicle\n" +
+                "     --tree             Render call tree\n" +
                 "     --highlight REGEX  Highlight frames matching the given pattern\n");
     }
 }

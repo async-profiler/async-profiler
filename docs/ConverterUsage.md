@@ -89,6 +89,7 @@ Flame Graph options:
  -r --reverse          Reverse stack traces (defaults to icicle graph)
  -i --inverted         Toggles the layout for reversed stacktraces from icicle to flamegraph
                        and for default stacktraces from flamegraph to icicle
+    --tree             Render call tree
  -I --include REGEX    Include only stacks with the specified frames, e.g. -I 'MyApplication\.main' -I 'VMThread.*'
  -X --exclude REGEX    Exclude stacks with the specified frames, e.g. -X '.*pthread_cond_(wait|timedwait).*'
     --highlight REGEX  Highlight frames matching the given pattern

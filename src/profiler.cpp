@@ -1178,10 +1178,8 @@ Error Profiler::dump(Writer& out, Arguments& args) {
             dumpCollapsed(out, args);
             break;
         case OUTPUT_FLAMEGRAPH:
-            dumpFlameGraph(out, args, false);
-            break;
         case OUTPUT_TREE:
-            dumpFlameGraph(out, args, true);
+            dumpFlameGraph(out, args);
             break;
         case OUTPUT_TEXT:
             dumpText(out, args);
@@ -1279,7 +1277,7 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
     logEmptyOutput(args, printed_sample_count, out);
 }
 
-void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
+void Profiler::dumpFlameGraph(Writer& out, Arguments& args) {
     char title[64];
     if (args._title == NULL) {
         Engine* active_engine = activeEngine();
@@ -1290,7 +1288,8 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
         }
     }
 
-    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse, args._inverted);
+    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._minwidth,
+                          args._reverse, args._inverted, args._output == OUTPUT_TREE);
     u64 printed_sample_count = 0;
 
     {
@@ -1342,7 +1341,7 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
         }
     }
 
-    flamegraph.dump(out, tree);
+    flamegraph.dump(out);
     logEmptyOutput(args, printed_sample_count, out);
 }
 

@@ -5,6 +5,8 @@
 <style>
 	:root      {--bg: #ffffff; --fg: #000000; --hl-bg: #ffffe0; --hl-border: #ffc000; --link: #0366d6; --legend-bg: #ffffe0; --legend-border: #666666}
 	:root.dark {--bg: #1e1e1e; --fg: #cccccc; --hl-bg: #3a3a00; --hl-border: #8a7000; --link: #58a6ff; --legend-bg: #333333; --legend-border: #888888}
+	:root      {--t0: #3a6f3a; --t1: #009b00; --t2: #009595; --t3: #aa2020; --t4: #aaaa20; --t5: #cc5820; --t6: #7c8f45}
+	:root.dark {--t0: #b2e1b2; --t1: #50e150; --t2: #50cccc; --t3: #e15a5a; --t4: #c8c83c; --t5: #e17d00; --t6: #cce880}
 	body {margin: 0; padding: 10px 10px 22px 10px; background-color: var(--bg); color: var(--fg)}
 	h1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}
 	header {margin: -22px 0 6px 0}
@@ -27,6 +29,22 @@
 	#match {right: 0}
 	#reset {cursor: pointer}
 	#canvas {width: 100%; height: /*height:*/300px}
+	#tree {display: none; clear: both; padding-top: 5px; font-size: 14px}
+	#tree ul {list-style: none; margin: 0; padding-left: 17px}
+	#tree > ul {padding-left: 0}
+	#tree li {white-space: nowrap}
+	#tree li > ul {display: none}
+	#tree li.open > ul {display: block}
+	#tree div {display: inline-block; padding: 1px 3px; cursor: pointer}
+	#tree div:hover {background-color: var(--hl-bg)}
+	#tree div > span:last-child {cursor: text}
+	#tree .o {display: inline-block; width: 14px; font-weight: bold; text-align: center}
+	#tree .o::before {content: '+'}
+	#tree li.open > div > .o::before {content: '\2212'}
+	#tree li.leaf > div {cursor: default}
+	#tree li.leaf .o::before {content: ''}
+	#tree .pct {display: inline-block; width: 4.6em; text-align: right}
+	#tree .m {background-color: #ee00ee; color: #000000 !important}
 </style>
 <script>
 {
@@ -42,8 +60,9 @@
 <h1>/*title:*/</h1>
 <header style='float: left'>
 <button id='inverted' title='Invert (I)'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 392 392'><path d='M196,36 L316,156 L76,156 Z' fill='#004d80'/><path d='M196,356 L76,236 L316,236 Z' fill='#004d80'/><path d='M196,54 L298,156 L94,156 Z' fill='#ff8d40'/><path d='M196,338 L94,236 L298,236 Z' fill='#40b2ff'/><rect x='94' y='188' width='204' height='16' fill='#004d80'/></svg></button>
+<button id='treeview' title='Tree view (T)'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><path d='M4 6v4h1.5M8 11.75v4h1.5' stroke='#004d80' stroke-width='1.5' fill='none'/><rect x='2' y='2.5' width='12' height='3.5' rx='1' fill='#ff8d40'/><rect x='6' y='8.25' width='8' height='3.5' rx='1' fill='#40b2ff'/><rect x='10' y='14' width='8' height='3.5' rx='1' fill='#40b2ff'/></svg></button>
 <button id='search' title='Search (Ctrl+F)'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='-39.3 -39.3 471.1 471.1'><circle cx='147.7' cy='147.8' r='125.9' fill='#fff'/><path fill='#40b2ff' d='M370.7 348.7c0 1.4-1.6 6.3-7.2 12.3-6.2 6.7-12.5 9.8-14.7 9.8h-.1c-19.5-1.6-62-43.2-109.6-106.8 9.2-7.2 17.5-15.5 24.6-24.6 63.6 47.6 105.2 90.2 106.8 109.6z'/><path fill='#ff8d40' d='M208.7 86.9l-14.5 14.5c-17.1 17.1-46.5 5-46.5-19.3V61.6c-49 0-88.4 40.8-86.1 90.2 2 43.9 38.1 80 82 82 49.5 2.3 90.2-37.2 90.2-86.1 0-23.7-9.6-45.2-25.1-60.8z'/><path fill='#004d80' d='M276.1 221c12.3-21.5 19.5-46.5 19.5-73.2C295.6 66.3 229.2.1 147.7.1S0 66.3 0 147.9s66.3 147.7 147.7 147.7c26.6 0 51.5-7.1 73.2-19.5 39.8 53.3 91.9 113.5 126.1 116.4 12.3.5 22.9-6.7 32.8-16.7 5.2-5.6 13.8-16.9 12.8-28.8-2.9-34.1-63.1-86.2-116.4-126.1zM147.7 273.8c-69.5 0-125.9-56.5-125.9-125.9S78.3 21.9 147.7 21.9 273.6 78.4 273.6 147.8s-56.4 126-125.9 126zm215.9 87.2c-6.2 6.7-12.4 9.8-14.7 9.8h-.1c-19.5-1.6-62-43.2-109.6-106.8 9.2-7.2 17.5-15.5 24.6-24.6 63.6 47.6 105.2 90.2 106.8 109.6 0 1.4-1.6 6.3-7.2 12.4z'/></svg></button>
-<button id='darkmode' title='Toggle dark mode (D)'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><path d='M10 4a6 6 0 0 1 0 12z' fill='#ff8d40'/><path d='M10 4a6 6 0 0 0 0 12z' fill='#ffffff'/><circle cx='10' cy='10' r='8' fill='none' stroke='#004d80'/></svg></button>
+<button id='darkmode' title='Dark mode (D)'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><path d='M10 4a6 6 0 0 1 0 12z' fill='#ff8d40'/><path d='M10 4a6 6 0 0 0 0 12z' fill='#ffffff'/><circle cx='10' cy='10' r='8' fill='none' stroke='#004d80'/></svg></button>
 <button id='info'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><circle cx='10' cy='10' r='8' stroke='#004d80' fill='none'/><path d='M10 5.5c-1.25 0-2.25 1-2.25 2.25H9a1.25 1.25 0 0 1 2.5 0c0 .65-.55 1-1 1.2-.7.35-1.25.85-1.25 1.8V11h1.5v-.25c0-.37.29-.65.68-.83.73-.34 1.32-.87 1.32-2.17 0-1.25-1.5-2.25-2.75-2.25' fill='#ff8d40' stroke='#ff8d40' stroke-width='.6' stroke-linecap='round' stroke-linejoin='round'/><circle cx='10' cy='13.5' r='1.2' fill='#ff8d40'/></svg></button>
 </header>
 <header style='float: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
@@ -73,6 +92,7 @@
 	<dt>Ctrl/Alt+Click</dt><dd>Remove stack</dd>
 	<dt>0</dt><dd>Reset zoom</dd>
 	<dt>I</dt><dd>Invert graph</dd>
+	<dt>T</dt><dd>Toggle tree view</dd>
 	<dt>Ctrl+F</dt><dd>Search</dd>
 	<dt>N</dt><dd>Next match</dd>
 	<dt>Shift+N</dt><dd>Previous match</dd>
@@ -80,6 +100,7 @@
 </dl>
 </div>
 <canvas id='canvas'></canvas>
+<div id='tree'></div>
 <div id='hl'><span></span></div>
 <p id='status'></p>
 <p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>
@@ -91,6 +112,7 @@
 	let level0 = 0, left0 = 0, width0 = 0, d = 0;
 	let nav = [], navIndex, matchval;
 	let inverted = /*inverted:*/false;
+	let treeview = /*treeview:*/false;
 	const U = undefined;
 	const maxdiff = /*maxdiff:*/-1;
 	const levels = Array(/*depth:*/0);
@@ -102,6 +124,7 @@
 	const c = canvas.getContext('2d');
 	const hl = document.getElementById('hl');
 	const status = document.getElementById('status');
+	const tree = document.getElementById('tree');
 
 	const canvasWidth = canvas.offsetWidth;
 	const canvasHeight = canvas.offsetHeight;
@@ -126,16 +149,17 @@
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
 	}
 
-	function getDiffColor(diff) {
-		if (diff === U) return '#ffdd33';
-		if (diff === 0) return '#e0e0e0';
-		const v = Math.round(128 * (maxdiff - Math.abs(diff)) / maxdiff) + 96;
+	function getDiffColor(diff, tree) {
+		if (diff === U) return tree ? '#bb9900' : '#ffdd33';
+		if (diff === 0) return tree ? '#a0a0a0' : '#e0e0e0';
+		const v = Math.round(128 * (maxdiff - Math.abs(diff)) / maxdiff) + (tree ? 0 : 96);
 		return diff > 0 ? 'rgb(255,' + v + ',' + v + ')' : 'rgb(' + v + ',' + v + ',255)';
 	}
 
 	function f(key, level, left, width, inln, c1, int) {
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
 			color: maxdiff >= 0 ? getDiffColor(d) : getColor(palette[key & 7]),
+			type: maxdiff >= 0 ? d : key & 7,
 			title: cpool[key >>> 3],
 			details: (d ? (d > 0 ? ', +' : ', ') + d : '') + (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
@@ -149,8 +173,12 @@
 		f(key, level0, width0, width, inln, c1, int)
 	}
 
+	function num(n) {
+		return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	}
+
 	function samples(n) {
-		return n === 1 ? '1 sample' : n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' samples';
+		return n === 1 ? '1 sample' : num(n) + ' samples';
 	}
 
 	function pct(a, b) {
@@ -206,6 +234,11 @@
 		navIndex = -1;
 		document.getElementById('matchval').textContent = matchval = pct(matched, root.width) + '%';
 		document.getElementById('match').style.display = r ? 'inline-block' : 'none';
+
+		const rows = tree.getElementsByTagName('li');
+		for (let i = 0; i < rows.length; i++) {
+			rows[i].firstChild.lastChild.className = pattern && rows[i].f.title.match(pattern) ? 'm' : '';
+		}
 	}
 
 	function render(newRoot, nav) {
@@ -271,6 +304,98 @@
 		return totalMarked();
 	}
 
+	function buildTree() {
+		const ul = document.createElement('ul');
+		const li = makeTreeNode(root);
+		ul.appendChild(li);
+		expandTree(li, false);
+		tree.textContent = '';
+		tree.appendChild(ul);
+	}
+
+	function collectChildren(f, val, func) {
+		const frames = levels[f.level + 1] || [];
+		let lo = 0, hi = frames.length;
+		while (lo < hi) {
+			const mid = (lo + hi) >>> 1;
+			frames[mid].left < f.left ? lo = mid + 1 : hi = mid;
+		}
+		while (lo < frames.length && frames[lo].left < f.left + f.width) {
+			val = func(val, frames[lo++]);
+		}
+		return val;
+	}
+
+	function makeTreeNode(f) {
+		const li = document.createElement('li');
+		const row = document.createElement('div');
+
+		li.f = f;
+		const cwidth = collectChildren(f, 0, function(w, c) { return w + c.width });
+		if (cwidth === 0) li.className = 'leaf';
+
+		const o = document.createElement('span');
+		o.className = 'o';
+		row.appendChild(o);
+
+		const p = document.createElement('span');
+		p.className = 'pct';
+		p.textContent = pct(f.width, levels[0][0].width) + '%\xa0';
+		row.appendChild(p);
+
+		const span = document.createElement('span');
+		if (pattern && f.title.match(pattern)) span.className = 'm';
+		span.style.color = maxdiff >= 0 ? getDiffColor(f.type, true) : 'var(--t' + f.type + ')';
+		span.textContent = f.title;
+		row.title = samples(f.width) + f.details + (cwidth > 0 && f.width > cwidth ? ', self=' + num(f.width - cwidth) : '');
+		row.appendChild(span);
+
+		row.onmousedown = function() {
+			if (event.detail > 1 && event.target !== span) event.preventDefault();
+		}
+
+		row.onclick = function() {
+			if (event.target === span) return;
+			li.classList.contains('open') ? li.classList.remove('open') : expandTree(li, event.altKey);
+			event.preventDefault();
+		}
+
+		li.appendChild(row);
+		return li;
+	}
+
+	function expandTree(li, deep) {
+		if (li.className === 'leaf') return false;
+		if (!li.ul) {
+			const ul = li.ul = document.createElement('ul');
+			const children = collectChildren(li.f, [], function(arr, c) { arr.push(c); return arr; });
+			children.sort(function(a, b) { return b.width - a.width; });
+			for (let i = 0; i < children.length; i++) {
+				ul.appendChild(makeTreeNode(children[i]));
+			}
+			li.appendChild(ul);
+		}
+		li.classList.add('open');
+		if (deep) {
+			for (let e = li.ul.firstChild; e !== null; e = e.nextSibling) {
+				if (e.f.width * 1000 >= levels[0][0].width) expandTree(e, true);
+			}
+		} else if (li.ul.childElementCount === 1) {
+			expandTree(li.ul.firstChild, false);
+		}
+		return true;
+	}
+
+	function expandTo(f) {
+		let li = tree.firstChild.firstChild;
+		while (li !== null && li.f.level < f.level && expandTree(li, false)) {
+			for (li = li.ul.firstChild; li !== null; li = li.nextSibling) {
+				if (f.left >= li.f.left && f.left < li.f.left + li.f.width) break;
+			}
+		}
+		if (li) li.firstChild.scrollIntoView({block: 'center'});
+	}
+
 	function unpack(cpool) {
 		for (let i = 1; i < cpool.length; i++) {
 			cpool[i] = cpool[i - 1].substring(0, cpool[i].charCodeAt(0) - 32) + cpool[i].substring(1);
@@ -324,6 +449,13 @@
 		render();
 	}
 
+	document.getElementById('treeview').onclick = function() {
+		treeview = !treeview;
+		if (treeview) buildTree();
+		canvas.style.display = treeview ? 'none' : '';
+		tree.style.display = treeview ? 'block' : 'none';
+	}
+
 	document.getElementById('search').onclick = function() {
 		search(true);
 	}
@@ -360,14 +492,22 @@
 			search(false);
 		} else if ((event.key === 'n' || event.key === 'N') && nav.length > 0) {
 			navIndex = (navIndex + (event.shiftKey ? nav.length - 1 : 1)) % nav.length;
-			render(nav[navIndex]);
+			if (treeview) {
+				expandTo(nav[navIndex]);
+			} else {
+				render(nav[navIndex]);
+				window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
+				canvas.onmousemove();
+			}
 			document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
-			window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
-			canvas.onmousemove();
 			return false;
 		} else if (event.key === 'i') {
 			canvas.onmouseout();
 			document.getElementById('inverted').onclick();
+			return false;
+		} else if (event.key === 't') {
+			canvas.onmouseout();
+			document.getElementById('treeview').onclick();
 			return false;
 		} else if (event.key === 'd') {
 			document.getElementById('darkmode').onclick();
@@ -376,6 +516,7 @@
 			canvas.onmouseout();
 			root = levels[0][0];
 			search(false);
+			if (treeview) buildTree();
 			return false;
 		}
 	}
@@ -387,4 +528,5 @@ unpack(cpool);
 
 /*frames:*/
 search(/*highlight:*/);
+if (treeview) { treeview = false; document.getElementById('treeview').onclick(); }
 </script></body></html>
