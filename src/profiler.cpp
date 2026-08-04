@@ -1278,9 +1278,10 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
 }
 
 void Profiler::dumpFlameGraph(Writer& out, Arguments& args) {
+    Engine* active_engine = activeEngine();
+
     char title[64];
     if (args._title == NULL) {
-        Engine* active_engine = activeEngine();
         if (args._counter == COUNTER_SAMPLES) {
             strcpy(title, active_engine->title());
         } else {
@@ -1288,8 +1289,9 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args) {
         }
     }
 
-    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._minwidth,
-                          args._reverse, args._inverted, args._output == OUTPUT_TREE);
+    FlameGraph flamegraph(args._title == NULL ? title : args._title,
+                          args._counter == COUNTER_SAMPLES ? "samples" : active_engine->units(),
+                          args._minwidth, args._reverse, args._inverted, args._output == OUTPUT_TREE);
     u64 printed_sample_count = 0;
 
     {

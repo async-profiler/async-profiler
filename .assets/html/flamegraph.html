@@ -114,6 +114,7 @@
 	let inverted = false;
 	let treeview = false;
 	const U = undefined;
+	const units = 'samples';
 	const maxdiff = -1;
 	const levels = Array(36);
 	for (let h = 0; h < levels.length; h++) {
@@ -178,7 +179,7 @@
 	}
 
 	function samples(n) {
-		return n === 1 ? '1 sample' : num(n) + ' samples';
+		return n === 1 && units === 'samples' ? '1 sample' : num(n) + ' ' + units;
 	}
 
 	function pct(a, b) {

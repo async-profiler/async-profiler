@@ -77,6 +77,7 @@ class FlameGraph {
     char _buf[4096];
 
     const char* _title;
+    const char* _units;
     double _minwidth;
     bool _reverse;
     bool _inverted;
@@ -91,10 +92,11 @@ class FlameGraph {
     const char* printTill(Writer& out, const char* data, const char* till);
 
   public:
-    FlameGraph(const char* title, double minwidth, bool reverse, bool inverted, bool tree) :
+    FlameGraph(const char* title, const char* units, double minwidth, bool reverse, bool inverted, bool tree) :
         _root(),
         _cpool(),
         _title(title),
+        _units(units),
         _minwidth(minwidth),
         _reverse(reverse),
         _inverted(inverted),
