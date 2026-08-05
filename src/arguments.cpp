@@ -294,7 +294,26 @@ Error Arguments::parse(const char* args) {
 
             // Filters
             CASE("filter")
-                _filter = value == NULL ? "" : value;
+                _filter_enabled = true;
+                if (value != NULL && value[0] != 0) {
+                    msg = "filter does not take a value; use ithread/xthread";
+                }
+
+            CASE("ithread")
+                _filter_enabled = true;
+                if (value == NULL || value[0] == 0) {
+                    msg = "ithread requires a thread name pattern";
+                } else {
+                    _threadfilter_include.push_back(value);
+                }
+
+            CASE("xthread")
+                _filter_enabled = true;
+                if (value == NULL || value[0] == 0) {
+                    msg = "xthread requires a thread name pattern";
+                } else {
+                    _threadfilter_exclude.push_back(value);
+                }
 
             CASE("include")
                 _include.push_back(value);

@@ -246,7 +246,7 @@ class Recording {
     int _memfd;
     char* _master_recording_file;
     off_t _chunk_start;
-    ThreadFilter _thread_set;
+    ThreadBitSet _thread_set;
     MethodMap _method_map;
     Dictionary _string_pool;
 
@@ -649,7 +649,8 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", TSC::enabled() ? "tsc" : "monotonic");
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "ithread", args._threadfilter_include);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "xthread", args._threadfilter_exclude);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "end", args._end);
         writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._include);
@@ -1296,7 +1297,7 @@ class Recording {
     }
 
     void addThread(int tid) {
-        if (!_thread_set.accept(tid)) {
+        if (!_thread_set.contains(tid)) {
             _thread_set.add(tid);
         }
     }

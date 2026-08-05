@@ -79,6 +79,9 @@ static const char USAGE_STRING[] =
     "  --nativelock time   pthread mutex/rwlock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
     "  --nobatch           legacy wall clock sampling without batch events\n"
+    "  --filter            in wall clock mode, profile only threads registered via the API\n"
+    "  --ithread pattern   in wall clock mode, profile only threads matching the name pattern\n"
+    "  --xthread pattern   in wall clock mode, skip threads matching the name pattern\n"
     "  --proc interval     process sampling interval (default: 30s)\n"
     "  --all               shorthand for enabling cpu, wall, alloc, live,\n"
     "                      nativemem and lock profiling simultaneously\n"
@@ -493,9 +496,6 @@ int main(int argc, const char** argv) {
         } else if (arg == "-F" || arg == "--features") {
             format << ",features=" << String(args.next()).replace(',', "+");
 
-        } else if (arg == "--filter") {
-            format << ",filter=" << String(args.next()).replace(',', ";");
-
         } else if (arg == "--title") {
             format << ",title=" << String(args.next()).replace('&', "&amp;")
                                                       .replace('<', "&lt;")
@@ -511,11 +511,12 @@ int main(int argc, const char** argv) {
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||
                    arg == "--wall" || arg == "--trace" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
-                   arg == "--target-cpu" || arg == "--proc" || arg == "--memlimit") {
+                   arg == "--target-cpu" || arg == "--proc" || arg == "--memlimit" ||
+                   arg == "--ithread" || arg == "--xthread") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--all" || arg == "--live" || arg == "--nobatch" || arg == "--nofree" || arg == "--nostop" ||
-                   arg == "--record-cpu" || arg == "--sched" || arg == "--tlab" || arg == "--ttsp") {
+                   arg == "--record-cpu" || arg == "--sched" || arg == "--tlab" || arg == "--ttsp" || arg == "--filter") {
             params << "," << (arg.str() + 2);
 
         } else if (arg == "--all-user") {
