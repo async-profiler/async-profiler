@@ -53,4 +53,11 @@ public class ApiTests {
         assert profile.contains("BusyLoops.method2;");
         assert profile.contains("BusyLoops.method3;");
     }
+
+    @Test(mainClass = ThreadFilterApi.class, output = true)
+    public void threadFilter(TestProcess p) throws Exception {
+        Output out = p.waitForExit(TestProcess.STDOUT);
+        assert out.contains("ThreadFilterApi.included");
+        assert !out.contains("ThreadFilterApi.excluded");
+    }
 }

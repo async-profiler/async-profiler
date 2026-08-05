@@ -183,7 +183,8 @@ class Arguments {
     const char* _log;
     const char* _loglevel;
     const char* _unknown_arg;
-    const char* _filter;
+    bool _filter_enabled;
+    std::vector<const char*> _filter;
     std::vector<const char*> _include;
     std::vector<const char*> _exclude;
     unsigned char _mcache;
@@ -247,7 +248,8 @@ class Arguments {
         _log(NULL),
         _loglevel(NULL),
         _unknown_arg(NULL),
-        _filter(NULL),
+        _filter_enabled(false),
+        _filter(),
         _include(),
         _exclude(),
         _mcache(0),

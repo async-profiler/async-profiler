@@ -649,7 +649,7 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", TSC::enabled() ? "tsc" : "monotonic");
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "end", args._end);
         writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._include);

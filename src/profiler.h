@@ -17,6 +17,7 @@
 #include "event.h"
 #include "flightRecorder.h"
 #include "log.h"
+#include "matcher.h"
 #include "mutex.h"
 #include "spinLock.h"
 #include "threadFilter.h"
@@ -46,6 +47,12 @@ enum State {
     TERMINATED
 };
 
+enum ThreadEventType {
+    THREAD_STARTED,
+    THREAD_ENDED,
+    THREAD_REFRESHED
+};
+
 class Profiler {
   private:
     Mutex _state_lock;
@@ -58,6 +65,7 @@ class Profiler {
     std::map<int, std::string> _thread_names;
     std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
+    std::vector<Matcher> _thread_matchers;
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
@@ -111,6 +119,8 @@ class Profiler {
     void onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void onGarbageCollectionFinish();
+    void updateThreadFilter(int tid, const char* name);
+    void updateThread(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, ThreadEventType event);
 
     const char* asgctError(int code);
     int tryLock(int tid);
@@ -119,7 +129,6 @@ class Profiler {
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     void setThreadInfo(int tid, const char* name, jlong java_thread_id);
-    void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
     void updateNativeThreadNames();
     void mangle(const char* name, char* buf, size_t size);

@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include "arguments.h"
+#include "matcher.h"
 #include "mutex.h"
 #include "vmEntry.h"
 
@@ -25,32 +26,6 @@ typedef std::map<int, std::string> ThreadMap;
 typedef std::map<unsigned int, const char*> ClassMap;
 
 class CallTrace;
-
-enum MatchType {
-  MATCH_EQUALS,
-  MATCH_CONTAINS,
-  MATCH_STARTS_WITH,
-  MATCH_ENDS_WITH
-};
-
-
-class Matcher {
-  private:
-    MatchType _type;
-    char* _pattern;
-    int _len;
-
-  public:
-    Matcher(const char* pattern);
-    ~Matcher();
-
-    Matcher(const Matcher& m);
-    Matcher& operator=(const Matcher& m);
-
-    bool matches(const char* s);
-};
-
-
 class FrameName {
   private:
     static JMethodCache _cache;
