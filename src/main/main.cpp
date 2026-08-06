@@ -79,6 +79,7 @@ static const char USAGE_STRING[] =
     "  --nativelock time   pthread mutex/rwlock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
     "  --nobatch           legacy wall clock sampling without batch events\n"
+    "  --filter pattern    in wall clock mode, profile only threads with matching names\n"
     "  --proc interval     process sampling interval (default: 30s)\n"
     "  --all               shorthand for enabling cpu, wall, alloc, live,\n"
     "                      nativemem and lock profiling simultaneously\n"
@@ -494,7 +495,7 @@ int main(int argc, const char** argv) {
             format << ",features=" << String(args.next()).replace(',', "+");
 
         } else if (arg == "--filter") {
-            format << ",filter=" << String(args.next()).replace(',', ";");
+            params << ",filter=" << args.next();
 
         } else if (arg == "--title") {
             format << ",title=" << String(args.next()).replace('&', "&amp;")

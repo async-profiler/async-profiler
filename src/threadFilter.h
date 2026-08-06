@@ -6,6 +6,7 @@
 #ifndef _THREADFILTER_H
 #define _THREADFILTER_H
 
+#include <stddef.h>
 #include <vector>
 #include "arch.h"
 
@@ -42,11 +43,14 @@ class ThreadFilter {
         return _enabled;
     }
 
+    void setEnabled(bool enabled) {
+        _enabled = enabled;
+    }
+
     int size() {
         return _size;
     }
 
-    void init(const char* filter);
     void clear();
 
     size_t usedMemory();

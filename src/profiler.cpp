@@ -131,18 +131,27 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
     CodeHeap::updateBounds(address, (const char*)address + length);
 }
 
-void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_thread_filter.enabled()) {
-        _thread_filter.remove(OS::threadId());
+void Profiler::updateThreadFilter(int tid, const char* name) {
+    MutexLocker ml(_thread_names_lock);
+    if (_thread_matchers.empty()) {
+        return;
     }
-    updateThreadName(jvmti, jni, thread);
+
+    for (size_t i = 0; i < _thread_matchers.size(); i++) {
+        if (_thread_matchers[i].matches(name)) {
+            _thread_filter.add(tid);
+            return;
+        }
+    }
+    _thread_filter.remove(tid);
+}
+
+void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    updateThread(jvmti, jni, thread, THREAD_STARTED);
 }
 
 void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_thread_filter.enabled()) {
-        _thread_filter.remove(OS::threadId());
-    }
-    updateThreadName(jvmti, jni, thread);
+    updateThread(jvmti, jni, thread, THREAD_ENDED);
 }
 
 void Profiler::onGarbageCollectionFinish() {
@@ -714,13 +723,20 @@ void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
     _thread_ids[tid] = java_thread_id;
 }
 
-void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+void Profiler::updateThread(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, ThreadEventType event) {
+    if (event != THREAD_REFRESHED && _thread_filter.enabled()) {
+        _thread_filter.remove(OS::threadId());
+    }
+
     if (_update_thread_names) {
         JitWriteProtection jit(true);  // workaround for JDK-8262896
         jvmtiThreadInfo thread_info;
         int native_thread_id = VMThread::nativeThreadId(jni, thread);
         if (native_thread_id >= 0 && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
             jlong java_thread_id = VMThread::javaThreadId(jni, thread);
+            if (event != THREAD_ENDED) {
+                updateThreadFilter(native_thread_id, thread_info.name);
+            }
             setThreadInfo(native_thread_id, thread_info.name, java_thread_id);
             jvmti->Deallocate((unsigned char*)thread_info.name);
         }
@@ -738,7 +754,7 @@ void Profiler::updateJavaThreadNames() {
 
         JNIEnv* jni = VM::jni();
         for (int i = 0; i < thread_count; i++) {
-            updateThreadName(jvmti, jni, thread_objects[i]);
+            updateThread(jvmti, jni, thread_objects[i], THREAD_REFRESHED);
         }
 
         jvmti->Deallocate((unsigned char*)thread_objects);
@@ -755,10 +771,12 @@ void Profiler::updateNativeThreadNames() {
             MutexLocker ml(_thread_names_lock);
             std::map<int, std::string>::iterator it = _thread_names.lower_bound(tid);
             if (it == _thread_names.end() || it->first != tid) {
-                if (OS::threadName(tid, name_buf, sizeof(name_buf))) {
-                    _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name_buf));
+                if (!OS::threadName(tid, name_buf, sizeof(name_buf))) {
+                    continue;
                 }
+                it = _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name_buf));
             }
+            updateThreadFilter(tid, it->second.c_str());
         }
 
         delete thread_list;
@@ -960,7 +978,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
-    _thread_filter.init(args._filter);
 
     _engine = selectEngine(args);
     if (_engine == &wall_clock && args._wall >= 0) {
@@ -971,6 +988,24 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("record-cpu is only supported with perf_events");
     } else if (_engine == &instrument && !args._trace.empty()) {
         return Error("Running method tracing and Java method sampling in parallel is not supported");
+    }
+
+    bool filter_threads = args._filter_enabled && (_engine == &wall_clock || hasEvent(EC_WALL));
+    _thread_filter.setEnabled(filter_threads);
+    _thread_filter.clear();
+
+    if (filter_threads && !args._filter.empty()) {
+        {
+            MutexLocker ml(_thread_names_lock);
+            _thread_matchers.assign(args._filter.begin(), args._filter.end());
+        }
+
+        _update_thread_names = true;
+        updateJavaThreadNames();
+        updateNativeThreadNames();
+    } else {
+        MutexLocker ml(_thread_names_lock);
+        _thread_matchers.clear();
     }
 
     _cstack = args._cstack;

@@ -294,7 +294,10 @@ Error Arguments::parse(const char* args) {
 
             // Filters
             CASE("filter")
-                _filter = value == NULL ? "" : value;
+                _filter_enabled = true;
+                if (value != NULL && *value != '\0') {
+                    _filter.push_back(value);
+                }
 
             CASE("include")
                 _include.push_back(value);
