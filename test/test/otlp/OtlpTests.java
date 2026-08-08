@@ -17,7 +17,9 @@ import one.jfr.JfrReader;
 import one.profiler.test.*;
 
 import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.profiles.v1development.*;
+import io.opentelemetry.proto.resource.v1.Resource;
 
 public class OtlpTests {
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
@@ -125,6 +127,37 @@ public class OtlpTests {
             found = found || sample.getTimestampsUnixNanoList().size() > 1;
         }
         assert found : "No sample contains more than one timestamp";
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb",
+          jvmArgs = "-Dotel.service.name=sysprop-service",
+          env = {"OTEL_SERVICE_NAME=env-service"})
+    public void serviceNameFromSystemProperty(TestProcess p) throws Exception {
+        assertServiceName(waitAndGetProfilesData(p), "sysprop-service");
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb",
+          jvmArgs = "-Dotel.resource.attributes=service.namespace=shop,service.name=attr%20service",
+          env = {"OTEL_RESOURCE_ATTRIBUTES=service.name=env-attr-service"})
+    public void serviceNameFromResourceAttributes(TestProcess p) throws Exception {
+        assertServiceName(waitAndGetProfilesData(p), "attr service");
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb",
+          env = {"OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod, service.name=env-attr-service"})
+    public void serviceNameFromResourceAttributesEnv(TestProcess p) throws Exception {
+        assertServiceName(waitAndGetProfilesData(p), "env-attr-service");
+    }
+
+    private static void assertServiceName(ProfilesData profilesData, String expected) {
+        Resource resource = profilesData.getResourceProfiles(0).getResource();
+        for (KeyValue kv : resource.getAttributesList()) {
+            if (kv.getKey().equals("service.name")) {
+                assertString(kv.getValue().getStringValue(), expected);
+                return;
+            }
+        }
+        assert false : "service.name attribute not found: " + resource;
     }
 
     @Test(mainClass = OtlpProfileTimeTest.class)

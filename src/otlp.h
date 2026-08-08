@@ -20,6 +20,8 @@ namespace Otlp {
 const u32 OTLP_BUFFER_INITIAL_SIZE = 5120;
 // https://opentelemetry.io/docs/specs/semconv/registry/attributes/thread/#thread-name
 const char* const OTLP_THREAD_NAME = "thread.name";
+// https://opentelemetry.io/docs/specs/semconv/registry/attributes/service/#service-name
+const char* const OTLP_SERVICE_NAME = "service.name";
 
 namespace ProfilesDictionary {
     const protobuf_index_t mapping_table = 1;
@@ -37,7 +39,12 @@ namespace ProfilesData {
 }
 
 namespace ResourceProfiles {
+    const protobuf_index_t resource = 1;
     const protobuf_index_t scope_profiles = 2;
+}
+
+namespace Resource {
+    const protobuf_index_t attributes = 1;
 }
 
 namespace ScopeProfiles {
@@ -87,6 +94,11 @@ namespace Line {
     const protobuf_index_t function_index = 1;
 }
 
+namespace KeyValue {
+    const protobuf_index_t key = 1;
+    const protobuf_index_t value = 2;
+}
+
 namespace KeyValueAndUnit {
     const protobuf_index_t key_strindex = 1;
     const protobuf_index_t value = 2;
@@ -119,6 +131,7 @@ class Recorder {
 
     // Record a profile with a specified sample type
     void recordOtlpProfile(size_t type_strindex, size_t unit_strindex, bool samples);
+    void recordResource();
     void recordValueType(protobuf_index_t field_index, size_t type_strindex, size_t unit_strindex);
     void recordStacks(const std::vector<CallTraceSample*>& call_trace_samples);
     void recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples);

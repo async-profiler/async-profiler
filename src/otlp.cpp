@@ -3,10 +3,118 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include "callTraceStorage.h"
 #include "otlp.h"
+#include "vmEntry.h"
 
 namespace Otlp {
+
+class ResourceAttributes {
+  private:
+    JNIEnv* _jni;
+    jclass _system_class;
+    jmethodID _get_property;
+    jstring _jstr;
+    const char* _chars;
+    char _buf[256];
+
+    // Invalid input produces garbage, which is acceptable here
+    static int hexDigit(char c) {
+        return c <= '9' ? c - '0' : (c & ~0x20) - ('A' - 10);
+    }
+
+    // Copy the value until the next ',' or whitespace, decoding %XX on the way
+    const char* unescape(const char* s) {
+        size_t len = 0;
+        while (*s > ' ' && *s != ',' && len < sizeof(_buf) - 1) {
+            char c = *s++;
+            if (c == '%' && s[0] && s[1]) {
+                c = (char)(hexDigit(s[0]) << 4 | hexDigit(s[1]));
+                s += 2;
+            }
+            _buf[len++] = c;
+        }
+        _buf[len] = 0;
+        return _buf;
+    }
+
+    const char* getSystemProperty(const char* key) {
+        if (_get_property == nullptr) return nullptr;
+        releaseString();
+
+        jstring jkey = _jni->NewStringUTF(key);
+        _jstr = jkey == nullptr ? nullptr : (jstring)_jni->CallStaticObjectMethod(_system_class, _get_property, jkey);
+        _chars = _jstr == nullptr ? nullptr : _jni->GetStringUTFChars(_jstr, nullptr);
+        _jni->ExceptionClear();
+        return _chars;
+    }
+
+    void releaseString() {
+        if (_chars != nullptr) {
+            _jni->ReleaseStringUTFChars(_jstr, _chars);
+        }
+    }
+
+    // Extract attribute from a comma-separated list of key=value pairs (W3C Baggage format)
+    const char* getAttribute(const char* list, const char* attr) {
+        for (const char* s = strstr(list, attr); s != nullptr; s = strstr(s + 1, attr)) {
+            if (s > list && s[-1] != ',' && s[-1] > ' ') {
+                continue;  // not at the start of a list entry
+            }
+
+            const char* p = s + strlen(attr);
+            while (*p == ' ' || *p == '\t') p++;
+            if (*p++ != '=') continue;
+            while (*p == ' ' || *p == '\t') p++;
+
+            return unescape(p);
+        }
+        return nullptr;
+    }
+
+  public:
+    ResourceAttributes() : _jni(VM::jni()), _system_class(nullptr), _get_property(nullptr), _chars(nullptr) {
+        if (_jni != nullptr) {
+            _jni->PushLocalFrame(16);
+            if ((_system_class = _jni->FindClass("java/lang/System")) == nullptr ||
+                (_get_property = _jni->GetStaticMethodID(_system_class, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;")) == nullptr) {
+                _jni->ExceptionClear();
+            }
+        }
+    }
+
+    ~ResourceAttributes() {
+        if (_jni != nullptr) {
+            releaseString();
+            _jni->PopLocalFrame(nullptr);
+        }
+    }
+
+    const char* getServiceName() {
+        const char* s = getSystemProperty("otel.service.name");
+        if (s != nullptr && s[0]) {
+            return s;
+        }
+
+        s = getenv("OTEL_SERVICE_NAME");
+        if (s != nullptr && s[0]) {
+            return s;
+        }
+
+        const char* attrs = getSystemProperty("otel.resource.attributes");
+        if (attrs != nullptr && (s = getAttribute(attrs, OTLP_SERVICE_NAME)) != nullptr && s[0]) {
+            return s;
+        }
+
+        attrs = getenv("OTEL_RESOURCE_ATTRIBUTES");
+        if (attrs != nullptr && (s = getAttribute(attrs, OTLP_SERVICE_NAME)) != nullptr && s[0]) {
+            return s;
+        }
+        return nullptr;
+    }
+};
 
 void Recorder::recordProfilesDictionary(const std::vector<CallTraceSample*>& call_trace_samples) {
     protobuf_mark_t dictionary_mark = _otlp_buffer.startMessage(ProfilesData::dictionary);
@@ -78,7 +186,7 @@ void Recorder::recordStacks(const std::vector<CallTraceSample*>& call_trace_samp
 
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
-        if (trace == NULL || _fn.excludeTrace(trace) || cts->samples == 0) continue;
+        if (trace == nullptr || _fn.excludeTrace(trace) || cts->samples == 0) continue;
 
         protobuf_mark_t stack_mark = _otlp_buffer.startMessage(ProfilesDictionary::stack_table);
         protobuf_mark_t location_indices_mark = _otlp_buffer.startMessage(Stack::location_indices);
@@ -131,16 +239,34 @@ void Recorder::recordOtlpProfile(size_t type_strindex, size_t unit_strindex, boo
     _otlp_buffer.commitMessage(profile_mark);
 }
 
+void Recorder::recordResource() {
+    ResourceAttributes attributes;
+    const char* service_name = attributes.getServiceName();
+    if (service_name == nullptr) {
+        return;
+    }
+
+    protobuf_mark_t resource_mark = _otlp_buffer.startMessage(ResourceProfiles::resource);
+    protobuf_mark_t attribute_mark = _otlp_buffer.startMessage(Resource::attributes);
+    _otlp_buffer.field(KeyValue::key, OTLP_SERVICE_NAME);
+    protobuf_mark_t value_mark = _otlp_buffer.startMessage(KeyValue::value);
+    _otlp_buffer.field(AnyValue::string_value, service_name);
+    _otlp_buffer.commitMessage(value_mark);
+    _otlp_buffer.commitMessage(attribute_mark);
+    _otlp_buffer.commitMessage(resource_mark);
+}
+
 void Recorder::record(const std::vector<CallTraceSample*>& call_trace_samples, bool samples) {
     recordProfilesDictionary(call_trace_samples);
 
     protobuf_mark_t resource_profiles_mark = _otlp_buffer.startMessage(ProfilesData::resource_profiles);
-    protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
+    recordResource();
 
+    protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     size_t unit_strindex = samples ? _count_strindex : _engine_unit_strindex;
     recordOtlpProfile(_engine_type_strindex, unit_strindex, samples);
-
     _otlp_buffer.commitMessage(scope_profiles_mark);
+
     _otlp_buffer.commitMessage(resource_profiles_mark);
 }
 
