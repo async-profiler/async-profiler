@@ -8,6 +8,7 @@ package one.convert;
 final class OtlpConstants {
 
     static final String OTLP_THREAD_NAME = "thread.name";
+    static final String OTLP_SERVICE_NAME = "service.name";
 
     static final int
             PROFILES_DICTIONARY_mapping_table = 1,
@@ -22,7 +23,11 @@ final class OtlpConstants {
             PROFILES_DATA_resource_profiles = 1,
             PROFILES_DATA_dictionary = 2;
 
-    static final int RESOURCE_PROFILES_scope_profiles = 2;
+    static final int
+            RESOURCE_PROFILES_resource = 1,
+            RESOURCE_PROFILES_scope_profiles = 2;
+
+    static final int RESOURCE_attributes = 1;
 
     static final int SCOPE_PROFILES_profiles = 2;
 
@@ -64,6 +69,10 @@ final class OtlpConstants {
     static final int
             KEY_VALUE_AND_UNIT_key_strindex = 1,
             KEY_VALUE_AND_UNIT_value = 2;
+
+    static final int
+            KEY_VALUE_key = 1,
+            KEY_VALUE_value = 2;
 
     static final int ANY_VALUE_string_value = 1;
 }
