@@ -731,18 +731,20 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 void Profiler::updateJavaThreadNames() {
     if (_update_thread_names && VM::loaded()) {
         jvmtiEnv* jvmti = VM::jvmti();
+        JNIEnv* jni = VM::jni();
+        jni->PushLocalFrame(64);
+
         jint thread_count;
         jthread* thread_objects;
-        if (jvmti->GetAllThreads(&thread_count, &thread_objects) != 0) {
-            return;
+        if (jvmti->GetAllThreads(&thread_count, &thread_objects) == 0) {
+            for (int i = 0; i < thread_count; i++) {
+                updateThreadName(jvmti, jni, thread_objects[i]);
+            }
+
+            jvmti->Deallocate((unsigned char*)thread_objects);
         }
 
-        JNIEnv* jni = VM::jni();
-        for (int i = 0; i < thread_count; i++) {
-            updateThreadName(jvmti, jni, thread_objects[i]);
-        }
-
-        jvmti->Deallocate((unsigned char*)thread_objects);
+        jni->PopLocalFrame(NULL);
     }
 }
 
