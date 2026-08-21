@@ -360,9 +360,7 @@ class JavaFrameAnchor : VMStructs {
         }
 
         sp = lastJavaSP();
-        if ((fp = lastJavaFP()) == 0) {
-            fp = sp;
-        }
+        fp = lastJavaFP();
         if ((pc = lastJavaPC()) == NULL) {
             pc = ((const void**)sp)[-1];
         }
