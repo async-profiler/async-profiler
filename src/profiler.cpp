@@ -494,8 +494,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
 void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, int num_frames, ASGCT_CallFrame* frames) {
     atomicInc(_total_samples);
+    int lock_index;
 
-    if (!RateLimit::allow(event_type)) {
+    if (!RateLimit::allow(event_type) || (lock_index = tryLock(tid)) < 0) {
         atomicInc(_failures[-ticks_skipped]);
         return;
     }
@@ -508,31 +509,23 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
-
-    int lock_index = tryLock(tid);
-    if (lock_index < 0) {
-        // Too many concurrent signals already
-        atomicInc(_failures[-ticks_skipped]);
-        return;
-    }
-
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
     unlock(lock_index);
 }
 
 void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call_trace_id, EventType event_type, Event* event) {
-    if (!RateLimit::allow(event_type)) {
+    atomicInc(_total_samples, samples);
+
+    int lock_index;
+    if (!RateLimit::allow(event_type) || (lock_index = tryLock(tid)) < 0) {
+        atomicInc(_failures[-ticks_skipped], samples);
         return;
     }
 
     _call_trace_storage.add(call_trace_id, samples, counter);
-
-    int lock_index = tryLock(tid);
-    if (lock_index >= 0) {
-        _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
-        unlock(lock_index);
-    }
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
+    unlock(lock_index);
 }
 
 void Profiler::recordEventOnly(EventType event_type, Event* event) {
