@@ -29,6 +29,10 @@ class Writer {
     }
 
     virtual void write(const char* data, size_t len) = 0;
+
+    // Same as write, but takes ownership of the input buffer,
+    // making write zero-copy when possible.
+    virtual void move(char* data, size_t len);
 };
 
 class FileWriter : public Writer {
@@ -70,7 +74,9 @@ class BufferWriter : public Writer {
     size_t _capacity;
 
   public:
-    BufferWriter(size_t capacity = 256);
+    BufferWriter() : _buf(nullptr), _size(0), _capacity(0) {
+    }
+
     ~BufferWriter();
 
     char* buf() const {
@@ -82,6 +88,8 @@ class BufferWriter : public Writer {
     }
 
     virtual void write(const char* data, size_t len);
+
+    virtual void move(char* data, size_t len);
 };
 
 class CallbackWriter : public Writer {

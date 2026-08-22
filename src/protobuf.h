@@ -37,10 +37,10 @@ class ProtoBuffer {
     ~ProtoBuffer();
 
     const unsigned char* data() const { return _data; }
-
     size_t offset() const { return _offset; }
     size_t capacity() const { return _capacity; }
-    void reset() { _offset = 0; }
+
+    unsigned char* release();
 
     void field(protobuf_index_t index, u64 n);
     void fieldFixed64(protobuf_index_t index, u64 n);

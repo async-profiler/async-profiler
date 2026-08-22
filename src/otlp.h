@@ -154,7 +154,8 @@ class Recorder {
     void record(const std::vector<CallTraceSample*>& call_trace_samples, bool samples);
 
     void write(Writer& out) {
-        out.write((const char*) _otlp_buffer.data(), _otlp_buffer.offset());
+        size_t len = _otlp_buffer.offset();
+        out.move((char*) _otlp_buffer.release(), len);
     }
 };
 

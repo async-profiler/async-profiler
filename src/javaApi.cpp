@@ -112,7 +112,6 @@ Java_one_profiler_AsyncProfiler_execute1(JNIEnv* env, jobject unused, jstring co
     Log::open(args);
 
     BufferWriter out;
-    // TODO: This is doing one more copy than necessary, from ProtoWriter to BufferWriter
     error = Profiler::instance()->runInternal(args, out);
     if (error) {
         throwNew(env, "java/lang/IllegalStateException", error.message());

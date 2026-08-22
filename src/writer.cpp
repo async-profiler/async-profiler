@@ -40,6 +40,11 @@ Writer& Writer::operator<<(u64 n) {
     return *this;
 }
 
+void Writer::move(char* data, size_t len) {
+    write(data, len);
+    free(data);
+}
+
 FileWriter::FileWriter(const char* file_name) : _size(0) {
     _fd = open(file_name, O_WRONLY | O_TRUNC | O_CREAT, 0644);
     _buf = (char*)malloc(BUF_SIZE);
@@ -82,10 +87,6 @@ void FileWriter::write(const char* data, size_t len) {
     _size += len;
 }
 
-BufferWriter::BufferWriter(size_t capacity) : _size(0), _capacity(capacity) {
-    _buf = (char*)malloc(capacity);
-}
-
 BufferWriter::~BufferWriter() {
     free(_buf);
 }
@@ -100,8 +101,19 @@ void BufferWriter::write(const char* data, size_t len) {
     _size = new_size;
 }
 
+void BufferWriter::move(char* data, size_t len) {
+    if (_size == 0) {
+        free(_buf);
+        _buf = data;
+        _size = len;
+        _capacity = len;
+    } else {
+        Writer::move(data, len);
+    }
+}
+
 void CallbackWriter::write(const char* data, size_t len) {
-    if (_output_callback != NULL) {
+    if (_output_callback != nullptr) {
         _output_callback(data, len);
     }
 }

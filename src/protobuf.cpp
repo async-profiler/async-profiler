@@ -18,6 +18,14 @@ ProtoBuffer::~ProtoBuffer() {
     free(_data);
 }
 
+unsigned char* ProtoBuffer::release() {
+    unsigned char* data = _data;
+    _data = nullptr;
+    _capacity = 0;
+    _offset = 0;
+    return data;
+}
+
 size_t ProtoBuffer::varIntSize(u64 value) {
     // size_varint = ceil(size_in_bits(value) / 7)
     // => size_varint = ceil[(64 - __builtin_clzll(value | 1)) / 7]
