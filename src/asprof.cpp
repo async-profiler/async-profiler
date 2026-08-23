@@ -41,7 +41,7 @@ DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t out
         BufferWriter out;
         error = Profiler::instance()->runInternal(args, out);
         if (!error) {
-            error = HttpClient::send(file, out.buf(), out.size());
+            error = HttpClient::send(file, out.buf(), out.size(), args._output);
         }
     } else {
         FileWriter out(file);

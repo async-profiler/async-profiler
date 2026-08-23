@@ -1658,7 +1658,7 @@ Error Profiler::run(Arguments& args) {
     } else if (Arguments::isUrl(file)) {
         BufferWriter out;
         Error error = runInternal(args, out);
-        return error ? error : HttpClient::send(file, out.buf(), out.size());
+        return error ? error : HttpClient::send(file, out.buf(), out.size(), args._output);
     } else {
         // Open output file under the lock to avoid races with background timer
         MutexLocker ml(_state_lock);
@@ -1709,7 +1709,7 @@ Error Profiler::expire(Arguments& args, bool restart) {
 
     if (http_out.size() > 0) {
         // Send profiles outside stop-start transaction to minimize the gap between interations
-        return HttpClient::send(file, http_out.buf(), http_out.size());
+        return HttpClient::send(file, http_out.buf(), http_out.size(), args._output);
     }
 
     return Error::OK;

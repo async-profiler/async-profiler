@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <dlfcn.h>
+#include <stdio.h>
 #include <string.h>
 #include "httpClient.h"
 #include "log.h"
@@ -13,6 +14,7 @@
 
 constexpr long HTTP_TIMEOUT_MS = 10000;
 constexpr size_t MAX_RESPONSE_SIZE = 4 * 1024 * 1024;  // OTLP spec requires clients to limit response size
+constexpr size_t MAX_URL_SIZE = 512;
 
 // Minimal subset of libcurl API, resolved at runtime
 namespace Curl {
@@ -90,17 +92,19 @@ static size_t writeCallback(char* data, size_t size, size_t nmemb, BufferWriter*
     return bytes;
 }
 
-static const char* detectContentType(const char* data, size_t len) {
-    if (len > 0 && data[0] < ' ') {
-        return "Content-Type: application/x-protobuf";
-    } else if (len >= 15 && strncmp(data, "<!DOCTYPE html>", 15) == 0) {
-        return "Content-Type: text/html";
-    } else {
-        return "Content-Type: text/plain";
+static const char* getContentType(Output format) {
+    switch (format) {
+        case OUTPUT_OTLP:
+            return "Content-Type: application/x-protobuf";
+        case OUTPUT_FLAMEGRAPH:
+        case OUTPUT_TREE:
+            return "Content-Type: text/html";
+        default:
+            return "Content-Type: text/plain";
     }
 }
 
-Error HttpClient::send(const char* url, const char* data, size_t len) {
+Error HttpClient::send(const char* url, const char* data, size_t len, Output format) {
     using namespace Curl;
 
     if (!initialize()) {
@@ -114,12 +118,19 @@ Error HttpClient::send(const char* url, const char* data, size_t len) {
         return Error("Failed to initialize libcurl");
     }
 
+    // Append default OTLP profiles path if URL does not specify a path
+    char url_buf[MAX_URL_SIZE];
+    if (format == OUTPUT_OTLP && strpbrk(strstr(url, "://") + 3, "/?") == nullptr &&
+            snprintf(url_buf, sizeof(url_buf), "%s/v1development/profiles", url) < sizeof(url_buf)) {
+        url = url_buf;
+    }
+
     BufferWriter response;
     char error_buf[256];
     error_buf[0] = 0;
 
     curl_slist* headers = slist_append(nullptr, "Expect:");
-    headers = slist_append(headers, detectContentType(data, len));
+    headers = slist_append(headers, getContentType(format));
 
     easy_setopt(curl, CURLOPT_URL, url);
     easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);

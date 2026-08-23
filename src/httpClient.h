@@ -10,7 +10,7 @@
 
 class HttpClient {
   public:
-    static Error send(const char* url, const char* data, size_t len);
+    static Error send(const char* url, const char* data, size_t len, Output format);
 };
 
 #endif // _HTTPCLIENT_H

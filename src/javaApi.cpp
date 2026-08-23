@@ -82,7 +82,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
     } else if (Arguments::isUrl(file)) {
         BufferWriter out;
         error = Profiler::instance()->runInternal(args, out);
-        if (!error && (error = HttpClient::send(file, out.buf(), out.size()))) {
+        if (!error && (error = HttpClient::send(file, out.buf(), out.size(), args._output))) {
             throwNew(env, "java/io/IOException", error.message());
             return NULL;
         }
