@@ -1700,7 +1700,10 @@ Error Profiler::expire(Arguments& args, bool restart) {
         if (restart) {
             args._fdtransfer = false;  // keep the previous connection
             args._file_num++;
-            start(args, true);
+            error = start(args, true);
+            if (error) {
+                Log::info("%s", error.message());
+            }
         }
     }
 

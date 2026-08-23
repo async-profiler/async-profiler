@@ -3,12 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <algorithm>
 #include <dlfcn.h>
 #include <string.h>
 #include "httpClient.h"
 #include "log.h"
 #include "mutex.h"
 #include "writer.h"
+
+constexpr long HTTP_TIMEOUT_MS = 10000;
+constexpr size_t MAX_RESPONSE_SIZE = 4096;
 
 // Minimal subset of libcurl API, resolved at runtime
 namespace Curl {
@@ -82,7 +86,8 @@ namespace Curl {
 
 static size_t writeCallback(char* data, size_t size, size_t nmemb, void* userdata) {
     size_t bytes = size * nmemb;
-    ((BufferWriter*)userdata)->write(data, bytes);
+    BufferWriter* response = (BufferWriter*)userdata;
+    response->write(data, std::min(bytes, MAX_RESPONSE_SIZE - response->size()));
     return bytes;
 }
 
@@ -119,7 +124,7 @@ Error HttpClient::send(const char* url, const char* data, size_t len) {
 
     easy_setopt(curl, CURLOPT_URL, url);
     easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-    easy_setopt(curl, CURLOPT_TIMEOUT_MS, 10000L);
+    easy_setopt(curl, CURLOPT_TIMEOUT_MS, HTTP_TIMEOUT_MS);
     easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     easy_setopt(curl, CURLOPT_POSTFIELDS, data);
     easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (long long)len);

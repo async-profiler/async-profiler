@@ -498,6 +498,8 @@ const char* Arguments::expandFilePattern(const char* pattern) {
                         continue;
                     }
                 }
+            } else if (c != '%') {
+                *ptr++ = '%';  // keep other escape sequences (e.g. URL encoding) intact
             }
         }
         *ptr++ = c;
