@@ -45,7 +45,7 @@ static const char USAGE_STRING[] =
     "Options:\n"
     "  -e event            profiling event: cpu|alloc|nativemem|lock|cache-misses etc.\n"
     "  -d duration         run profiling for <duration> seconds\n"
-    "  -f filename         dump output to <filename>\n"
+    "  -f filename         file name or http(s) URL to submit profiles to\n"
     "  -i interval         sampling interval in nanoseconds\n"
     "  -j jstackdepth      maximum Java stack depth\n"
     "  -t, --threads       profile different threads separately\n"
@@ -245,7 +245,7 @@ static void setup_output_files(int pid) {
     if (file == "") {
         file = String("/tmp/asprof.") << self_pid << "." << pid;
         use_tmp_file = true;
-    } else if (file.str()[0] != '/' && getcwd(current_dir, sizeof(current_dir)) != NULL) {
+    } else if (file.str()[0] != '/' && strstr(file.str(), "://") == NULL && getcwd(current_dir, sizeof(current_dir)) != NULL) {
         file = String(current_dir) << "/" << file;
     }
 

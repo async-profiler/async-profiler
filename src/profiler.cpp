@@ -32,6 +32,7 @@
 #include "flightRecorder.h"
 #include "fdtransferClient.h"
 #include "frameName.h"
+#include "httpClient.h"
 #include "os.h"
 #include "otlp.h"
 #include "rateLimit.h"
@@ -1650,13 +1651,18 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
 }
 
 Error Profiler::run(Arguments& args) {
-    if (!args.hasOutputFile()) {
+    const char* file = args.hasOutputFile() ? args.file() : NULL;
+    if (file == NULL) {
         LogWriter out;
         return runInternal(args, out);
+    } else if (Arguments::isUrl(file)) {
+        BufferWriter out;
+        Error error = runInternal(args, out);
+        return error ? error : HttpClient::send(file, out.buf(), out.size());
     } else {
         // Open output file under the lock to avoid races with background timer
         MutexLocker ml(_state_lock);
-        FileWriter out(args.file());
+        FileWriter out(file);
         if (!out.is_open()) {
             return Error("Could not open output file");
         }
@@ -1665,28 +1671,42 @@ Error Profiler::run(Arguments& args) {
 }
 
 Error Profiler::expire(Arguments& args, bool restart) {
-    MutexLocker ml(_state_lock);
+    BufferWriter http_out;
+    const char* file = NULL;
 
-    Error error = stop(restart);
-    if (error) {
-        return error;
-    }
+    {
+        MutexLocker ml(_state_lock);
 
-    if (args._file != NULL && args._output != OUTPUT_NONE && args._output != OUTPUT_JFR) {
-        FileWriter out(args.file());
-        if (!out.is_open()) {
-            return Error("Could not open output file");
-        }
-        error = dump(out, args);
+        Error error = stop(restart);
         if (error) {
             return error;
         }
+
+        if (args._output != OUTPUT_NONE && args._output != OUTPUT_JFR && (file = args.file()) != NULL) {
+            if (Arguments::isUrl(file)) {
+                error = dump(http_out, args);
+            } else {
+                FileWriter out(file);
+                if (!out.is_open()) {
+                    return Error("Could not open output file");
+                }
+                error = dump(out, args);
+            }
+            if (error) {
+                return error;
+            }
+        }
+
+        if (restart) {
+            args._fdtransfer = false;  // keep the previous connection
+            args._file_num++;
+            start(args, true);
+        }
     }
 
-    if (restart) {
-        args._fdtransfer = false;  // keep the previous connection
-        args._file_num++;
-        return start(args, true);
+    if (http_out.size() > 0) {
+        // Send profiles outside stop-start transaction to minimize the gap between interations
+        return HttpClient::send(file, http_out.buf(), http_out.size());
     }
 
     return Error::OK;

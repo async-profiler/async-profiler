@@ -1313,6 +1313,9 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
     if (filename == NULL || filename[0] == 0) {
         return Error("Flight Recorder output file is not specified");
     }
+    if (Arguments::isUrl(filename)) {
+        return Error("Flight Recorder requires a local file");
+    }
 
     char* filename_tmp = NULL;
     const char* master_recording_file = NULL;

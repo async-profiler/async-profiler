@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include "asprof.h"
+#include "httpClient.h"
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
@@ -66,7 +67,8 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
 
     Log::open(args);
 
-    if (!args.hasOutputFile()) {
+    const char* file = args.hasOutputFile() ? args.file() : NULL;
+    if (file == NULL) {
         BufferWriter out;
         error = Profiler::instance()->runInternal(args, out);
         if (!error) {
@@ -77,20 +79,27 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
             }
             return env->NewStringUTF(out.buf());
         }
+    } else if (Arguments::isUrl(file)) {
+        BufferWriter out;
+        error = Profiler::instance()->runInternal(args, out);
+        if (!error && (error = HttpClient::send(file, out.buf(), out.size()))) {
+            throwNew(env, "java/io/IOException", error.message());
+            return NULL;
+        }
     } else {
-        FileWriter out(args.file());
+        FileWriter out(file);
         if (!out.is_open()) {
             throwNew(env, "java/io/IOException", strerror(errno));
             return NULL;
         }
         error = Profiler::instance()->runInternal(args, out);
-        if (!error) {
-            return env->NewStringUTF("OK");
-        }
     }
 
-    throwNew(env, "java/lang/IllegalStateException", error.message());
-    return NULL;
+    if (error) {
+        throwNew(env, "java/lang/IllegalStateException", error.message());
+        return NULL;
+    }
+    return env->NewStringUTF("OK");
 }
 
 extern "C" DLLEXPORT jbyteArray JNICALL

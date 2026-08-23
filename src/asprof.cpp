@@ -5,6 +5,7 @@
 
 #include "asprof.h"
 #include "hooks.h"
+#include "httpClient.h"
 #include "profiler.h"
 #include "tsc.h"
 #include "threadLocalData.h"
@@ -32,24 +33,25 @@ DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t out
 
     Log::open(args);
 
-    if (!args.hasOutputFile()) {
+    const char* file = args.hasOutputFile() ? args.file() : NULL;
+    if (file == NULL) {
         CallbackWriter out(output_callback);
         error = Profiler::instance()->runInternal(args, out);
+    } else if (Arguments::isUrl(file)) {
+        BufferWriter out;
+        error = Profiler::instance()->runInternal(args, out);
         if (!error) {
-            return NULL;
+            error = HttpClient::send(file, out.buf(), out.size());
         }
     } else {
-        FileWriter out(args.file());
+        FileWriter out(file);
         if (!out.is_open()) {
             return asprof_error("Could not open output file");
         }
         error = Profiler::instance()->runInternal(args, out);
-        if (!error) {
-            return NULL;
-        }
     }
 
-    return asprof_error(error.message());
+    return error ? asprof_error(error.message()) : NULL;
 }
 
 DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void) {
