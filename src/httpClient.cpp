@@ -12,7 +12,7 @@
 #include "writer.h"
 
 constexpr long HTTP_TIMEOUT_MS = 10000;
-constexpr size_t MAX_RESPONSE_SIZE = 4096;
+constexpr size_t MAX_RESPONSE_SIZE = 4 * 1024 * 1024;  // OTLP spec requires clients to limit response size
 
 // Minimal subset of libcurl API, resolved at runtime
 namespace Curl {
@@ -84,10 +84,9 @@ namespace Curl {
 }
 
 
-static size_t writeCallback(char* data, size_t size, size_t nmemb, void* userdata) {
-    size_t bytes = size * nmemb;
-    BufferWriter* response = (BufferWriter*)userdata;
-    response->write(data, std::min(bytes, MAX_RESPONSE_SIZE - response->size()));
+static size_t writeCallback(char* data, size_t size, size_t nmemb, BufferWriter* response) {
+    size_t bytes = std::min(size * nmemb, MAX_RESPONSE_SIZE - response->size());
+    response->write(data, bytes);
     return bytes;
 }
 
