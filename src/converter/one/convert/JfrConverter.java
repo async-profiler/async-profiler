@@ -155,14 +155,16 @@ public abstract class JfrConverter extends Classifier {
         }
 
         StackTrace stackTrace = jfr.stackTraces.get(stackId);
-        for (int i = 0; i < stackTrace.methods.length; i++) {
-            String name = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
-            if (exclude != null && exclude.matcher(name).matches()) {
-                return true;
-            }
-            if (include != null && include.matcher(name).matches()) {
-                if (exclude == null) return false;
-                include = null;
+        if (stackTrace != null) {
+            for (int i = 0; i < stackTrace.methods.length; i++) {
+                String name = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
+                if (exclude != null && exclude.matcher(name).matches()) {
+                    return true;
+                }
+                if (include != null && include.matcher(name).matches()) {
+                    if (exclude == null) return false;
+                    include = null;
+                }
             }
         }
         return include != null;
