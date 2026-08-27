@@ -348,7 +348,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             } else if (nm->isNMethod()) {
                 int level = nm->level();
                 FrameTypeId type = details && level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
-                fillFrame(frames[depth++], type, 0, nm->method()->id());
+                fillFrame(frames[depth++], type, 0, getMethodId(nm->method()));
 
                 if (nm->isFrameCompleteAt(pc)) {
                     if (depth == 1 && frame.unwindEpilogue(nm, (uintptr_t&)pc, sp, fp)) {
@@ -365,7 +365,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                                 type = scope_offset > 0 ? FRAME_INLINED :
                                        level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
                             }
-                            fillFrame(frames[depth++], type, scope.bci(), scope.method()->id());
+                            fillFrame(frames[depth++], type, scope.bci(), getMethodId(scope.method()));
                         } while (scope_offset > 0 && depth < max_depth);
                     }
 
@@ -442,7 +442,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
                 } else if (mark == MARK_COMPILER_ENTRY && features.comp_task && vm_thread != NULL) {
                     // Insert current compile task as a pseudo Java frame
                     VMMethod* method = vm_thread->compiledMethod();
-                    jmethodID method_id = method != NULL ? method->id() : NULL;
+                    jmethodID method_id = getMethodId(method);
                     if (method_id != NULL) {
                         fillFrame(frames[depth++], FRAME_JIT_COMPILED, 0, method_id);
                     }
