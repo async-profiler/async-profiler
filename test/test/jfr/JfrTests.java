@@ -205,6 +205,28 @@ public class JfrTests {
         assert events.contains("jdk.NativeLibrary");
     }
 
+    @Test(mainClass = ExceptionThrow.class,
+            agentArgs = "start,event=cpu,jfrsync=+jdk.JavaExceptionThrow#stackTrace=true,file=%f.jfr")
+    public void jfrSyncEventSettings(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        boolean found = false;
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                if (event.getEventType().getName().equals("jdk.JavaExceptionThrow")
+                        && ExceptionThrow.MESSAGE.equals(event.getString("message"))) {
+                    assert event.getStackTrace() != null;
+                    assert event.getStackTrace().toString().contains("test.jfr.ExceptionThrow.throwException");
+                    found = true;
+                    break;
+                }
+            }
+        }
+        assert found;
+    }
+
     /**
      * Test to validate time to safepoint profiling
      *
