@@ -108,13 +108,13 @@ Error HttpClient::send(const char* url, const char* data, size_t len, Output for
     using namespace Curl;
 
     if (!initialize()) {
-        Log::info("Failed to send profile to %s: libcurl not found", url);
+        Log::warn("Failed to send profile to %s: libcurl not found", url);
         return Error("Could not load libcurl");
     }
 
     CURL* curl = easy_init();
     if (curl == nullptr) {
-        Log::info("Failed to send profile to %s: curl_easy_init failed", url);
+        Log::warn("Failed to send profile to %s: curl_easy_init failed", url);
         return Error("Failed to initialize libcurl");
     }
 
