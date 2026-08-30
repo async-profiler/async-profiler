@@ -114,6 +114,7 @@ class OS {
     static const char* schedPolicy(int thread_id);
     static bool threadName(int thread_id, char* name_buf, size_t name_len);
     static ThreadState threadState(int thread_id);
+    static u64 threadFingerprint(int thread_id);
     static u64 threadCpuTime(int thread_id);
     static ThreadList* listThreads();
 

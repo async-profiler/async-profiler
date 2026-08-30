@@ -192,6 +192,29 @@ ThreadState OS::threadState(int thread_id) {
     return info.run_state == TH_STATE_RUNNING ? THREAD_RUNNING : THREAD_SLEEPING;
 }
 
+u64 OS::threadFingerprint(int thread_id) {
+    // Avoid thread_get_state() for running threads
+    // as it forcibly stops the thread for reading its state.
+    if (threadState(thread_id) == THREAD_RUNNING) {
+        return 0;
+    }
+
+#if defined(__x86_64__)
+    x86_thread_state64_t state;
+    mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
+    if (thread_get_state((thread_act_t)thread_id, x86_THREAD_STATE64, (thread_state_t)&state, &count) == 0) {
+        return state.__rsp << 32 ^ state.__rip;
+    }
+#elif defined(__aarch64__)
+    arm_thread_state64_t state;
+    mach_msg_type_number_t count = ARM_THREAD_STATE64_COUNT;
+    if (thread_get_state((thread_act_t)thread_id, ARM_THREAD_STATE64, (thread_state_t)&state, &count) == 0) {
+        return state.__sp << 32 ^ state.__pc;
+    }
+#endif
+    return 0;
+}
+
 u64 OS::threadCpuTime(int thread_id) {
     if (thread_id == 0) thread_id = threadId();
 

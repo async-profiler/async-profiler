@@ -6,7 +6,6 @@
 #ifndef _WALLCLOCK_H
 #define _WALLCLOCK_H
 
-#include <jvmti.h>
 #include <signal.h>
 #include <pthread.h>
 #include "engine.h"
@@ -36,7 +35,7 @@ class WallClock : public Engine {
         return NULL;
     }
 
-    static ThreadState getThreadState(void* ucontext);
+    static u64 getThreadFingerprint(void* ucontext);
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 

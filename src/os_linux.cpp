@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <link.h>
 #include <sched.h>
 #include <stdio.h>
@@ -185,10 +186,17 @@ const char* OS::schedPolicy(int thread_id) {
     return "SCHED_OTHER";
 }
 
+static int openTaskFile(const char* file, int flags) {
+    // Opening a file under a directory tree is ~25% faster when accessing via a pre-resolved dir_fd
+    static const int task_dir_fd = open("/proc/self/task", O_RDONLY | O_CLOEXEC);
+
+    return openat(task_dir_fd, file, flags);
+}
+
 bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {
     char buf[64];
-    snprintf(buf, sizeof(buf), "/proc/self/task/%d/comm", thread_id);
-    int fd = open(buf, O_RDONLY);
+    snprintf(buf, sizeof(buf), "%d/comm", thread_id);
+    int fd = openTaskFile(buf, O_RDONLY);
     if (fd == -1) {
         return false;
     }
@@ -205,8 +213,8 @@ bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {
 
 ThreadState OS::threadState(int thread_id) {
     char buf[512];
-    snprintf(buf, sizeof(buf), "/proc/self/task/%d/stat", thread_id);
-    int fd = open(buf, O_RDONLY);
+    snprintf(buf, sizeof(buf), "%d/stat", thread_id);
+    int fd = openTaskFile(buf, O_RDONLY);
     if (fd == -1) {
         return THREAD_UNKNOWN;
     }
@@ -219,6 +227,39 @@ ThreadState OS::threadState(int thread_id) {
 
     close(fd);
     return state;
+}
+
+// Returns fingerprint (mix of PC and SP) of a thread's blocked state or 0 if a thread is not blocked.
+// Fingerprint allows checking if a thread is blocked on the same syscall as before without signaling.
+u64 OS::threadFingerprint(int thread_id) {
+    char buf[512];
+    snprintf(buf, sizeof(buf), "%d/syscall", thread_id);
+    int fd = openTaskFile(buf, O_RDONLY);
+    if (fd == -1) {
+        return 0;
+    }
+
+    ssize_t r = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    buf[r > 0 ? r : 0] = 0;
+
+    // 3 possible patterns (we are interested only in the first one):
+    //   blocked on a syscall:    <nr> <arg1> .. <arg6> <sp> <pc>
+    //   blocked outside syscall: -1 <sp> <pc>
+    //   not blocked:             running
+    char* s = buf;
+    for (int i = 0; i < 7; i++) {
+        if ((s = strchr(s, ' ')) == NULL) return 0;
+        s++;
+    }
+
+    u64 sp = strtoull(s, &s, 16);
+    if (sp == 0 || sp == ULLONG_MAX || *s == 0) return 0;
+
+    u64 pc = strtoull(s + 1, NULL, 16);
+    if (pc == 0 || pc == ULLONG_MAX) return 0;
+
+    return sp << 32 ^ pc;
 }
 
 u64 OS::threadCpuTime(int thread_id) {
