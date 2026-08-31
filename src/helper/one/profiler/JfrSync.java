@@ -76,7 +76,7 @@ class JfrSync implements FlightRecorderListener {
         recording.start();
     }
 
-    private static void enableEvent(Recording recording, String event) throws ParseException {
+    private static void enableEvent(Recording recording, String event) {
         int separator = event.indexOf('#');
         if (separator < 0) {
             recording.enable(event);
@@ -84,8 +84,9 @@ class JfrSync implements FlightRecorderListener {
         }
 
         int equals = event.indexOf('=', separator + 1);
-        if (separator == 0 || equals <= separator + 1 || equals == event.length() - 1) {
-            throw new ParseException("Invalid JFR event setting: " + event, separator);
+        if (equals < 0) {
+            event += '=';
+            equals = event.length() - 1;
         }
 
         String eventName = event.substring(0, separator);

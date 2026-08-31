@@ -15,11 +15,7 @@ public class ExceptionThrow {
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        long startTime = System.currentTimeMillis();
-        while (System.currentTimeMillis() - startTime < 2000) {
-            throwException();
-            Thread.sleep(1);
-        }
+    public static void main(String[] args) {
+        throwException();
     }
 }
