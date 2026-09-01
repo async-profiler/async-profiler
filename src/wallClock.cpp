@@ -28,7 +28,7 @@ const long long MIN_INTERVAL = 100000;
 const u64 IDLE_THRESHOLD_NS = 10000;
 
 // Maximum amount of CPU time a thread may spend to be eligible for wall clock event batching.
-const u64 BATCH_CPU_THRESHOLD_NS = 200000;
+const u64 BATCH_CPU_THRESHOLD_NS = 500000;
 
 // How many skipped idle samples can be recorded in a single WallClock event.
 const u32 MAX_IDLE_BATCH = 1000;
@@ -245,15 +245,19 @@ void WallClock::timerLoop() {
                 MutexLocker ml(_thread_sleep_state_lock);
                 ThreadSleepState& tss = _thread_sleep_state[thread_id];
                 if (enabled && tss.last_cpu_time != 0) {
-                    u64 new_thread_cpu_time = OS::threadCpuTime(thread_id);
+                    u64 cpu_time_delta = OS::threadCpuTime(thread_id) - tss.last_cpu_time;
                     // Fast check: thread has not spent enough CPU time since last sampling
-                    bool idle = new_thread_cpu_time - tss.last_cpu_time <= IDLE_THRESHOLD_NS;
+                    bool idle = cpu_time_delta <= IDLE_THRESHOLD_NS;
                     // 2nd level check: thread spent some CPU time, but is now blocked on the same syscall
-                    if (!idle && new_thread_cpu_time - tss.last_cpu_time <= BATCH_CPU_THRESHOLD_NS &&
-                            OS::threadFingerprint(thread_id) == tss.fingerprint) {
-                        tss.last_cpu_time = new_thread_cpu_time;
+                    if (!idle && cpu_time_delta <= BATCH_CPU_THRESHOLD_NS &&
+                            tss.fingerprint != 0 && OS::threadFingerprint(thread_id) == tss.fingerprint) {
+                        tss.last_cpu_time += cpu_time_delta;
                         idle = true;
                     }
+                    // Fingerprint check is one-shot protection from EINTR wakeup.
+                    // We still need to detect genuine wakeups.
+                    tss.fingerprint = 0;
+
                     if (idle) {
                         tss.last_time = TSC::ticks();
                         if (++tss.counter < MAX_IDLE_BATCH) {
