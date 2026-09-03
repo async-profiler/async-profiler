@@ -70,6 +70,8 @@ static const char USAGE_STRING[] =
     "\n"
     "  --loop time         run profiler in a loop\n"
     "  --alloc bytes       allocation profiling interval in bytes\n"
+    "  --allocsamples N    target average allocation samples per second;\n"
+    "                      sampling interval adapts automatically (0 to disable)\n"
     "  --tlab              use TLAB events for allocation profiling\n"
     "  --live              build allocation profile from live objects only\n"
     "  --nativemem bytes   native allocation profiling interval in bytes\n"
@@ -507,7 +509,7 @@ int main(int argc, const char** argv) {
         } else if (arg == "--reverse" || arg == "--inverted" || arg == "--samples" || arg == "--total") {
             format << "," << (arg.str() + 2);
 
-        } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||
+        } else if (arg == "--alloc" || arg == "--allocsamples" || arg == "--nativemem" || arg == "--nativelock" || arg == "--lock" ||
                    arg == "--wall" || arg == "--trace" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
                    arg == "--target-cpu" || arg == "--proc" || arg == "--memlimit" ||
