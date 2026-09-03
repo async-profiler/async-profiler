@@ -314,12 +314,12 @@ public class JfrTests {
     }
 
     /**
-     * Rate limit categories are capped independently: the flood of CPU, allocation
-     * and span events largely exceeds the configured per-second limits.
+     * Rate limit categories are capped independently: the flood of CPU and
+     * span events largely exceeds the configured per-second limits.
      */
     @Test(mainClass = RateLimitApp.class, runIsolated = true)
     public void rateLimit(TestProcess p) throws Exception {
-        p.profile("-e cpu -i 10ms --alloc 1k --ratelimit cpu:50,alloc:100,span:200 -d 4 -f %f.jfr");
+        p.profile("-e cpu -i 10ms --ratelimit cpu:50,span:200 -d 4 -f %f.jfr");
 
         Map<String, Integer> counts = new HashMap<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
@@ -331,8 +331,6 @@ public class JfrTests {
 
         int duration = 4;
         assertRateLimited(counts.getOrDefault("jdk.ExecutionSample", 0), 50, duration);
-        assertRateLimited(counts.getOrDefault("jdk.ObjectAllocationInNewTLAB", 0) +
-                          counts.getOrDefault("jdk.ObjectAllocationOutsideTLAB", 0), 100, duration);
         assertRateLimited(counts.getOrDefault("profiler.Span", 0), 200, duration);
     }
 

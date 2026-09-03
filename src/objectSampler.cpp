@@ -9,7 +9,8 @@
 #include "tsc.h"
 
 
-u64 ObjectSampler::_interval;
+volatile u64 ObjectSampler::_interval;
+IntervalRateLimiter ObjectSampler::_rate_limiter;
 bool ObjectSampler::_live;
 volatile u64 ObjectSampler::_allocated_bytes;
 
@@ -125,6 +126,7 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
                                        jobject object, jclass object_klass, jlong size) {
     if (_enabled) {
         recordAllocation(jvmti, jni, ALLOC_SAMPLE, object, object_klass, size);
+        jvmti->SetHeapSamplingInterval(_interval);
     }
 }
 
@@ -150,6 +152,8 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
     if (_live && trace != 0 && object != NULL) {
         live_refs.add(jni, object, size, trace);
     }
+
+    _rate_limiter.update(_interval, event._total_size);
 }
 
 void ObjectSampler::initLiveRefs(bool live) {
@@ -167,6 +171,7 @@ void ObjectSampler::dumpLiveRefs() {
 
 Error ObjectSampler::start(Arguments& args) {
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
+    _rate_limiter.start(args, EC_ALLOC, _interval);
 
     initLiveRefs(args._live);
 

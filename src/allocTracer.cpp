@@ -14,7 +14,8 @@ int AllocTracer::_trap_kind;
 Trap AllocTracer::_in_new_tlab(0);
 Trap AllocTracer::_outside_tlab(1);
 
-u64 AllocTracer::_interval;
+volatile u64 AllocTracer::_interval;
+IntervalRateLimiter AllocTracer::_rate_limiter;
 volatile u64 AllocTracer::_allocated_bytes;
 
 
@@ -84,7 +85,7 @@ void AllocTracer::recordAllocation(void* ucontext, EventType event_type, uintptr
                                    uintptr_t total_size, uintptr_t instance_size) {
     AllocEvent event;
     event._start_time = TSC::ticks();
-    event._total_size = total_size;
+    event._total_size = total_size > _interval ? total_size : _interval;
     event._instance_size = instance_size;
 
     if (VMStructs::hasClassNames()) {
@@ -92,7 +93,8 @@ void AllocTracer::recordAllocation(void* ucontext, EventType event_type, uintptr
         event.setClassName(symbol->body(), symbol->length());
     }
 
-    Profiler::instance()->recordSample(ucontext, total_size, event_type, &event);
+    Profiler::instance()->recordSample(ucontext, event._total_size, event_type, &event);
+    _rate_limiter.update(_interval, event._total_size);
 }
 
 Error AllocTracer::start(Arguments& args) {
@@ -106,6 +108,7 @@ Error AllocTracer::start(Arguments& args) {
     if (error) return error;
 
     _interval = args._alloc > 0 ? args._alloc : 0;
+    _rate_limiter.start(args, EC_ALLOC, _interval);
     _allocated_bytes = 0;
 
     if (!_in_new_tlab.install() || !_outside_tlab.install()) {
