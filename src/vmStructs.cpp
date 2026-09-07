@@ -62,6 +62,7 @@ int VMStructs::_nmethod_state_offset = -1;
 int VMStructs::_nmethod_level_offset = -1;
 int VMStructs::_nmethod_metadata_offset = -1;
 int VMStructs::_nmethod_immutable_offset = -1;
+int VMStructs::_nmethod_immutable_size_offset = -1;
 int VMStructs::_method_constmethod_offset = -1;
 int VMStructs::_method_code_offset = -1;
 int VMStructs::_constmethod_constants_offset = -1;
@@ -214,6 +215,8 @@ void VMStructs::initOffsets() {
                     _nmethod_metadata_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_immutable_data") == 0) {
                     _nmethod_immutable_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_immutable_data_size") == 0) {
+                    _nmethod_immutable_size_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_scopes_pcs_offset") == 0) {
                     _scopes_pcs_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_scopes_data_offset") == 0) {
@@ -520,8 +523,10 @@ void VMStructs::resolveOffsets() {
     }
 
     // Since JDK 23, _metadata_offset is relative to _data_offset. See metadata()
-    if (_nmethod_immutable_offset < 0) {
+    if (VM::hotspot_version() < 23) {
         _data_offset = 0;
+    } else {
+        _nmethod_immutable_size_offset = -1;
     }
 
     _has_stack_structs = _has_method_structs

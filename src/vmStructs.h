@@ -88,6 +88,7 @@ class VMStructs {
     static int _nmethod_level_offset;
     static int _nmethod_metadata_offset;
     static int _nmethod_immutable_offset;
+    static int _nmethod_immutable_size_offset;
     static int _method_constmethod_offset;
     static int _method_code_offset;
     static int _constmethod_constants_offset;
@@ -466,7 +467,10 @@ class NMethod : VMStructs {
     }
 
     const char* immutableDataAt(int offset) {
-        if (_nmethod_immutable_offset > 0) {
+        // _nmethod_immutable_size_offset is armed only for pre-23 layouts (Dragonwell 11) that may
+        // keep immutable data inline; size 0 then means _immutable_data is a mere placeholder.
+        if (_nmethod_immutable_offset > 0 &&
+            (_nmethod_immutable_size_offset < 0 || *(int*) at(_nmethod_immutable_size_offset) > 0)) {
             return *(const char**) at(_nmethod_immutable_offset) + offset;
         }
         return at(offset);
