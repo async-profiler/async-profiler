@@ -28,6 +28,7 @@ const int DW_REG_SP = 7;
 const int DW_REG_PC = 16;
 const int EMPTY_FRAME_SIZE = DW_STACK_SLOT;
 const int LINKED_FRAME_SIZE = 2 * DW_STACK_SLOT;
+const int LINKED_FRAME_CLANG_SIZE = LINKED_FRAME_SIZE;
 const int INITIAL_PC_OFFSET = -EMPTY_FRAME_SIZE;
 
 #elif defined(__i386__)
@@ -39,6 +40,7 @@ const int DW_REG_SP = 4;
 const int DW_REG_PC = 8;
 const int EMPTY_FRAME_SIZE = DW_STACK_SLOT;
 const int LINKED_FRAME_SIZE = 2 * DW_STACK_SLOT;
+const int LINKED_FRAME_CLANG_SIZE = LINKED_FRAME_SIZE;
 const int INITIAL_PC_OFFSET = -EMPTY_FRAME_SIZE;
 
 #elif defined(__aarch64__)
@@ -50,6 +52,12 @@ const int DW_REG_SP = 31;
 const int DW_REG_PC = 30;
 const int EMPTY_FRAME_SIZE = 0;
 const int LINKED_FRAME_SIZE = 0;
+// On aarch64, GCC uses the link register (x30) directly and sets LINKED_FRAME_SIZE = 0.
+// Clang, however, emits an explicit frame record: `stp x29, x30, [sp, #-16]!` followed
+// by `mov x29, sp`, creating a 16-byte (2 * DW_STACK_SLOT) frame on the stack.
+// See AAPCS64 §6.2.3 "The Frame Pointer" and DWARF .eh_frame CIE differences between
+// GCC (DW_CFA_val_expression for x30) and clang (DW_CFA_offset for x29+x30 at CFA-16).
+const int LINKED_FRAME_CLANG_SIZE = 2 * DW_STACK_SLOT;
 const int INITIAL_PC_OFFSET = DW_LINK_REGISTER;
 
 #else
@@ -61,6 +69,7 @@ const int DW_REG_SP = 1;
 const int DW_REG_PC = 2;
 const int EMPTY_FRAME_SIZE = 0;
 const int LINKED_FRAME_SIZE = 0;
+const int LINKED_FRAME_CLANG_SIZE = LINKED_FRAME_SIZE;
 const int INITIAL_PC_OFFSET = DW_LINK_REGISTER;
 
 #endif
@@ -74,6 +83,7 @@ struct FrameDesc {
 
     static FrameDesc empty_frame;
     static FrameDesc default_frame;
+    static FrameDesc default_clang_frame;
 
     static int comparator(const void* p1, const void* p2) {
         FrameDesc* fd1 = (FrameDesc*)p1;
