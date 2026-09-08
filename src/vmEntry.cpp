@@ -250,6 +250,14 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_tag_objects = 1;
     _jvmti->AddCapabilities(&capabilities);
 
+    // Request value object support if available (JDK 28+ / Valhalla).
+    // This is needed so that SampledObjectAlloc events are fired for value class instances.
+    // AddCapabilities silently ignores unsupported capabilities on older JDKs.
+    jvmtiCapabilities value_caps = {0};
+    // can_support_value_objects is bit 45 (0-indexed) in jvmtiCapabilities
+    ((unsigned int*)&value_caps)[1] |= (1u << 13);
+    _jvmti->AddCapabilities(&value_caps);
+
     jvmtiEventCallbacks callbacks = {0};
     callbacks.VMInit = VMInit;
     callbacks.VMDeath = VMDeath;
