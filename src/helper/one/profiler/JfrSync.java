@@ -57,7 +57,7 @@ class JfrSync implements FlightRecorderListener {
         if (settings.startsWith("+")) {
             recording = new Recording();
             for (StringTokenizer st = new StringTokenizer(settings, "+"); st.hasMoreTokens(); ) {
-                recording.enable(st.nextToken());
+                enableEvent(recording, st.nextToken());
             }
         } else {
             try {
@@ -74,6 +74,25 @@ class JfrSync implements FlightRecorderListener {
         recording.setToDisk(true);
         recording.setDumpOnExit(true);
         recording.start();
+    }
+
+    private static void enableEvent(Recording recording, String event) {
+        int separator = event.indexOf('#');
+        if (separator < 0) {
+            recording.enable(event);
+            return;
+        }
+
+        int equals = event.indexOf('=', separator + 1);
+        if (equals < 0) {
+            event += '=';
+            equals = event.length() - 1;
+        }
+
+        String eventName = event.substring(0, separator);
+        String settingName = event.substring(separator + 1, equals);
+        String settingValue = event.substring(equals + 1);
+        recording.enable(eventName).with(settingName, settingValue);
     }
 
     public static boolean stop() {
