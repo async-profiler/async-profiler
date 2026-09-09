@@ -260,7 +260,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     // this is just ignored and no harm is done.
     jvmtiCapabilities value_caps = {0};
     // can_support_value_objects is bit 45 (0-indexed) in jvmtiCapabilities
-    ((unsigned int*)&value_caps)[1] |= (1u << 13);
+    ((unsigned int*)&value_caps)[1] = (1u << 13);
     _jvmti->AddCapabilities(&value_caps);
 
     jvmtiEventCallbacks callbacks = {0};
