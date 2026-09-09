@@ -252,7 +252,12 @@ bool VM::init(JavaVM* vm, bool attach) {
 
     // Request value object support if available (JDK 28+ / Valhalla).
     // This is needed so that SampledObjectAlloc events are fired for value class instances.
-    // AddCapabilities silently ignores unsupported capabilities on older JDKs.
+    // AddCapabilities is deliberately called separately for value classes,
+    // because it returns JVMTI_ERROR_NOT_AVAILABLE on older versions.
+    // So, keeping a separate call only for value classes means that
+    // any errors reported here don't impact the rest of capabilities set above.
+    // The returned value of AddCapabilities below is ignored so if an error value is returned,
+    // this is just ignored and no harm is done.
     jvmtiCapabilities value_caps = {0};
     // can_support_value_objects is bit 45 (0-indexed) in jvmtiCapabilities
     ((unsigned int*)&value_caps)[1] |= (1u << 13);
