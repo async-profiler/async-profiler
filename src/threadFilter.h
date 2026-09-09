@@ -6,6 +6,7 @@
 #ifndef _THREADFILTER_H
 #define _THREADFILTER_H
 
+#include <stddef.h>
 #include <vector>
 #include "arch.h"
 #include "matcher.h"
