@@ -75,7 +75,7 @@ public class FlameGraph implements Comparator<Frame> {
         Frame[] levels = new Frame[128];
         int level = 0;
         long total = 0;
-        boolean needRebuild = args.reverse || args.include != null || args.exclude != null;
+        boolean needRebuild = args.reverse || args.skip > 0 || args.include != null || args.exclude != null;
 
         try (BufferedReader br = new BufferedReader(in)) {
             for (String line; !(line = br.readLine()).startsWith("const cpool"); ) {
