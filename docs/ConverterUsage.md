@@ -79,7 +79,8 @@ JFR options:
                        # an absolute time in hh:mm:ss or yyyy-MM-dd'T'hh:mm:ss format;
                        # a relative time from the beginning of recording;
                        # a relative time from the end of recording (a negative number).
-    --latency MS       Retain only samples within MethodTraces of at least MS milliseconds
+    --latency MS       Retain only samples within same-thread spans of at least MS milliseconds
+    --tag REGEX        Retain only samples within same-thread spans whose entire tag matches REGEX
 
 Flame Graph options:
     --title STRING     Convert to Flame Graph with provided title
@@ -101,6 +102,21 @@ See the [profiler options documentation](ProfilerOptions.md#options-applicable-t
 
 `jfrconv` utility is provided in `bin` directory of the async-profiler package.
 It requires JRE to be installed on the system.
+
+### Filter by span tag
+
+`--tag` uses Java regular expressions and matches the entire tag. For example,
+`--tag 'http\..*'` matches tags starting with `http.`, and `--tag 'read|write'`
+matches either `read` or `write`. Use `.*request.*` to match tags containing `request`.
+Spans with a null tag and untagged MethodTrace events are excluded when `--tag` is specified.
+When combined with `--latency`, both filters must match the same span.
+
+```
+jfrconv --tag 'http\..*' --latency 100 profile.jfr http.html
+```
+
+To match a literal tag containing regex metacharacters, escape them or quote the
+whole tag with `\Q` and `\E`, for example `--tag '\Qhttp.request[0]\E'`.
 
 ### Generate Flame Graph from JFR
 

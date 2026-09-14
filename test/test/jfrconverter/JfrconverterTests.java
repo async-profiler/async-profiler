@@ -10,14 +10,17 @@ import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.Event;
 import one.jfr.event.EventCollector;
+import one.jfr.event.SpanEvent;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 import test.otlp.CpuBurner;
+import test.span.SpanApp;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.regex.PatternSyntaxException;
 
 // Simple smoke tests for JFR converter. The output is not inspected for errors,
 // we only verify that the conversion completes successfully.
@@ -76,6 +79,51 @@ public class JfrconverterTests {
             assert found[1];
             assert found[2];
             assert !found[3];
+        }
+    }
+
+    @Test(mainClass = SpanApp.class, agentArgs = "start,jfr,wall,file=%f")
+    public void tagFilter(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        String file = p.getFilePath("%f");
+        checkTagFilter(file, new Arguments("--tag", "busyRequest"), "busyRequest");
+        checkTagFilter(file, new Arguments("--tag", "busy.*"), "busyRequest", "busyOptional");
+        checkTagFilter(file, new Arguments("--tag", "busyRequest|idleNormal"), "busyRequest", "idleNormal");
+        checkTagFilter(file, new Arguments("--tag", "\\QbusyRequest\\E"), "busyRequest");
+        checkTagFilter(file, new Arguments("--tag", "busy"));
+        checkTagFilter(file, new Arguments("--tag", "missing"));
+        checkTagFilter(file, new Arguments("--tag", ".*"),
+                "busyRequest", "idleRequest", "busyOptional", "idleOptional", "idleNormal");
+        checkTagFilter(file, new Arguments("--tag", "busy.*", "--latency", "200"), "busyRequest");
+
+        try {
+            new Arguments("--tag", "[");
+            throw new AssertionError("Invalid tag regex was accepted");
+        } catch (PatternSyntaxException expected) {
+            // Invalid patterns fail during argument parsing, before reading the recording.
+        }
+    }
+
+    private static void checkTagFilter(String file, Arguments args, String... expectedTags) throws IOException {
+        try (JfrReader jfr = new JfrReader(file)) {
+            int[] checked = new int[1];
+            JfrConverter converter = new JfrConverter(jfr, args) {
+                @Override
+                protected void collectEvents(Filter filter) throws IOException {
+                    for (SpanEvent span; (span = jfr.readEvent(SpanEvent.class)) != null; ) {
+                        if (span.duration == 0) continue;
+                        long time = jfr.eventTimeToNanos(span.time + span.duration / 2);
+                        boolean expected = Arrays.asList(expectedTags).contains(span.tag());
+                        assert filter.matches(span.tid, time) == expected : "Unexpected match for tag " + span.tag();
+                        assert !filter.matches(-1, time) : "Matched a different thread";
+                        checked[0]++;
+                    }
+                }
+            };
+            converter.convert();
+            assert checked[0] > 0 : "No spans checked";
         }
     }
 
