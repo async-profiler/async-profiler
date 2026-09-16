@@ -80,7 +80,7 @@ JFR options:
                        # a relative time from the beginning of recording;
                        # a relative time from the end of recording (a negative number).
     --latency MS       Retain only samples within same-thread spans of at least MS milliseconds
-    --tag REGEX        Retain only samples within same-thread spans whose entire tag matches REGEX
+    --tag REGEX        Retain only samples within same-thread spans whose tag matches REGEX
 
 Flame Graph options:
     --title STRING     Convert to Flame Graph with provided title
