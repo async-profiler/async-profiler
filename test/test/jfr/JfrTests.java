@@ -206,7 +206,10 @@ public class JfrTests {
     }
 
     @Test(mainClass = ExceptionThrow.class,
-            agentArgs = "start,event=cpu,jfrsync=+jdk.JavaExceptionThrow#stackTrace=true+jdk.MethodTrace#filter,file=%f.jfr")
+            agentArgs = "start,event=cpu,jfrsync=+jdk.JavaExceptionThrow,file=%f.jfr", nameSuffix = "defaultStackTrace")
+    @Test(mainClass = ExceptionThrow.class,
+            agentArgs = "start,event=cpu,jfrsync=+jdk.JavaExceptionThrow#threshold=0ns+jdk.MethodTrace#filter,file=%f.jfr",
+            nameSuffix = "eventSettings")
     public void jfrSyncEventSettings(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
