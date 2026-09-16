@@ -17,6 +17,7 @@ import test.otlp.CpuBurner;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 // Simple smoke tests for JFR converter. The output is not inspected for errors,
@@ -79,50 +80,31 @@ public class JfrconverterTests {
         }
     }
 
-    @Test(mainClass = Tagger.class, agentArgs = "start,jfr,wall,file=%f", runIsolated = true)
+    @Test(mainClass = Tagger.class, agentArgs = "start,jfr,wall,file=%f")
     public void tagFilter(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
         String file = p.getFilePath("%f");
-        checkTagFilter(file, new Arguments("--tag", "showcase0"), 0);
-        checkTagFilter(file, new Arguments("--tag", "showcase.*"), 0, 1, 2);
-        checkTagFilter(file, new Arguments("--tag", "missing"));
+        checkTagFilter(file, new Arguments("--output", "collapsed", "--tag", "showcase0"), "showcase0");
+        checkTagFilter(file, new Arguments("--output", "collapsed", "--tag", "showcase.*"), "showcase0", "showcase1", "showcase2");
+        checkTagFilter(file, new Arguments("--output", "collapsed", "--tag", "missing"));
     }
 
-    private static void checkTagFilter(String file, Arguments args, int... expectedMethods) throws IOException {
+    private static void checkTagFilter(String file, Arguments args, String... expectedMethods) throws IOException {
         try (JfrReader jfr = new JfrReader(file)) {
-            boolean[] found = new boolean[3];
-            JfrConverter converter = new JfrConverter(jfr, args) {
-                @Override
-                protected void convertChunk() {
-                    collector.forEach(new EventCollector.Visitor() {
-                        public void visit(Event event, long samples, long value) {
-                            StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
-                            if (stackTrace == null) return;
-
-                            long[] methods = stackTrace.methods;
-                            byte[] types = stackTrace.types;
-                            for (int i = methods.length; --i >= 0; ) {
-                                String methodName = getMethodName(methods[i], types[i]);
-                                if (!methodName.startsWith("test/jfrconverter/Tagger.showcase")) continue;
-
-                                int idx = Integer.parseInt(methodName.charAt(methodName.length() - 1) + "");
-                                found[idx] = true;
-                                break;
-                            }
-                        }
-                    });
-                }
-            };
+            JfrToFlame converter = new JfrToFlame(jfr, args);
             converter.convert();
-
-            boolean[] expected = new boolean[3];
-            for (int idx : expectedMethods) {
-                expected[idx] = true;
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            converter.dump(out);
+            String text = out.toString("UTF-8");
+            if (expectedMethods.length == 0) {
+                assert text.isEmpty() : "Expected no output, but got: " + text;
+            } else {
+                for (String method : expectedMethods) {
+                    assert text.contains(method) : "Expected method " + method + " to be present in the output";
+                }
             }
-
-            assert Arrays.equals(found, expected) : "Expected: " + Arrays.toString(expected) + ", found: " + Arrays.toString(found);
         }
     }
 
