@@ -205,11 +205,10 @@ public class JfrTests {
         assert events.contains("jdk.NativeLibrary");
     }
 
-    @Test(mainClass = ExceptionThrow.class,
-            agentArgs = "start,event=cpu,jfrsync=+jdk.JavaExceptionThrow,file=%f.jfr", nameSuffix = "defaultStackTrace")
-    @Test(mainClass = ExceptionThrow.class,
-            agentArgs = "start,event=cpu,jfrsync=+jdk.JavaExceptionThrow#threshold=0ns+jdk.MethodTrace#filter,file=%f.jfr",
-            nameSuffix = "eventSettings")
+    @Test(mainClass = ExceptionThrow.class, nameSuffix = "default",
+            agentArgs = "start,event=cpu,jfrsync=+jdk.JavaExceptionThrow,file=%f.jfr")
+    @Test(mainClass = ExceptionThrow.class, nameSuffix = "withStackTrace",
+            agentArgs = "start,event=cpu,jfrsync=+jdk.JavaExceptionThrow#stackTrace=true+jdk.MethodTrace#filter,file=%f.jfr")
     public void jfrSyncEventSettings(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -220,8 +219,12 @@ public class JfrTests {
                 RecordedEvent event = recordingFile.readEvent();
                 if (event.getEventType().getName().equals("jdk.JavaExceptionThrow")
                         && ExceptionThrow.MESSAGE.equals(event.getString("message"))) {
-                    assert event.getStackTrace() != null;
-                    assert event.getStackTrace().toString().contains("test.jfr.ExceptionThrow.throwException");
+                    if (p.test().nameSuffix().equals("withStackTrace")) {
+                        assert event.getStackTrace() != null;
+                        assert event.getStackTrace().toString().contains("test.jfr.ExceptionThrow.throwException");
+                    } else {
+                        assert event.getStackTrace() == null;
+                    }
                     found = true;
                     break;
                 }
