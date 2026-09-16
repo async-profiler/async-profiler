@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 // Simple smoke tests for JFR converter. The output is not inspected for errors,
 // we only verify that the conversion completes successfully.
@@ -84,28 +85,21 @@ public class JfrconverterTests {
     public void tagFilter(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
-
         String file = p.getFilePath("%f");
-        checkTagFilter(file, new Arguments("--output", "collapsed", "--tag", "showcase0"), "showcase0");
-        checkTagFilter(file, new Arguments("--output", "collapsed", "--tag", "showcase.*"), "showcase0", "showcase1", "showcase2");
-        checkTagFilter(file, new Arguments("--output", "collapsed", "--tag", "missing"));
-    }
 
-    private static void checkTagFilter(String file, Arguments args, String... expectedMethods) throws IOException {
-        try (JfrReader jfr = new JfrReader(file)) {
-            JfrToFlame converter = new JfrToFlame(jfr, args);
-            converter.convert();
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            converter.dump(out);
-            String text = out.toString("UTF-8");
-            if (expectedMethods.length == 0) {
-                assert text.isEmpty() : "Expected no output, but got: " + text;
-            } else {
-                for (String method : expectedMethods) {
-                    assert text.contains(method) : "Expected method " + method + " to be present in the output";
-                }
-            }
-        }
+        String pattern1 = "showcase0";
+        Output out1 = Output.convertJfrToCollapsed(file, "--output", "collapsed", "--tag", pattern1);
+        assert out1.stream().count() == 1;
+        assert out1.stream().allMatch(line -> line.contains(pattern1));
+
+        String pattern2 = "showcase.*";
+        Output out2 = Output.convertJfrToCollapsed(file, "--output", "collapsed", "--tag", pattern2);
+        assert out2.stream().count() == 3;
+        assert out2.stream().allMatch(line -> Pattern.compile(pattern2).matcher(line).find());
+
+        String pattern3 = "missing";
+        Output out3 = Output.convertJfrToCollapsed(file, "--output", "collapsed", "--tag", pattern3);
+        assert out3.stream().filter(s -> !"".equals(s)).count() == 0;
     }
 
     @Test(mainClass = Main.class, args = "--diff test/test/jfrconverter/sample1.collapsed test/test/jfrconverter/sample2.collapsed %diff.collapsed")
