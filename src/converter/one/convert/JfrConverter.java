@@ -61,9 +61,10 @@ public abstract class JfrConverter extends Classifier {
         jfr.stopAtNewChunk = true;
         while (jfr.hasMoreChunks()) {
             long minLatencyTicks = (long) (args.latency * (jfr.ticksPerSec / 1e9));
-            String requiredTag = args.tag;
+            Pattern requiredTag = args.tag;
             for (IntervalEvent event; (event = jfr.readEvent(IntervalEvent.class)) != null; found = true) {
-                if (event.duration >= minLatencyTicks && (requiredTag == null || requiredTag.equals(event.tag()))) {
+                if (event.duration >= minLatencyTicks && (requiredTag == null
+                        || event.tag() != null && requiredTag.matcher(event.tag()).matches())) {
                     TreeMap<Long, Integer> threadDeltas = deltas.computeIfAbsent(event.tid, k -> new TreeMap<>());
                     threadDeltas.merge(jfr.eventTimeToNanos(event.time), 1, Integer::sum);
                     threadDeltas.merge(jfr.eventTimeToNanos(event.time + event.duration), -1, Integer::sum);

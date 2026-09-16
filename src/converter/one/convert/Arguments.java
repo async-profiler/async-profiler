@@ -47,7 +47,7 @@ public class Arguments {
     public long from;
     public long to;
     public long latency = -1;
-    public String tag;
+    public Pattern tag;
     public final List<String> files = new ArrayList<>();
 
     public Arguments(String... args) {

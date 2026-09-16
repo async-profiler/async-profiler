@@ -79,6 +79,24 @@ public class JfrconverterTests {
         }
     }
 
+    @Test(mainClass = Tagger.class, agentArgs = "start,jfr,wall,file=%f")
+    public void tagFilter(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+        String file = p.getFilePath("%f");
+
+        Output out1 = Output.convertJfrToCollapsed(file, "--tag", "showcase0");
+        assert out1.stream().count() == 1;
+        assert out1.containsExact("showcase0") && !out1.containsExact("showcase1") && !out1.containsExact("showcase2");
+
+        Output out2 = Output.convertJfrToCollapsed(file, "--tag", "showcase.*");
+        assert out2.stream().count() == 3;
+        assert out2.containsExact("showcase0") && out2.containsExact("showcase1") && out2.containsExact("showcase2");
+
+        Output out3 = Output.convertJfrToCollapsed(file, "--tag", "missing");
+        assert out3.toString().isEmpty();
+    }
+
     @Test(mainClass = Main.class, args = "--diff test/test/jfrconverter/sample1.collapsed test/test/jfrconverter/sample2.collapsed %diff.collapsed")
     public void diffCollapsed(TestProcess p) throws Exception {
         Output out = p.waitForExit("%diff");
