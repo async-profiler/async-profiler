@@ -122,7 +122,6 @@ class Profiler {
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
     void updateNativeThreadNames();
-    void applyThreadFilter();
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(Arguments& args);
     Engine* selectAllocEngine(bool tlab);

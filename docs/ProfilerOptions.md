@@ -59,7 +59,7 @@ The below options are `action`s for async-profiler and common for both `asprof` 
 | `--nostop`           | `nostop`           | Record profiling window between `--begin` and `--end`, but do not stop profiling outside window.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `--memlimit SIZE`    | `memlimit=SIZE`    | Limit memory used by the call trace storage. Once the limit is exceeded, no new stack traces will be recorded. The lowest possible limit is 10 MB; the default is unlimited.<br>Example: `asprof -e cpu --memlimit 128m`                                                                                                                                                                                                                                                                                                                    |
 | `--libpath PATH`     | N/A                | Full path to `libasyncProfiler.so` (useful when profiling a container from the host).                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `--filter`           | `filter`           | Restrict wall clock sampling to threads added with `AsyncProfiler.addThread()`.<br>See [Thread Filter Appendix](#thread-filter).                                                                                                                                                                                                                                                                                                                                                                                                            |
+| N/A                  | `filter`           | In wall clock mode, profile only threads added with `AsyncProfiler.addThread()`.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `--ithread PATTERN`  | `ithread=PATTERN`  | Restrict wall clock sampling to threads whose name matches `PATTERN` ([Pattern Syntax](#pattern-syntax)). Can be repeated.<br>Example: `asprof -e wall --ithread 'http-*' 8983`<br>See [Thread Filter Appendix](#thread-filter).                                                                                                                                                                                                                                                                                                            |
 | `--xthread PATTERN`  | `xthread=PATTERN`  | Exclude threads whose name matches `PATTERN` ([Pattern Syntax](#pattern-syntax)) from wall clock sampling. Can be repeated.<br>Example: `asprof -e wall --xthread '*gradle*' 8983`<br>See [Thread Filter Appendix](#thread-filter).                                                                                                                                                                                                                                                                                                         |
 | `--fdtransfer`       | `fdtransfer`       | Run a background process that provides access to perf_events to an unprivileged process. `--fdtransfer` is useful for profiling a process in a container (which lacks access to perf_events) from the host.<br>See [Profiling Java in a container](ProfilingInContainer.md).                                                                                                                                                                                                                                                                |
@@ -133,8 +133,7 @@ It is possible to specify multiple dump options at the same time.
 
 ### Pattern Syntax
 
-A pattern matches the name of a thread or stack frame. Patterns may be prefixed or
-suffixed with a wildcard `*`. The wildcard denotes any (possibly empty) sequence of
+A pattern matches the name of a thread or stack frame. Patterns are case-sensitive, and may be prefixed or suffixed with a wildcard `*`. The wildcard denotes any (possibly empty) sequence of
 characters.
 
 ### Thread Filter
@@ -142,8 +141,9 @@ characters.
 `--ithread PATTERN` and `--xthread PATTERN` restrict wall clock sampling to a subset of
 threads. Thread names are matched against a [Pattern](#pattern-syntax): `--ithread` includes
 matching threads, `--xthread` excludes them. Patterns are matched against thread name at
-profiling start or thread creation; later renames are ignored. `--filter` enables filtering
-without patterns: no threads are sampled until added with `AsyncProfiler.addThread()`.
+profiling start or thread creation; later renames are ignored. The `filter` option, available
+through the API only, enables filtering without patterns: no threads are sampled until added
+with `AsyncProfiler.addThread()`.
 These options have no effect unless wall clock profiling is enabled.
 
 | Options given           | Threads sampled                                 |

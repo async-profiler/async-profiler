@@ -79,7 +79,6 @@ static const char USAGE_STRING[] =
     "  --nativelock time   pthread mutex/rwlock profiling threshold in nanoseconds\n"
     "  --wall interval     wall clock profiling interval\n"
     "  --nobatch           legacy wall clock sampling without batch events\n"
-    "  --filter            in wall clock mode, profile only threads registered via the API\n"
     "  --ithread pattern   in wall clock mode, profile only threads matching the name pattern\n"
     "  --xthread pattern   in wall clock mode, skip threads matching the name pattern\n"
     "  --proc interval     process sampling interval (default: 30s)\n"
@@ -516,7 +515,7 @@ int main(int argc, const char** argv) {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--all" || arg == "--live" || arg == "--nobatch" || arg == "--nofree" || arg == "--nostop" ||
-                   arg == "--record-cpu" || arg == "--sched" || arg == "--tlab" || arg == "--ttsp" || arg == "--filter") {
+                   arg == "--record-cpu" || arg == "--sched" || arg == "--tlab" || arg == "--ttsp") {
             params << "," << (arg.str() + 2);
 
         } else if (arg == "--all-user") {

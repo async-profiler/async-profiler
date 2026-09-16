@@ -25,10 +25,8 @@ ThreadBitSet::~ThreadBitSet() {
 
 void ThreadFilter::init(bool enabled, const std::vector<const char*>& include, const std::vector<const char*>& exclude) {
     clear();
-
     _include.assign(include.begin(), include.end());
     _exclude.assign(exclude.begin(), exclude.end());
-
     _enabled = enabled;
 }
 
@@ -104,7 +102,7 @@ void ThreadBitSet::collect(std::vector<int>& v) {
     }
 }
 
-bool ThreadFilter::matches(const char* name) {
+bool ThreadFilter::matches(const char* name) const {
     for (size_t i = 0; i < _exclude.size(); i++) {
         if (_exclude[i].matches(name)) {
             return false;
@@ -120,7 +118,7 @@ bool ThreadFilter::matches(const char* name) {
 }
 
 void ThreadFilter::update(int thread_id, const char* name) {
-    if (_include.empty() && _exclude.empty()) {
+    if (!_enabled || (_include.empty() && _exclude.empty())) {
         return;
     }
 

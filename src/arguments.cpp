@@ -301,7 +301,7 @@ Error Arguments::parse(const char* args) {
 
             CASE("ithread")
                 _filter_enabled = true;
-                if (value == NULL || value[0] == 0) {
+                if (value == NULL) {
                     msg = "ithread requires a thread name pattern";
                 } else {
                     _threadfilter_include.push_back(value);
@@ -309,7 +309,7 @@ Error Arguments::parse(const char* args) {
 
             CASE("xthread")
                 _filter_enabled = true;
-                if (value == NULL || value[0] == 0) {
+                if (value == NULL) {
                     msg = "xthread requires a thread name pattern";
                 } else {
                     _threadfilter_exclude.push_back(value);

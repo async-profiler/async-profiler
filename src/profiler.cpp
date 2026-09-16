@@ -710,7 +710,13 @@ void Profiler::setupSignalHandlers() {
 
 void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
     MutexLocker ml(_thread_names_lock);
-    _thread_names[tid] = name;
+    std::map<int, std::string>::iterator it = _thread_names.lower_bound(tid);
+    if (it == _thread_names.end() || it->first != tid) {
+        _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name));
+        _thread_filter.update(tid, name);
+    } else {
+        it->second = name;
+    }
     _thread_ids[tid] = java_thread_id;
 }
 
@@ -722,9 +728,6 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         if (native_thread_id >= 0 && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
             jlong java_thread_id = VMThread::javaThreadId(jni, thread);
             setThreadInfo(native_thread_id, thread_info.name, java_thread_id);
-            if (_thread_filter.enabled()) {
-                _thread_filter.update(native_thread_id, thread_info.name);
-            }
             jvmti->Deallocate((unsigned char*)thread_info.name);
         }
     }
@@ -762,22 +765,13 @@ void Profiler::updateNativeThreadNames() {
             if (it == _thread_names.end() || it->first != tid) {
                 if (OS::threadName(tid, name_buf, sizeof(name_buf))) {
                     _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name_buf));
-                    if (_thread_filter.enabled()) {
-                        _thread_filter.update(tid, name_buf);
-                    }
+                    _thread_filter.update(tid, name_buf);
                 }
-            } else if (_thread_filter.enabled()) {
-                _thread_filter.update(tid, it->second.c_str());
             }
         }
 
         delete thread_list;
     }
-}
-
-void Profiler::applyThreadFilter() {
-    updateJavaThreadNames();
-    updateNativeThreadNames();
 }
 
 Engine* Profiler::selectEngine(Arguments& args) {
@@ -974,8 +968,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         _features.comp_task = 0;
     }
 
-    _update_thread_names = args._threads || args._output == OUTPUT_JFR;
-
     _engine = selectEngine(args);
     if (_engine == &wall_clock && args._wall >= 0) {
         return Error("Cannot start wall clock with the selected event");
@@ -1009,10 +1001,18 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     bool filter_threads = args._filter_enabled && (_engine == &wall_clock || hasEvent(EC_WALL));
+    bool filter_by_name = filter_threads && !(args._threadfilter_include.empty() && args._threadfilter_exclude.empty());
+    _update_thread_names = args._threads || args._output == OUTPUT_JFR || filter_by_name;
+
     _thread_filter.init(filter_threads, args._threadfilter_include, args._threadfilter_exclude);
-    if (filter_threads && !(args._threadfilter_include.empty() && args._threadfilter_exclude.empty())) {
-        _update_thread_names = true;
-        applyThreadFilter();
+    if (filter_by_name) {
+        updateJavaThreadNames();
+        updateNativeThreadNames();
+
+        MutexLocker ml(_thread_names_lock);
+        for (std::map<int, std::string>::iterator it = _thread_names.begin(); it != _thread_names.end(); ++it) {
+            _thread_filter.update(it->first, it->second.c_str());
+        }
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
