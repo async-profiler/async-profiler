@@ -19,7 +19,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 // Simple smoke tests for JFR converter. The output is not inspected for errors,
 // we only verify that the conversion completes successfully.
@@ -95,11 +98,18 @@ public class JfrconverterTests {
         String pattern2 = "showcase.*";
         Output out2 = Output.convertJfrToCollapsed(file, "--output", "collapsed", "--tag", pattern2);
         assert out2.stream().count() == 3;
-        assert out2.stream().allMatch(line -> Pattern.compile(pattern2).matcher(line).find());
+        Pattern methodPattern = Pattern.compile("showcase\\d+");
+        String[] actual = out2.stream().map(line -> {
+            Matcher m = methodPattern.matcher(line);
+            assert m.find();
+            return m.group();
+        }).sorted().toArray(String[]::new);
+        String[] expected = new String[]{"showcase0", "showcase1", "showcase2"};
+        assert Arrays.equals(actual, expected): "Expected: " + Arrays.toString(expected) + ", actual: " + Arrays.toString(actual);
 
         String pattern3 = "missing";
         Output out3 = Output.convertJfrToCollapsed(file, "--output", "collapsed", "--tag", pattern3);
-        assert out3.stream().filter(s -> !"".equals(s)).count() == 0;
+        assert "".equals(out3.toString());
     }
 
     @Test(mainClass = Main.class, args = "--diff test/test/jfrconverter/sample1.collapsed test/test/jfrconverter/sample2.collapsed %diff.collapsed")
