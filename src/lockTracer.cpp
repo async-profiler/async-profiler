@@ -215,9 +215,12 @@ void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean 
         _orig_unsafe_park(env, instance, isAbsolute, time);
         u64 park_end_time = TSC::ticks();
 
-        const u64 duration = park_end_time - park_start_time;
-        if (updateCounter(_total_duration, duration, _interval)) {
-            recordContendedLock(PARK_SAMPLE, park_start_time, park_end_time, lock_name, park_blocker, time);
+        // Profiling session might have been stopped or restarted while the thread was parked
+        if (_enabled && park_start_time >= _start_time) {
+            const u64 duration = park_end_time - park_start_time;
+            if (updateCounter(_total_duration, duration, _interval)) {
+                recordContendedLock(PARK_SAMPLE, park_start_time, park_end_time, lock_name, park_blocker, time);
+            }
         }
 
         jvmti->Deallocate((unsigned char*)lock_name);
@@ -252,19 +255,11 @@ bool LockTracer::isConcurrentLock(const char* lock_name) {
 void LockTracer::recordContendedLock(EventType event_type, u64 start_time, u64 end_time,
                                      const char* lock_name, jobject lock, jlong timeout) {
     LockEvent event;
-    event._class_id = 0;
     event._start_time = start_time;
     event._end_time = end_time;
     event._address = *(uintptr_t*)lock;
     event._timeout = timeout;
-
-    if (lock_name != NULL) {
-        if (lock_name[0] == 'L') {
-            event._class_id = Profiler::instance()->classMap()->lookup(lock_name + 1, strlen(lock_name) - 2);
-        } else {
-            event._class_id = Profiler::instance()->classMap()->lookup(lock_name);
-        }
-    }
+    event.setClassSignature(lock_name);
 
     u64 duration_nanos = (u64)((end_time - start_time) * _ticks_to_nanos);
     Profiler::instance()->recordSample(NULL, duration_nanos, event_type, &event);
