@@ -20,11 +20,13 @@ static pthread_key_t lock_tracer_tls = (pthread_key_t)0;
 INCLUDE_HELPER_CLASS(LOCK_TRACER_NAME, LOCK_TRACER_CLASS, "one/profiler/LockTracer")
 
 
+constexpr u64 NOT_STARTED = (u64)-1;
+
 bool LockTracer::_initialized = false;
 double LockTracer::_ticks_to_nanos;
 u64 LockTracer::_interval;
 volatile u64 LockTracer::_total_duration;  // for interval sampling
-u64 LockTracer::_start_time = 0;
+u64 LockTracer::_start_time = NOT_STARTED;
 
 jclass LockTracer::_Unsafe = NULL;
 jclass LockTracer::_LockTracer = NULL;
@@ -53,10 +55,11 @@ Error LockTracer::start(Arguments& args) {
         _initialized = true;
     }
 
+    _start_time = TSC::ticks();
+
     // Enable Java Monitor events
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
-    _start_time = TSC::ticks();
 
     // Intercept Unsafe.park() for tracing contended ReentrantLocks
     setUnsafeParkEntry(env, UnsafeParkHook);
@@ -70,6 +73,8 @@ void LockTracer::stop() {
     // Disable Java Monitor events
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
+
+    _start_time = NOT_STARTED;
 
     // We don't reset the Unsafe::park hook due to JDK-8369219
 }
@@ -171,7 +176,7 @@ void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, j
     }
 
     // Time is meaningless if lock attempt has started before profiling
-    if (enter_time < _start_time) {
+    if (enter_time <= _start_time) {
         return;
     }
 
@@ -198,7 +203,7 @@ jint JNICALL LockTracer::RegisterNativesHook(JNIEnv* env, jclass cls, const JNIN
 }
 
 void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean isAbsolute, jlong time) {
-    while (_enabled) {
+    while (_enabled && _start_time != NOT_STARTED) {
         jvmtiEnv* jvmti = VM::jvmti();
         jobject park_blocker = getParkBlocker(jvmti, env);
         if (park_blocker == NULL) {
@@ -216,7 +221,7 @@ void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean 
         u64 park_end_time = TSC::ticks();
 
         // Profiling session might have been stopped or restarted while the thread was parked
-        if (_enabled && park_start_time >= _start_time) {
+        if (_enabled && park_start_time > _start_time) {
             const u64 duration = park_end_time - park_start_time;
             if (updateCounter(_total_duration, duration, _interval)) {
                 recordContendedLock(PARK_SAMPLE, park_start_time, park_end_time, lock_name, park_blocker, time);
