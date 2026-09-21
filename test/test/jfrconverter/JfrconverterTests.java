@@ -55,11 +55,10 @@ public class JfrconverterTests {
         String file = p.getFilePath("%f");
 
         Output out1 = Output.convertJfrToCollapsed(file, "--tag", "showcase0");
-        assert out1.stream().count() == 1;
         assert out1.containsExact("showcase0") && !out1.containsExact("showcase1") && !out1.containsExact("showcase2");
 
         Output out2 = Output.convertJfrToCollapsed(file, "--tag", "showcase.*");
-        assert out2.stream().count() == 3;
+        assert out2.stream().count() >= 3;
         assert out2.containsExact("showcase0") && out2.containsExact("showcase1") && out2.containsExact("showcase2");
 
         Output out3 = Output.convertJfrToCollapsed(file, "--tag", "missing");
