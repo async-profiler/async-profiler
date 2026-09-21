@@ -21,7 +21,7 @@ public class JfrconverterTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,all,file=%f")
     public void heatmapConversion(TestProcess p) throws Exception {
-        p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
         JfrToHeatmap.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--alloc"));
         JfrToHeatmap.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--cpu"));
@@ -29,7 +29,7 @@ public class JfrconverterTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,all,file=%f")
     public void flamegraphConversion(TestProcess p) throws Exception {
-        p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
         JfrToFlame.convert(p.getFilePath("%f"), "/dev/null", new Arguments());
         JfrToFlame.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--alloc"));
@@ -37,7 +37,7 @@ public class JfrconverterTests {
 
     @Test(mainClass = Tracer.class, agentArgs = "start,jfr,wall=20ms,trace=test.jfrconverter.Tracer.traceMethod,file=%f", runIsolated = true)
     public void latencyFilter(TestProcess p) throws Exception {
-        p.waitForExit("%f");
+        p.waitForExit();
         assert p.exitCode() == 0;
 
         long minLatency = Tracer.TRACE_DURATION_MS - 10;
