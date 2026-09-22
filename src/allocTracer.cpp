@@ -84,13 +84,12 @@ void AllocTracer::recordAllocation(void* ucontext, EventType event_type, uintptr
                                    uintptr_t total_size, uintptr_t instance_size) {
     AllocEvent event;
     event._start_time = TSC::ticks();
-    event._class_id = 0;
     event._total_size = total_size;
     event._instance_size = instance_size;
 
     if (VMStructs::hasClassNames()) {
         VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
-        event._class_id = Profiler::instance()->classMap()->lookup(symbol->body(), symbol->length());
+        event.setClassName(symbol->body(), symbol->length());
     }
 
     Profiler::instance()->recordSample(ucontext, total_size, event_type, &event);
