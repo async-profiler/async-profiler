@@ -1110,24 +1110,26 @@ class Recording {
     }
 
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
+        u32 class_id = event->classId();
         int start = buf->skip(1);
         buf->put8(T_ALLOC_IN_NEW_TLAB);
         buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar32(class_id);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_total_size);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
+        u32 class_id = event->classId();
         int start = buf->skip(1);
         buf->put8(T_ALLOC_OUTSIDE_TLAB);
         buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar32(class_id);
         buf->putVar64(event->_total_size);
         buf->put8(start, buf->offset() - start);
     }
@@ -1199,38 +1201,41 @@ class Recording {
     }
 
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
+        u32 class_id = event->classId();
         int start = buf->skip(1);
         buf->put8(T_LIVE_OBJECT);
         buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar32(class_id);
         buf->putVar64(event->_alloc_size);
         buf->putVar64(event->_alloc_time);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
+        u32 class_id = event->classId();
         int start = buf->skip(1);
         buf->put8(T_MONITOR_ENTER);
         buf->putVar64(event->_start_time);
         buf->putVar64(event->_end_time - event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar32(class_id);
         buf->put8(0);
         buf->putVar64(event->_address);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordThreadPark(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
+        u32 class_id = event->classId();
         int start = buf->skip(1);
         buf->put8(T_THREAD_PARK);
         buf->putVar64(event->_start_time);
         buf->putVar64(event->_end_time - event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar32(class_id);
         buf->putVar64(event->_timeout);
         buf->putVar64(MIN_JLONG);
         buf->putVar64(event->_address);

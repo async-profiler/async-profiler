@@ -418,7 +418,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     int num_frames = 0;
     if (_add_event_frame && event_type >= ALLOC_SAMPLE && event_type <= PARK_SAMPLE) {
-        u32 class_id = ((EventWithClassId*)event)->_class_id;
+        u32 class_id = ((EventWithClass*)event)->classId();
         if (class_id != 0) {
             // Convert event_type to frame_type, e.g. ALLOC_SAMPLE -> BCI_ALLOC
             jint frame_type = BCI_ALLOC - (event_type - ALLOC_SAMPLE);

@@ -52,6 +52,8 @@ class RateLimit {
     static bool allow(EventType event_type) {
         int category = EVENT_TO_CATEGORY(event_type);
         if (_enabled_categories & (1 << category)) {
+            // Unmapped events resolve to the category that is never enabled
+            if (category >= EC_CATEGORIES) __builtin_unreachable();
             return atomicDec(_budget[category].budget) > 0;
         }
         return true;
