@@ -140,11 +140,12 @@ characters.
 
 `--ithread PATTERN` and `--xthread PATTERN` restrict wall clock sampling to a subset of
 threads. Thread names are matched against a [Pattern](#pattern-syntax): `--ithread` includes
-matching threads, `--xthread` excludes them. Patterns are matched against thread name at
-profiling start or thread creation; later renames are ignored. The `filter` option, available
-through the API only, enables filtering without patterns: no threads are sampled until added
-with `AsyncProfiler.addThread()`.
+matching threads, `--xthread` excludes them. Patterns are matched at profiling start, when a
+Java thread starts, and on each dump. The `filter` option, available through the API only,
+enables filtering without patterns: no threads are sampled until added with
+`AsyncProfiler.addThread()`.
 These options have no effect unless wall clock profiling is enabled.
+Note: combining `ithread`/`xthread` with `addThread()`/`removeThread()` is not supported.
 
 | Options given           | Threads sampled                                 |
 | ----------------------- | ----------------------------------------------- |

@@ -24,7 +24,6 @@ ThreadBitSet::~ThreadBitSet() {
 }
 
 void ThreadFilter::init(bool enabled, const std::vector<const char*>& include, const std::vector<const char*>& exclude) {
-    clear();
     _include.assign(include.begin(), include.end());
     _exclude.assign(exclude.begin(), exclude.end());
     _enabled = enabled;

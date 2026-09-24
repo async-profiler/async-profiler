@@ -183,8 +183,8 @@ class Arguments {
     const char* _loglevel;
     const char* _unknown_arg;
     bool _filter_enabled;
-    std::vector<const char*> _threadfilter_include;
-    std::vector<const char*> _threadfilter_exclude;
+    std::vector<const char*> _threads_include;
+    std::vector<const char*> _threads_exclude;
     std::vector<const char*> _include;
     std::vector<const char*> _exclude;
     unsigned char _mcache;
@@ -249,8 +249,8 @@ class Arguments {
         _loglevel(NULL),
         _unknown_arg(NULL),
         _filter_enabled(false),
-        _threadfilter_include(),
-        _threadfilter_exclude(),
+        _threads_include(),
+        _threads_exclude(),
         _include(),
         _exclude(),
         _mcache(0),
