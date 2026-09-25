@@ -133,16 +133,10 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
 }
 
 void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_thread_filter.enabled()) {
-        _thread_filter.remove(OS::threadId());
-    }
     updateThreadName(jvmti, jni, thread);
 }
 
 void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_thread_filter.enabled()) {
-        _thread_filter.remove(OS::threadId());
-    }
     updateThreadName(jvmti, jni, thread);
 }
 
@@ -578,6 +572,11 @@ int Profiler::pthread_setspecific_hook(pthread_key_t key, const void* value) {
         return 0;
     }
 
+    Profiler* profiler = instance();
+    if (profiler->_thread_filter.enabled()) {
+        profiler->_thread_filter.remove(OS::threadId());
+    }
+
     if (value != NULL) {
         int result = pthread_setspecific(key, value);
         // Workaround for #1743: the second call repairs TLS if it was corrupted by the nested pthread_getspecific
@@ -723,6 +722,7 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         if (native_thread_id >= 0 && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
             jlong java_thread_id = VMThread::javaThreadId(jni, thread);
             setThreadInfo(native_thread_id, thread_info.name, java_thread_id);
+            _thread_filter.update(native_thread_id, thread_info.name);
             jvmti->Deallocate((unsigned char*)thread_info.name);
         }
     }
@@ -731,18 +731,20 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 void Profiler::updateJavaThreadNames() {
     if (_update_thread_names && VM::loaded()) {
         jvmtiEnv* jvmti = VM::jvmti();
+        JNIEnv* jni = VM::jni();
+        jni->PushLocalFrame(64);
+
         jint thread_count;
         jthread* thread_objects;
-        if (jvmti->GetAllThreads(&thread_count, &thread_objects) != 0) {
-            return;
+        if (jvmti->GetAllThreads(&thread_count, &thread_objects) == 0) {
+            for (int i = 0; i < thread_count; i++) {
+                updateThreadName(jvmti, jni, thread_objects[i]);
+            }
+
+            jvmti->Deallocate((unsigned char*)thread_objects);
         }
 
-        JNIEnv* jni = VM::jni();
-        for (int i = 0; i < thread_count; i++) {
-            updateThreadName(jvmti, jni, thread_objects[i]);
-        }
-
-        jvmti->Deallocate((unsigned char*)thread_objects);
+        jni->PopLocalFrame(NULL);
     }
 }
 
@@ -758,6 +760,7 @@ void Profiler::updateNativeThreadNames() {
             if (it == _thread_names.end() || it->first != tid) {
                 if (OS::threadName(tid, name_buf, sizeof(name_buf))) {
                     _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name_buf));
+                    _thread_filter.update(tid, name_buf);
                 }
             }
         }
@@ -960,9 +963,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         _features.comp_task = 0;
     }
 
-    _update_thread_names = args._threads || args._output == OUTPUT_JFR;
-    _thread_filter.init(args._filter);
-
     _engine = selectEngine(args);
     if (_engine == &wall_clock && args._wall >= 0) {
         return Error("Cannot start wall clock with the selected event");
@@ -993,6 +993,16 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("agct feature is incompatible with cstack=vm");
     } else if (_cstack != CSTACK_VM && _features.mixed) {
         return Error("mixed feature is only allowed with VMStructs stack walking");
+    }
+
+    bool filter_threads = args._filter_enabled && (_engine == &wall_clock || hasEvent(EC_WALL));
+    bool filter_by_name = filter_threads && !(args._threads_include.empty() && args._threads_exclude.empty());
+    _update_thread_names = args._threads || args._output == OUTPUT_JFR || filter_by_name;
+
+    _thread_filter.init(filter_threads, args._threads_include, args._threads_exclude);
+    if (filter_by_name) {
+        updateJavaThreadNames();
+        updateNativeThreadNames();
     }
 
     // Kernel symbols are useful only for perf_events without --all-user

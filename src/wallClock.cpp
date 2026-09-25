@@ -233,7 +233,7 @@ void WallClock::timerLoop() {
                 // On macOS, task_threads() may sporadically return 0 or -1 among thread IDs
                 continue;
             }
-            if (thread_filter_enabled && !thread_filter->accept(thread_id)) {
+            if (thread_filter_enabled && !thread_filter->contains(thread_id)) {
                 continue;
             }
 

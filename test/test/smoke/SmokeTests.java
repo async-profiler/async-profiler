@@ -33,6 +33,30 @@ public class SmokeTests {
         assert out.contains("\\[RenamedThread tid=[0-9]+];.*Threads.methodForRenamedThread;.*");
     }
 
+    @Test(mainClass = Threads.class,
+            agentArgs = "start,event=wall,ithread=ThreadWillBe*,collapsed,file=%f")
+    public void threadNameFilter(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert out.contains("Threads.methodForRenamedThread");
+        assert !out.contains("Threads.methodForThreadEarlyEnd");
+    }
+
+    @Test(mainClass = Threads.class,
+            agentArgs = "start,event=wall,xthread=ThreadWillBe*,collapsed,file=%f")
+    public void threadNameFilterExclude(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert !out.contains("Threads.methodForRenamedThread");
+        assert out.contains("Threads.methodForThreadEarlyEnd");
+    }
+
+    @Test(mainClass = Threads.class,
+            agentArgs = "start,event=wall,ithread=Thread*,xthread=ThreadWillBe*,collapsed,file=%f")
+    public void threadNameFilterIncludeExclude(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert out.contains("Threads.methodForThreadEarlyEnd");
+        assert !out.contains("Threads.methodForRenamedThread");
+    }
+
     @Test(mainClass = LoadLibrary.class)
     public void loadLibrary(TestProcess p) throws Exception {
         p.profile("-f %f -o collapsed -d 4 -i 1ms");
