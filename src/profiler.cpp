@@ -762,8 +762,6 @@ void Profiler::updateNativeThreadNames() {
                     _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name_buf));
                     _thread_filter.update(tid, name_buf);
                 }
-            } else {
-                _thread_filter.update(tid, it->second.c_str());
             }
         }
 
