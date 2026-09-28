@@ -145,7 +145,6 @@ Java thread starts, and on each dump. The `filter` option, available through the
 enables filtering without patterns: no threads are sampled until added with
 `AsyncProfiler.addThread()`.
 These options have no effect unless wall clock profiling is enabled.
-Note: combining `ithread`/`xthread` with `addThread()`/`removeThread()` is not supported.
 
 | Options given           | Threads sampled                                 |
 | ----------------------- | ----------------------------------------------- |
