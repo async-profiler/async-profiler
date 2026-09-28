@@ -133,11 +133,11 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
 }
 
 void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    updateThreadName(jvmti, jni, thread);
+    updateThreadName(jvmti, jni, thread, true);
 }
 
 void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    updateThreadName(jvmti, jni, thread);
+    updateThreadName(jvmti, jni, thread, false);
 }
 
 void Profiler::onGarbageCollectionFinish() {
@@ -714,7 +714,7 @@ void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
     _thread_ids[tid] = java_thread_id;
 }
 
-void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, bool initial) {
     if (_update_thread_names) {
         JitWriteProtection jit(true);  // workaround for JDK-8262896
         jvmtiThreadInfo thread_info;
@@ -722,13 +722,13 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         if (native_thread_id >= 0 && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
             jlong java_thread_id = VMThread::javaThreadId(jni, thread);
             setThreadInfo(native_thread_id, thread_info.name, java_thread_id);
-            _thread_filter.update(native_thread_id, thread_info.name);
+            _thread_filter.update(native_thread_id, thread_info.name, initial);
             jvmti->Deallocate((unsigned char*)thread_info.name);
         }
     }
 }
 
-void Profiler::updateJavaThreadNames() {
+void Profiler::updateJavaThreadNames(bool initial) {
     if (_update_thread_names && VM::loaded()) {
         jvmtiEnv* jvmti = VM::jvmti();
         JNIEnv* jni = VM::jni();
@@ -738,7 +738,7 @@ void Profiler::updateJavaThreadNames() {
         jthread* thread_objects;
         if (jvmti->GetAllThreads(&thread_count, &thread_objects) == 0) {
             for (int i = 0; i < thread_count; i++) {
-                updateThreadName(jvmti, jni, thread_objects[i]);
+                updateThreadName(jvmti, jni, thread_objects[i], initial);
             }
 
             jvmti->Deallocate((unsigned char*)thread_objects);
@@ -760,7 +760,7 @@ void Profiler::updateNativeThreadNames() {
             if (it == _thread_names.end() || it->first != tid) {
                 if (OS::threadName(tid, name_buf, sizeof(name_buf))) {
                     _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name_buf));
-                    _thread_filter.update(tid, name_buf);
+                    _thread_filter.update(tid, name_buf, true);
                 }
             }
         }
@@ -1001,7 +1001,7 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _thread_filter.init(filter_threads, args._threads_include, args._threads_exclude);
     if (filter_by_name) {
-        updateJavaThreadNames();
+        updateJavaThreadNames(true);
         updateNativeThreadNames();
     }
 
@@ -1131,7 +1131,7 @@ Error Profiler::stop(bool restart) {
 
     switchLibcHooks(false);
     switchThreadEvents(JVMTI_DISABLE);
-    updateJavaThreadNames();
+    updateJavaThreadNames(false);
     updateNativeThreadNames();
 
     // Make sure no periodic events sent after JFR stops
@@ -1159,7 +1159,7 @@ Error Profiler::flushJfr() {
         return Error("Profiler is not active");
     }
 
-    updateJavaThreadNames();
+    updateJavaThreadNames(false);
     updateNativeThreadNames();
     if (hasEvent(EC_WALL)) wall_clock.flush();
 
@@ -1179,7 +1179,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
     }
 
     if (_state == RUNNING) {
-        updateJavaThreadNames();
+        updateJavaThreadNames(false);
         updateNativeThreadNames();
         if (hasEvent(EC_WALL)) wall_clock.flush();
     }

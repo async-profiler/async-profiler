@@ -119,8 +119,8 @@ class Profiler {
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     void setThreadInfo(int tid, const char* name, jlong java_thread_id);
-    void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
-    void updateJavaThreadNames();
+    void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, bool initial);
+    void updateJavaThreadNames(bool initial);
     void updateNativeThreadNames();
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(Arguments& args);

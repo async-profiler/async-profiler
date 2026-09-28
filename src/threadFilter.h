@@ -71,8 +71,7 @@ class ThreadFilter : public ThreadBitSet {
 
     void init(bool enabled, const std::vector<const char*>& include, const std::vector<const char*>& exclude);
 
-    bool matches(const char* name) const;
-    void update(int thread_id, const char* name);
+    void update(int thread_id, const char* name, bool initial);
 };
 
 #endif // _THREADFILTER_H

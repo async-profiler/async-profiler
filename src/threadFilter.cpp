@@ -101,29 +101,28 @@ void ThreadBitSet::collect(std::vector<int>& v) {
     }
 }
 
-bool ThreadFilter::matches(const char* name) const {
+void ThreadFilter::update(int thread_id, const char* name, bool initial) {
+    if (!_enabled) {
+        return;
+    }
+
     for (size_t i = 0; i < _exclude.size(); i++) {
         if (_exclude[i].matches(name)) {
-            return false;
+            remove(thread_id);
+            return;
         }
     }
 
     for (size_t i = 0; i < _include.size(); i++) {
         if (_include[i].matches(name)) {
-            return true;
+            add(thread_id);
+            return;
         }
     }
-    return _include.empty();
-}
 
-void ThreadFilter::update(int thread_id, const char* name) {
-    if (!_enabled || (_include.empty() && _exclude.empty())) {
-        return;
-    }
-
-    if (matches(name)) {
+    // Apply the default exclude-only filter to new threads only
+    // to avoid overwriting bits set manually using addThread/removeThread API.
+    if (initial && _include.empty() && !_exclude.empty()) {
         add(thread_id);
-    } else {
-        remove(thread_id);
     }
 }
