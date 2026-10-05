@@ -54,6 +54,7 @@ JFR options:
     --wall             Generate only Wall clock profile during conversion
     --alloc            Generate only Allocation profile during conversion
     --live             Build allocation profile from live objects only during conversion
+    --mmap             Generate native memory mapping profile (HTML/collapsed)
     --nativemem        Generate native memory allocation profile
     --leak             Only include memory leaks in nativemem
     --tail RATIO       Ignore tail allocations for leak profiling (10% by default)

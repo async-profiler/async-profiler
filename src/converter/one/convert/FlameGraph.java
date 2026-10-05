@@ -359,7 +359,7 @@ public class FlameGraph implements Comparator<Frame> {
 
     private String getValueUnits() {
         if (args.total) {
-            if (args.nativemem || args.alloc || args.live) return "bytes";
+            if (args.mmap || args.nativemem || args.alloc || args.live) return "bytes";
             if (args.lock || args.nativelock || args.trace) return "ns";
         }
         return "samples";

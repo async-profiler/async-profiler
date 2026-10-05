@@ -101,6 +101,7 @@ enum EventCategory {
     EC_NATIVELOCK,  // profiler.NativeLock
     EC_TRACE,       // jdk.MethodTrace
     EC_SPAN,        // profiler.Span
+    EC_MMAP,        // profiler.Mmap, profiler.Munmap
     EC_CATEGORIES
 };
 
@@ -169,6 +170,7 @@ class Arguments {
     size_t _mem_limit;
     long _interval;
     long _alloc;
+    bool _mmap;
     long _nativemem;
     long _lock;
     long _nativelock;
@@ -235,6 +237,7 @@ class Arguments {
         _mem_limit(0),
         _interval(0),
         _alloc(-1),
+        _mmap(false),
         _nativemem(-1),
         _lock(-1),
         _nativelock(-1),
@@ -314,6 +317,7 @@ class Arguments {
                (_alloc      >= 0    ? 1 << EC_ALLOC      : 0) |
                (_lock       >= 0    ? 1 << EC_LOCK       : 0) |
                (_wall       >= 0    ? 1 << EC_WALL       : 0) |
+               (_mmap              ? 1 << EC_MMAP       : 0) |
                (_nativemem  >= 0    ? 1 << EC_NATIVEMEM  : 0) |
                (_nativelock >= 0    ? 1 << EC_NATIVELOCK : 0) |
                (!_trace.empty()     ? 1 << EC_TRACE      : 0);

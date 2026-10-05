@@ -24,6 +24,7 @@
 #include "processSampler.h"
 #include "profiler.h"
 #include "rateLimit.h"
+#include "mmapTracer.h"
 #include "spinLock.h"
 #include "symbols.h"
 #include "threadFilter.h"
@@ -62,6 +63,7 @@ static constexpr unsigned char JFR_TYPE_FOR_CATEGORY[EC_CATEGORIES] = {
     T_NATIVE_LOCK,        // EC_NATIVELOCK
     T_METHOD_TRACE,       // EC_TRACE
     T_SPAN,               // EC_SPAN
+    T_MMAP,               // EC_MMAP
 };
 
 
@@ -241,6 +243,7 @@ class Recording {
     static char* _jvm_flags;
     static char* _java_command;
 
+    bool _mmap_recording;
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
     int _memfd;
@@ -295,6 +298,7 @@ class Recording {
         writeHeader(_buf);
         writeMetadata(_buf);
         writeRecordingInfo(_buf);
+        _mmap_recording = args._mmap;
         writeSettings(_buf, args);
         if (!args.hasOption(NO_SYSTEM_INFO)) {
             writeOsCpuInfo(_buf);
@@ -348,6 +352,7 @@ class Recording {
         flush(&_monitor_buf);
         flush(&_proc_buf);
 
+        if (_mmap_recording) writeIntSetting(_buf, T_MMAP, "mmapDroppedEvents", MmapTracer::dropped());
         writeNativeLibraries(_buf);
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
@@ -679,6 +684,7 @@ class Recording {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "wall", args._wall);
             writeBoolSetting(buf, T_EXECUTION_SAMPLE, "nobatch", args._nobatch);
         }
+        if (args._mmap) writeIntSetting(buf, T_MMAP, "mmap", 1);
         if (args._nativemem >= 0) {
             writeIntSetting(buf, T_MALLOC, "nativemem", args._nativemem);
         }
@@ -1134,6 +1140,17 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordMmapSample(Buffer* buf, int tid, u32 call_trace_id, MmapEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(event->_unmap ? T_MUNMAP : T_MMAP);
+        buf->putVar64(event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar64(event->_address);
+        buf->putVar64(event->_size);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordMallocSample(Buffer* buf, int tid, u32 call_trace_id, MallocEvent* event) {
         int start = buf->skip(1);
         buf->put8(event->_size != 0 ? T_MALLOC : T_FREE);
@@ -1502,6 +1519,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case WALL_CLOCK_SAMPLE:
                 _rec->recordWallClockSample(buf, tid, call_trace_id, (WallClockEvent*)event);
+                break;
+            case MMAP_SAMPLE:
+                _rec->recordMmapSample(buf, tid, call_trace_id, (MmapEvent*)event);
                 break;
             case MALLOC_SAMPLE:
                 _rec->recordMallocSample(buf, tid, call_trace_id, (MallocEvent*)event);

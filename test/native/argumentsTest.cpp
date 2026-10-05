@@ -137,3 +137,20 @@ TEST_CASE(Parse_ratelimit_invalid) {
         ASSERT_EQ(strcmp(error.message(), "Invalid ratelimit"), 0);
     }
 }
+
+TEST_CASE(Parse_mmap_is_separate_from_malloc_and_cpu) {
+    Arguments args;
+    char command[] = "start,event=mmap,file=maps.jfr";
+    ASSERT_EQ((bool)args.parse(command), false);
+    ASSERT_EQ(args._mmap, true);
+    ASSERT_EQ(args._event, (const char*)NULL);
+    ASSERT_EQ(args._nativemem, -1);
+    ASSERT_EQ(args.eventMask(), 1 << EC_MMAP);
+}
+
+TEST_CASE(Parse_mmap_can_record_alongside_malloc) {
+    Arguments args;
+    char command[] = "start,mmap,nativemem,file=maps.jfr";
+    ASSERT_EQ((bool)args.parse(command), false);
+    ASSERT_EQ(args.eventMask(), (1 << EC_MMAP) | (1 << EC_NATIVEMEM));
+}

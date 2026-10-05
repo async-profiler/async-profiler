@@ -78,6 +78,8 @@ public class JfrReader implements Closeable {
     private int monitorEnter;
     private int threadPark;
     private int activeSetting;
+    private int mmap;
+    private int munmap;
     private int malloc;
     private int free;
     private int cpuTimeSample;
@@ -219,6 +221,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls.isAssignableFrom(SpanEvent.class)) return (E) readSpan();
             } else if (type == methodTrace) {
                 if (cls == null || cls.isAssignableFrom(MethodTrace.class)) return (E) readMethodTrace();
+            } else if (type == mmap || type == munmap) {
+                if (cls == null || cls == MappingEvent.class) return (E) readMappingEvent(type == munmap);
             } else if (type == malloc) {
                 if (cls == null || cls == MallocEvent.class) return (E) readMallocEvent(true);
             } else if (type == free) {
@@ -309,6 +313,15 @@ public class JfrReader implements Closeable {
         int stackTraceId = getVarint();
         long address = getVarlong();
         return new NativeLockEvent(time, tid, stackTraceId, address, duration);
+    }
+
+    private MappingEvent readMappingEvent(boolean unmap) {
+        long time = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        long address = getVarlong();
+        long size = getVarlong();
+        return new MappingEvent(time, tid, stackTraceId, address, size, unmap);
     }
 
     private MallocEvent readMallocEvent(boolean hasSize) {
@@ -646,6 +659,8 @@ public class JfrReader implements Closeable {
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
         activeSetting = getTypeId("jdk.ActiveSetting");
+        mmap = getTypeId("profiler.Mmap");
+        munmap = getTypeId("profiler.Munmap");
         malloc = getTypeId("profiler.Malloc");
         free = getTypeId("profiler.Free");
         cpuTimeSample = getTypeId("jdk.CPUTimeSample");

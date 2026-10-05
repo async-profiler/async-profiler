@@ -247,7 +247,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
     }
 
     // Show extended frame types and stub frames for execution-type events
-    bool details = event_type <= MALLOC_SAMPLE || features.mixed;
+    bool details = event_type <= MALLOC_SAMPLE || event_type == MMAP_SAMPLE || features.mixed;
 
     JavaFrameAnchor* anchor = NULL;
     VMThread* vm_thread = VMThread::current();
@@ -436,7 +436,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
             const char* method_name = native_lib != NULL ? native_lib->binarySearch(pc) : NULL;
             char mark;
             if (method_name != NULL && (mark = NativeFunc::mark(method_name)) != 0) {
-                if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
+                if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE || event_type == MMAP_SAMPLE)) {
                     // Skip all internal frames above hook functions, leave the hook itself
                     depth = 0;
                 } else if (mark == MARK_COMPILER_ENTRY && features.comp_task && vm_thread != NULL) {

@@ -19,6 +19,7 @@
 #include "ctimer.h"
 #include "allocTracer.h"
 #include "mallocTracer.h"
+#include "mmapTracer.h"
 #include "lockTracer.h"
 #include "nativeLockTracer.h"
 #include "wallClock.h"
@@ -58,6 +59,7 @@ static Engine noop_engine;
 static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
 static MallocTracer malloc_tracer;
+static MmapTracer mmap_tracer;
 static LockTracer lock_tracer;
 static NativeLockTracer native_lock_tracer;
 static ObjectSampler object_sampler;
@@ -94,6 +96,7 @@ static inline int hasNativeStack(EventType event_type) {
         (1 << WALL_CLOCK_SAMPLE)  |
         (1 << NATIVE_LOCK_SAMPLE) |
         (1 << MALLOC_SAMPLE)      |
+        (1 << MMAP_SAMPLE)        |
         (1 << ALLOC_SAMPLE)       |
         (1 << ALLOC_OUTSIDE_TLAB);
     return (1 << event_type) & events_with_native_stack;
@@ -320,11 +323,11 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
         const char* current_method_name = findNativeMethod(callchain[i]);
         char mark;
         if (current_method_name != NULL && (mark = NativeFunc::mark(current_method_name)) != 0) {
-            if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {
+            if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE && event_type != MMAP_SAMPLE) {
                 // Skip all internal frames above VM runtime entry for allocation samples
                 depth = 0;
                 continue;
-            } else if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE)) {
+            } else if (mark == MARK_ASYNC_PROFILER && (event_type == MALLOC_SAMPLE || event_type == NATIVE_LOCK_SAMPLE || event_type == MMAP_SAMPLE)) {
                 // Skip all internal frames above the *_hook functions. Include the hook function itself.
                 depth = 0;
             } else if (mark == MARK_INTERPRETER) {
@@ -438,7 +441,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     if (_features.mixed) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, _features, event_type);
-    } else if (event_type <= MALLOC_SAMPLE) {
+    } else if (event_type <= MALLOC_SAMPLE || event_type == MMAP_SAMPLE) {
         if (_cstack == CSTACK_VM) {
             num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, lock_index, _features, event_type);
         } else {
@@ -530,9 +533,9 @@ void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call
     }
 }
 
-void Profiler::recordEventOnly(EventType event_type, Event* event) {
+bool Profiler::recordEventOnly(EventType event_type, Event* event) {
     if (!_jfr.active() || !RateLimit::allow(event_type)) {
-        return;
+        return false;
     }
 
     int tid = OS::threadId();
@@ -540,7 +543,9 @@ void Profiler::recordEventOnly(EventType event_type, Event* event) {
     if (lock_index >= 0) {
         _jfr.recordEvent(lock_index, tid, 0, event_type, event);
         unlock(lock_index);
+        return true;
     }
+    return false;
 }
 
 void Profiler::tryResetCounters() {
@@ -557,6 +562,7 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
     if (result != NULL) {
         instance()->updateSymbols(false);
         MallocTracer::installHooks();
+        MmapTracer::installHooks();
         NativeLockTracer::installHooks();
     }
     return result;
@@ -817,6 +823,8 @@ Engine* Profiler::activeEngine() {
             return &lock_tracer;
         case 1 << EC_WALL:
             return &wall_clock;
+        case 1 << EC_MMAP:
+            return &mmap_tracer;
         case 1 << EC_NATIVEMEM:
             return &malloc_tracer;
         case 1 << EC_NATIVELOCK:
@@ -884,6 +892,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
+    if (args._mmap && (args._output != OUTPUT_JFR || args._jfr_sync || !args._trace.empty() ||
+        (args._event && strchr(args._event, '.')))) {
+        return Error("mmap requires standalone JFR output and cannot be combined with method tracing");
+    }
     _event_mask = args.eventMask();
 
     if (_event_mask == 0) {
@@ -1066,6 +1078,15 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    if (hasEvent(EC_MMAP)) {
+        error = mmap_tracer.start(args);
+        if (error) {
+            mmap_tracer.stop();
+            if (hasEvent(EC_TRACE)) instrument.stop();
+            goto error7;
+        }
+    }
+
     switchThreadEvents(JVMTI_ENABLE);
 
     _state = RUNNING;
@@ -1120,6 +1141,7 @@ Error Profiler::stop(bool restart) {
 
     uninstallTraps();
 
+    if (hasEvent(EC_MMAP)) mmap_tracer.stop();
     if (hasEvent(EC_WALL)) wall_clock.stop();
     if (hasEvent(EC_LOCK)) lock_tracer.stop();
     if (hasEvent(EC_ALLOC)) _alloc_engine->stop();
@@ -1630,6 +1652,7 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             out << "  " << EVENT_CPU << "\n";
             out << "  " << EVENT_ALLOC << "\n";
             out << "  " << EVENT_NATIVEMEM << "\n";
+            out << "  mmap (libc imports and JNA mappings, JFR only)\n";
             out << "  " << EVENT_LOCK << "\n";
             out << "  " << EVENT_NATIVELOCK << "\n";
             out << "  " << EVENT_WALL << "\n";

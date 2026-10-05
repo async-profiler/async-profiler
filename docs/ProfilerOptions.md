@@ -158,3 +158,5 @@ Example:
 ```
 asprof -e wall -d 30 --ithread '*worker*' --xthread '*gradle*' 8983
 ```
+
+Experimental in this fork: `--mmap` (agent option `mmap`, or `-e mmap`) enables libc-import and JNA memory mapping events, requires JFR output, and accepts no interval. See [coverage and usage](MmapProfiling.md).

@@ -38,6 +38,7 @@ OBJCOPY := $(CROSS_COMPILE)objcopy
 endif
 
 CFLAGS_EXTRA ?=
+STATIC_CPP_RUNTIME ?= true
 CXXFLAGS_EXTRA ?=
 CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
 CXXFLAGS=-O3 -fno-exceptions -fno-rtti -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
@@ -77,7 +78,7 @@ JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 JAR_MANIFEST := src/api/META-INF/MANIFEST.MF
 CONVERTER_SOURCES := $(shell find src/converter -type f)
-TEST_SOURCES := $(shell find test -name '*.java' ! -path 'test/stubs/*')
+TEST_SOURCES := $(shell find test -name '*.java' ! -path 'test/stubs/*' ! -path 'test/mmap/*')
 TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
@@ -104,7 +105,10 @@ ifeq ($(OS),Darwin)
     MERGE=false
   endif
 else
-  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc
+  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL
+  ifeq ($(STATIC_CPP_RUNTIME),true)
+    CXXFLAGS += -static-libstdc++ -static-libgcc
+  endif
   CXXFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections -ggdb -Wunused-variable -Wno-psabi
   ifeq ($(MERGE),true)
     CXXFLAGS += -fwhole-program

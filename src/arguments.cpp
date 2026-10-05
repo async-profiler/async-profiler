@@ -149,6 +149,8 @@ Error Arguments::parse(const char* args) {
                     msg = "event must not be empty";
                 } else if (strcmp(value, EVENT_ALLOC) == 0) {
                     if (_alloc < 0) _alloc = 0;
+                } else if (strcmp(value, "mmap") == 0) {
+                    _mmap = true;
                 } else if (strcmp(value, EVENT_NATIVEMEM) == 0) {
                     if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
@@ -182,6 +184,10 @@ Error Arguments::parse(const char* args) {
 
             CASE("nativemem")
                 _nativemem = value == NULL ? 0 : parseUnits(value, BYTES);
+
+            CASE("mmap")
+                _mmap = true;
+                if (value != NULL) msg = "mmap does not accept an interval";
 
             CASE("nofree")
                 _nofree = true;
@@ -431,7 +437,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _nativelock < 0 && _trace.empty()) {
+    if (!_mmap && _event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _nativelock < 0 && _trace.empty()) {
         _event = EVENT_CPU;
     }
 

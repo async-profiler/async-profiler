@@ -240,6 +240,22 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("samples", T_INT, "Samples", F_UNSIGNED)
                 << field("timeSpan", T_LONG, "Time Span", F_DURATION_TICKS))
 
+            << (type("profiler.Mmap", T_MMAP, "mmap")
+                << category("Java Virtual Machine", "Memory Mappings")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("address", T_LONG, "Address", F_ADDRESS)
+                << field("size", T_LONG, "Mapped Bytes", F_BYTES))
+
+            << (type("profiler.Munmap", T_MUNMAP, "munmap")
+                << category("Java Virtual Machine", "Memory Mappings")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("address", T_LONG, "Address", F_ADDRESS)
+                << field("size", T_LONG, "Mapped Bytes", F_BYTES))
+
             << (type("profiler.Malloc", T_MALLOC, "malloc")
                 << category("Java Virtual Machine", "Native Memory")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)

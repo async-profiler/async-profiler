@@ -26,7 +26,7 @@ class JfrSync implements FlightRecorderListener {
     private static final int EC_CPU        = 0;
     private static final int EC_ALLOC      = 1;
     private static final int EC_LOCK       = 2;
-    private static final int EC_CATEGORIES = 8;
+    private static final int EC_CATEGORIES = 9;
 
     // Keep in sync with JfrOption
     private static final int NO_SYSTEM_INFO  = 1;

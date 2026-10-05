@@ -212,6 +212,12 @@ void CodeCache::addImport(void** entry, const char* name) {
         case 'm':
             if (strcmp(name, "malloc") == 0) {
                 saveImport(im_malloc, entry);
+            } else if (strcmp(name, "mmap") == 0) {
+                saveImport(im_mmap, entry);
+            } else if (strcmp(name, "mmap64") == 0) {
+                saveImport(im_mmap64, entry);
+            } else if (strcmp(name, "munmap") == 0) {
+                saveImport(im_munmap, entry);
             }
             break;
         case 'p':

@@ -345,3 +345,7 @@ asprof --loop 1h -f /var/log/profile-%t.jfr 8983
 | PMU:                                      |                                                                                                                                                                                                                                                    |
 | `-e r<NNN>`                               | Architecture-specific PMU event with the given number. Example: `-e r4d2` selects `MEM_LOAD_L3_HIT_RETIRED.XSNP_HITM` event, which corresponds to event 0xd2, umask 0x4.                                                                           |
 | `-e <pmu descriptor>`                     | PMU event descriptor. Example: `-e cpu/cache-misses/`, `-e cpu/event=0xd2,umask=4/`. The same syntax can be used for uncore and vendor-specific events, e.g. `amd_l3/event=0x01,umask=0x80/`                                                       |
+
+## Experimental JNA memory mappings (this fork)
+
+See [mmap profiling](MmapProfiling.md) for `asprof -e mmap`, JFR capture, and `jfrconv --mmap --leak`. This mode covers libc imports and JNA interface calls; direct syscalls and mremap are not covered.

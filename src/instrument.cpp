@@ -17,6 +17,7 @@
 #include "tsc.h"
 #include "vmEntry.h"
 #include "instrument.h"
+#include "mmapTracer.h"
 
 #define PROFILER_PACKAGE "one/profiler/"
 static constexpr u32 PROFILER_PACKAGE_LEN = 13;
@@ -1238,6 +1239,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
                                            const char* name, jobject protection_domain,
                                            jint class_data_len, const u8* class_data,
                                            jint* new_class_data_len, u8** new_class_data) {
+    if (MmapTracer::transform(jvmti, name, class_data_len, class_data, new_class_data_len, new_class_data)) return;
     // Do not retransform if the profiling has stopped
     if (!_running) return;
 

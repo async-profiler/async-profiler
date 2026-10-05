@@ -25,6 +25,7 @@ enum EventType {
     LIVE_OBJECT,
     LOCK_SAMPLE,
     PARK_SAMPLE,
+    MMAP_SAMPLE,
     PROFILING_WINDOW,
     SPAN,
     USER_EVENT,
@@ -104,6 +105,13 @@ class MallocEvent : public Event {
   public:
     uintptr_t _address;
     u64 _size;
+};
+
+class MmapEvent : public Event {
+  public:
+    uintptr_t _address;
+    u64 _size;
+    bool _unmap;
 };
 
 class SpanEvent : public Event {

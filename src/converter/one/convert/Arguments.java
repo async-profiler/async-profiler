@@ -30,6 +30,7 @@ public class Arguments {
     public boolean cpuTime;
     public boolean wall;
     public boolean alloc;
+    public boolean mmap;
     public boolean nativemem;
     public boolean nativelock;
     public boolean leak;

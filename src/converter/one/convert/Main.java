@@ -143,6 +143,7 @@ public class Main {
                 "     --wall             Wall clock profile\n" +
                 "     --alloc            Allocation profile\n" +
                 "     --live             Live object profile\n" +
+                "     --mmap             Native memory mappings profile\n" +
                 "     --nativemem        malloc profile\n" +
                 "     --leak             Only include memory leaks in nativemem\n" +
                 "     --tail RATIO       Ignore tail allocations for leak profiling (10% by default)\n" +

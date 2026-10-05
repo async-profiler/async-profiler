@@ -29,7 +29,13 @@ public abstract class JfrConverter extends Classifier {
         this.args = args;
 
         EventCollector collector = createCollector(args);
-        this.collector = args.nativemem && args.leak ? new MallocLeakAggregator(collector, args.tail) : collector;
+        if (args.mmap && (args.nativemem || args.alloc || args.live || args.lock || args.nativelock ||
+                args.cpu || args.wall || args.cpuTime || args.trace || args.from != 0 || args.to != 0 ||
+                args.latency >= 0 || args.tag != null || args.state != null || args.diff ||
+                !("html".equals(args.output) || "collapsed".equals(args.output)))) {
+            throw new IllegalArgumentException("--mmap supports html/collapsed, a single event selection, and no time/latency/tag/state/diff filters");
+        }
+        this.collector = args.mmap && args.leak ? new MappingLeakAggregator(collector, args.tail) : args.nativemem && args.leak ? new MallocLeakAggregator(collector, args.tail) : collector;
     }
 
     public void convert() throws IOException {
@@ -47,6 +53,9 @@ public abstract class JfrConverter extends Classifier {
             convertChunk();
         }
 
+        if (args.mmap && Long.parseLong(jfr.settings.getOrDefault("mmapDroppedEvents", "0")) != 0) {
+            throw new IOException("Incomplete mmap recording: events were lost or unsupported mappings were encountered");
+        }
         if (collector.finish()) {
             convertChunk();
         }
@@ -85,7 +94,7 @@ public abstract class JfrConverter extends Classifier {
 
     protected void collectEvents(Filter filter) throws IOException {
         // args.nativemem ? MallocEvent.class should always be first for the leak detection feature
-        Class<? extends Event> eventClass = args.nativemem ? MallocEvent.class
+        Class<? extends Event> eventClass = args.mmap ? MappingEvent.class : args.nativemem ? MallocEvent.class
                 : args.nativelock ? NativeLockEvent.class
                 : args.live ? LiveObject.class
                 : args.alloc ? AllocationSample.class
@@ -112,6 +121,7 @@ public abstract class JfrConverter extends Classifier {
         long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
 
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
+            if (args.mmap && !args.leak && ((MappingEvent) event).unmap) continue;
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
                     if (filter == null || filter.matches(event.tid, jfr.eventTimeToNanos(event.time))) {
@@ -342,6 +352,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public String getValueType() {
+        if (args.mmap) return "mmap";
         if (args.nativemem) return "malloc";
         if (args.alloc || args.live) return "allocations";
         if (args.lock || args.nativelock) return "locks";
@@ -353,7 +364,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     public String getTotalUnits() {
-        if (args.nativemem || args.alloc || args.live) return "bytes";
+        if (args.mmap || args.nativemem || args.alloc || args.live) return "bytes";
         return "nanoseconds";
     }
 

@@ -12,6 +12,7 @@
 #include "asprof.h"
 #include "cpuEngine.h"
 #include "mallocTracer.h"
+#include "mmapTracer.h"
 #include "nativeLockTracer.h"
 #include "profiler.h"
 #include "symbols.h"
@@ -101,6 +102,7 @@ static void* dlopen_hook_impl(const char* filename, int flags, bool patch) {
             Hooks::patchLibraries();
         }
         MallocTracer::installHooks();
+        MmapTracer::installHooks();
         NativeLockTracer::installHooks();
     }
     return result;
