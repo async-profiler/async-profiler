@@ -262,10 +262,7 @@ class ClassLoaderData : VMStructs {
 class VMKlass : VMStructs {
   public:
     static VMKlass* fromJavaClass(JNIEnv* env, jclass cls) {
-        if (_has_perm_gen) {
-            jobject klassOop = env->GetObjectField(cls, _klass);
-            return (VMKlass*)(*(uintptr_t**)klassOop + 2);
-        } else if (sizeof(VMKlass*) == 8) {
+        if (sizeof(VMKlass*) == 8) {
             return (VMKlass*)(uintptr_t)env->GetLongField(cls, _klass);
         } else {
             return (VMKlass*)(uintptr_t)env->GetIntField(cls, _klass);
@@ -273,12 +270,7 @@ class VMKlass : VMStructs {
     }
 
     static VMKlass* fromHandle(uintptr_t handle) {
-        if (_has_perm_gen) {
-            // On JDK 7 KlassHandle is a pointer to klassOop, hence one more indirection
-            return (VMKlass*)(*(uintptr_t**)handle + 2);
-        } else {
-            return (VMKlass*)handle;
-        }
+        return (VMKlass*)handle;
     }
 
     static VMKlass* fromOop(uintptr_t oop) {
