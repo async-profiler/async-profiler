@@ -32,7 +32,8 @@ class RecordingAPI {
     };
 
     static State registerNatives(JNIEnv* env, jclass recording_class);
-    static void bind(jvmtiEnv* jvmti, JNIEnv* env);
+    static bool isRecordingClass(jvmtiEnv* jvmti, JNIEnv* env, jclass candidate);
+    static void bind(jvmtiEnv* jvmti, JNIEnv* env, jclass recording_class);
     static void start();
     static void stop();
 };

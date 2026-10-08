@@ -279,17 +279,30 @@ RecordingAPI::State RecordingAPI::registerNatives(JNIEnv* env, jclass recording_
     return Profiler::instance()->jfr()->active() ? RUNNING : STOPPED;
 }
 
-void RecordingAPI::bind(jvmtiEnv* jvmti, JNIEnv* env) {
-    jclass recording_class = env->FindClass("one/profiler/Recording");
-    if (recording_class == nullptr) {
-        env->ExceptionClear();
-        return;
+bool RecordingAPI::isRecordingClass(jvmtiEnv* jvmti, JNIEnv* env, jclass candidate) {
+    // Fast path: compare class name in place if possible
+    if (VMStructs::hasKlassField() && VMStructs::hasClassNames()) {
+        VMSymbol* name = VMKlass::fromJavaClass(env, candidate)->name();
+        return name != nullptr && name->length() == 22 && startsWith(name->body(), "one/profiler/Recording");
     }
 
+    char* name;
+    if (jvmti->GetClassSignature(candidate, &name, nullptr) == 0) {
+        bool result = streq(name, "Lone/profiler/Recording;");
+        jvmti->Deallocate((unsigned char*)name);
+        return result;
+    }
+    return false;
+}
+
+void RecordingAPI::bind(jvmtiEnv* jvmti, JNIEnv* env, jclass recording_class) {
     jint status;
     if (jvmti->GetClassStatus(recording_class, &status) == 0 && (status & JVMTI_CLASS_STATUS_INITIALIZED)) {
-        if (registerNatives(env, recording_class) == UNAVAILABLE) {
+        State state = registerNatives(env, recording_class);
+        if (state == UNAVAILABLE) {
             env->ExceptionClear();
+        } else {
+            env->SetStaticIntField(recording_class, _state_field, state);
         }
     }
 }

@@ -203,6 +203,10 @@ class VMStructs {
     static bool hasJavaThreadId() {
         return _tid != NULL;
     }
+
+    static bool hasKlassField() {
+        return _klass != NULL;
+    }
 };
 
 

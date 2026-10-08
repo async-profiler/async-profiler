@@ -300,13 +300,11 @@ bool VM::init(JavaVM* vm, bool attach) {
         if (f != NULL && !f->get()) {
             _jvmti->SetHeapSamplingInterval(0);
         }
-        VM::releaseSampleObjectsCapability();
+        releaseSampleObjectsCapability();
     }
 
     if (attach) {
-        JNIEnv* env = jni();
-        RecordingAPI::bind(_jvmti, env);
-        loadAllMethodIDs(_jvmti, env);
+        loadAllMethodIDs(_jvmti, jni(), true);
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
         _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
     } else {
@@ -409,12 +407,20 @@ void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_c
     }
 }
 
-void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
+void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, bool bind_recording_api) {
     jint class_count;
     jclass* classes;
     if (jvmti->GetLoadedClasses(&class_count, &classes) == 0) {
         for (int i = 0; i < class_count; i++) {
             loadMethodIDs(jvmti, jni, classes[i]);
+        }
+        if (bind_recording_api) {
+            for (int i = 0; i < class_count; i++) {
+                if (RecordingAPI::isRecordingClass(jvmti, jni, classes[i])) {
+                    RecordingAPI::bind(jvmti, jni, classes[i]);
+                    break;
+                }
+            }
         }
         jvmti->Deallocate((unsigned char*)classes);
     }
@@ -422,7 +428,7 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
 
 void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ready();
-    loadAllMethodIDs(jvmti, jni);
+    loadAllMethodIDs(jvmti, jni, false);
 
     // Delayed start of profiler if agent has been loaded at VM bootstrap
     if (!_global_args._preloaded) {
