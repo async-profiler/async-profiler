@@ -443,7 +443,7 @@ void VMStructs::initOffsets() {
 }
 
 void VMStructs::resolveOffsets() {
-    if (VM::isOpenJ9() || VM::isZing()) {
+    if (VM::isOpenJ9() || VM::isZing() || _has_perm_gen) {
         return;
     }
 

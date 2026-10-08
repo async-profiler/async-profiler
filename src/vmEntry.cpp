@@ -6,7 +6,6 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 #include "vmEntry.h"
 #include "arguments.h"
 #include "asprof.h"
@@ -104,14 +103,6 @@ static bool isOpenJ9JvmtiAlloc(const char* blob_name) {
 static bool isCompilerEntry(const char* blob_name) {
     return startsWith(blob_name, "_ZN8Compiler14compile_method") ||
            startsWith(blob_name, "_ZN10C2Compiler14compile_method");
-}
-
-static void* resolveMethodId(void** mid) {
-    return mid == NULL || *mid < (void*)4096 ? NULL : *mid;
-}
-
-static void* resolveMethodIdEnd() {
-    return NULL;
 }
 
 // Workaround for JDK-8308341: since JNI_GetCreatedJavaVMs may return an uninitialized JVM,
@@ -220,14 +211,6 @@ bool VM::init(JavaVM* vm, bool attach) {
             lib->mark(isZeroInterpreterMethod, MARK_INTERPRETER);
         } else {
             lib->mark(isCompilerEntry, MARK_COMPILER_ENTRY);
-        }
-    }
-
-    if (!attach && hotspot_version() == 8 && OS::isLinux()) {
-        // Workaround for JDK-8185348
-        char* func = (char*)lib->findSymbol("_ZN6Method26checked_resolve_jmethod_idEP10_jmethodID");
-        if (func != NULL) {
-            applyPatch(func, (const char*)resolveMethodId, (const char*)resolveMethodIdEnd);
         }
     }
 
@@ -363,18 +346,6 @@ void VM::ready() {
     _orig_RetransformClasses = functions->RetransformClasses;
     functions->RedefineClasses = RedefineClassesHook;
     functions->RetransformClasses = RetransformClassesHook;
-}
-
-void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
-    size_t size = end_patch - patch;
-    uintptr_t start_page = (uintptr_t)func & ~OS::page_mask;
-    uintptr_t end_page = ((uintptr_t)func + size + OS::page_mask) & ~OS::page_mask;
-
-    if (OS::mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
-        memcpy(func, patch, size);
-        __builtin___clear_cache(func, func + size);
-        OS::mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_EXEC);
-    }
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count) {
