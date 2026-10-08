@@ -113,7 +113,7 @@ class VM {
 
     static void ready();
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, bool update_count = true);
-    static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
+    static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, bool bind_recording_api);
     static bool hasJvmThreads();
 
   public:
