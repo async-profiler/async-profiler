@@ -97,7 +97,7 @@ ifeq ($(OS),Darwin)
   PACKAGE_EXT=zip
   OS_TAG=macos
   ifeq ($(FAT_BINARY),true)
-    FAT_BINARY_FLAGS=-arch x86_64 -arch arm64 -mmacos-version-min=10.15
+    FAT_BINARY_FLAGS=-arch x86_64 -arch arm64 -mmacos-version-min=11
     CFLAGS += $(FAT_BINARY_FLAGS)
     CXXFLAGS += $(FAT_BINARY_FLAGS)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
