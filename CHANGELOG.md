@@ -1,5 +1,41 @@
 # Changelog
 
+## [4.6]
+
+### Features
+
+ - #1775: Configurable rate limiter for JFR events
+ - #1777: Filter wall samples by thread name instead of thread id
+ - #1791: Send profiles directly to an OTel-compatible endpoint
+
+### Improvements
+
+ - #1780: Combine Flame Graph and Tree View in a single HTML
+ - #1781: More accurate stack walking limit
+ - #1782: Display actual value units in Flame Graph
+ - #1784: Add `service.name` resource attribute to OTLP output
+ - #1796: Support JFR event settings in `jfrsync`
+ - #1798: Fingerprint-based detection of idle threads during wall clock profiling
+ - #1800: Support tracking allocations of JEP 401 value classes
+ - #1805: Support regex matching for JFR span tag filters
+
+### Breaking changes
+
+ - #1776: Remove embedded HTTP server
+ - #1777: `filter` option no longer accepts arguments
+ - #1821: Update macos-version-min to 11
+
+### Bug fixes
+
+ - #1770: Fix `--tlab` mode on ARM64
+ - #1771: Fix glibc TLS corruption
+ - #1787: Fix stack walking edge cases on ARM64 and GraalVM
+ - #1792: Fix NullPointerException in `JfrConverter.excludeStack`
+ - #1806: jfrconv `--skip` option does not work for flame-to-flame conversion
+ - #1809: Fix use-after-free in `Dictionary::lookup`
+ - #1811: Recording API prevents the ClassLoader from being unloaded
+ - #1818: AsyncProfiler.getInstance() may deadlock due to JDK-8266310
+
 ## [4.5] - 2026-07-20
 
 ### Features
