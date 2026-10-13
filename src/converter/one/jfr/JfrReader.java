@@ -13,6 +13,7 @@ import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -35,7 +36,7 @@ public class JfrReader implements Closeable {
     private static final byte STATE_EOF = 2;
     private static final byte STATE_INCOMPLETE = 3;
 
-    private final FileChannel ch;
+    private final SeekableByteChannel ch;
     private ByteBuffer buf;
     private final long fileSize;
     private long filePosition;
@@ -85,7 +86,11 @@ public class JfrReader implements Closeable {
     private boolean hasWallTimeSpan;
 
     public JfrReader(String fileName) throws IOException {
-        this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
+        this(FileChannel.open(Paths.get(fileName), StandardOpenOption.READ));
+    }
+
+    public JfrReader(SeekableByteChannel ch) throws IOException {
+        this.ch = ch;
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
         this.fileSize = ch.size();
 
