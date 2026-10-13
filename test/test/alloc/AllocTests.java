@@ -63,6 +63,13 @@ public class AllocTests {
         assert out.contains("G1CollectedHeap::humongous_obj_allocate") : out;
     }
 
+    @Test(mainClass = RandomBlockRetainer.class, jvm = Jvm.HOTSPOT, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,allocsamples=1,collapsed,file=%f")
+    public void allocSamples(TestProcess p) throws Exception {
+        long samples = p.waitForExit("%f").total();
+        Assert.isGreaterOrEqual(samples, 30);
+        Assert.isLess(samples, 180);
+    }
+
     @Test(mainClass = MapReaderOpt.class)
     public void tlabAllocSampler(TestProcess p) throws Exception {
         p.profile("-e alloc --tlab -d 3 -f %profile.jfr");

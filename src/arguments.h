@@ -12,6 +12,7 @@
 
 const long DEFAULT_INTERVAL = 10000000;      // 10 ms
 const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
+const long DEFAULT_ALLOC_SAMPLES = 300;
 const long DEFAULT_LOCK_INTERVAL = 10000;    // 10 us
 const long DEFAULT_PROC_INTERVAL = 30;       // 30 seconds
 const int DEFAULT_JSTACKDEPTH = 2048;
@@ -169,6 +170,7 @@ class Arguments {
     size_t _mem_limit;
     long _interval;
     long _alloc;
+    long _alloc_samples;
     long _nativemem;
     long _lock;
     long _nativelock;
@@ -235,6 +237,7 @@ class Arguments {
         _mem_limit(0),
         _interval(0),
         _alloc(-1),
+        _alloc_samples(DEFAULT_ALLOC_SAMPLES),
         _nativemem(-1),
         _lock(-1),
         _nativelock(-1),
