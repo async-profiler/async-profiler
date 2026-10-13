@@ -83,6 +83,7 @@ public class JfrReader implements Closeable {
     private int free;
     private int cpuTimeSample;
     private int nativeLock;
+    private boolean hasEventThread;
     private boolean hasWallTimeSpan;
 
     public JfrReader(String fileName) throws IOException {
@@ -263,6 +264,7 @@ public class JfrReader implements Closeable {
     private ExecutionSample readExecutionSample(boolean wall) {
         long time = getVarlong();
         int tid = getVarint();
+        if (hasEventThread) getVarint(); // eventThread duplicates sampledThread
         int stackTraceId = getVarint();
         int threadState = getVarint();
         int samples = wall ? getVarint() : 1;
@@ -656,13 +658,18 @@ public class JfrReader implements Closeable {
         cpuTimeSample = getTypeId("jdk.CPUTimeSample");
         nativeLock = getTypeId("profiler.NativeLock");
 
-        JfrClass wallClass = typesByName.get("profiler.WallClockSample");
-        hasWallTimeSpan = wallClass != null && wallClass.field("timeSpan") != null;
+        hasEventThread = hasField("jdk.ExecutionSample", "eventThread");
+        hasWallTimeSpan = hasField("profiler.WallClockSample", "timeSpan");
     }
 
     private int getTypeId(String typeName) {
         JfrClass type = typesByName.get(typeName);
         return type != null ? type.id : -1;
+    }
+
+    private boolean hasField(String typeName, String fieldName) {
+        JfrClass type = typesByName.get(typeName);
+        return type != null && type.field(fieldName) != null;
     }
 
     public int getEnumKey(String typeName, String value) {
