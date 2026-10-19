@@ -125,8 +125,11 @@ static LiveRefs live_refs;
 void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                        jobject object, jclass object_klass, jlong size) {
     if (_enabled) {
+        u64 interval = _interval;
         recordAllocation(jvmti, jni, ALLOC_SAMPLE, object, object_klass, size);
-        jvmti->SetHeapSamplingInterval(_interval);
+        if (_interval != interval) {
+            jvmti->SetHeapSamplingInterval(_interval);
+        }
     }
 }
 
