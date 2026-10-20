@@ -143,4 +143,39 @@ public class AllocTests {
             }
         }
     }
+
+    @Test(mainClass = PacedAlloc.class, jvm = Jvm.HOTSPOT, jvmVer = {11, Integer.MAX_VALUE}, args = "%warmup.jfr %f.jfr")
+    public void rateLimit(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        try (JfrReader jfr = new JfrReader(p.getFilePath("%warmup"))) {
+            assert jfr.readAllEvents(AllocationSample.class).isEmpty();
+        }
+
+        Assert.isGreaterOrEqual(allocations(p.getFilePath("%f"), 0, 1000)[0], 2480);
+
+        long[] adapted = allocations(p.getFilePath("%f"), 1000, 2000);
+        Assert.isGreaterOrEqual(adapted[0], 1650);
+        Assert.isLessOrEqual(adapted[0], 2350);
+        Assert.isGreaterOrEqual(adapted[1], 2500 * 1024);
+        Assert.isLessOrEqual(adapted[1], 3280 * 1024);
+    }
+
+    private static long[] allocations(String file, long fromMs, long toMs) throws Exception {
+        try (JfrReader jfr = new JfrReader(file)) {
+            List<AllocationSample> events = jfr.readAllEvents(AllocationSample.class);
+            long from = jfr.startTicks + fromMs * jfr.ticksPerSec / 1000;
+            long to = jfr.startTicks + toMs * jfr.ticksPerSec / 1000;
+            long count = 0;
+            long bytes = 0;
+            for (AllocationSample event : events) {
+                if (event.time >= from && event.time < to) {
+                    count++;
+                    bytes += event.value();
+                }
+            }
+            return new long[]{count, bytes};
+        }
+    }
 }

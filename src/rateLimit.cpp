@@ -12,7 +12,7 @@ int RateLimit::_enabled_categories = 0;
 void RateLimit::enable(Arguments& args) {
     int enabled_categories = 0;
     for (int i = 0; i < EC_CATEGORIES; i++) {
-        if (args._rate_limit[i] >= 0) {
+        if (args._rate_limit[i] >= 0 && !(i == EC_ALLOC && args._rate_limit[i] > 0)) {
             _budget[i].budget = _budget[i].limit = args._rate_limit[i];
             enabled_categories |= 1 << i;
         }
