@@ -690,6 +690,7 @@ class Recording {
         writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
         if (args._alloc >= 0) {
             writeIntSetting(buf, T_ALLOC_IN_NEW_TLAB, "alloc", args._alloc);
+            writeIntSetting(buf, T_ALLOC_IN_NEW_TLAB, "allocsamples", args._alloc_samples);
             writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "live", args._live);
         }
 

@@ -177,6 +177,11 @@ Error Arguments::parse(const char* args) {
             CASE("alloc")
                 _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
 
+            CASE("allocsamples")
+                if (value == NULL || (_alloc_samples = strtol(value, NULL, 0)) < 0) {
+                    msg = "Invalid allocsamples";
+                }
+
             CASE("tlab")
                 _tlab = true;
 

@@ -3,15 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <algorithm>
+#include <limits.h>
 #include <string.h>
 #include "objectSampler.h"
 #include "profiler.h"
 #include "tsc.h"
 
 
-u64 ObjectSampler::_interval;
+u64 ObjectSampler::_base_interval;
+volatile u64 ObjectSampler::_interval;
+u64 ObjectSampler::_alloc_samples;
 bool ObjectSampler::_live;
 volatile u64 ObjectSampler::_allocated_bytes;
+volatile u64 ObjectSampler::_window_start;
+volatile u64 ObjectSampler::_window_samples;
+
+const u64 ALLOC_WINDOW_SEC = 30;
 
 
 class LiveRefs {
@@ -125,6 +133,9 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
                                        jobject object, jclass object_klass, jlong size) {
     if (_enabled) {
         recordAllocation(jvmti, jni, ALLOC_SAMPLE, object, object_klass, size);
+        if (_alloc_samples > 0) {
+            updateSamplingInterval();
+        }
     }
 }
 
@@ -152,6 +163,21 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
     }
 }
 
+void ObjectSampler::updateSamplingInterval() {
+    u64 window_start = _window_start;
+    u64 samples = atomicInc(_window_samples) + 1;
+    u64 now = TSC::ticks();
+    u64 elapsed = now - window_start;
+    if (samples == _alloc_samples * ALLOC_WINDOW_SEC || elapsed >= TSC::frequency() * ALLOC_WINDOW_SEC) {
+        _window_start = now;
+        _window_samples = 0;
+
+        u64 rate = samples * TSC::frequency() / elapsed;
+        _interval = std::min(std::max(_interval * rate / _alloc_samples, _base_interval), (u64)INT_MAX);
+        VM::jvmti()->SetHeapSamplingInterval(_interval);
+    }
+}
+
 void ObjectSampler::initLiveRefs(bool live) {
     _live = live;
     if (_live) {
@@ -167,6 +193,10 @@ void ObjectSampler::dumpLiveRefs() {
 
 Error ObjectSampler::start(Arguments& args) {
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
+    _base_interval = _interval;
+    _alloc_samples = args._alloc_samples;
+    _window_start = TSC::ticks();
+    _window_samples = 0;
 
     initLiveRefs(args._live);
 
