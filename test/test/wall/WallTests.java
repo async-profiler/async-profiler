@@ -8,6 +8,7 @@ package test.wall;
 import one.jfr.JfrReader;
 import one.jfr.event.ExecutionSample;
 import one.profiler.test.Assert;
+import one.profiler.test.Jvm;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
@@ -29,6 +30,22 @@ public class WallTests {
         long s3 = out.samples("test/wall/IdleClient.run");
         assert s1 > 10 && s2 > 10 && s3 > 10;
         assert Math.abs(s1 - s2) < 5 && Math.abs(s2 - s3) < 5 && Math.abs(s3 - s1) < 5;
+    }
+
+    // Regression test for #1828: on macOS, recovering from a fault during stack walking must not leave the profiling
+    // signal blocked in other threads. The fault comes from #1829: if that is fixed, this test no longer triggers one.
+    @Test(mainClass = InterpreterEntryApp.class, jvm = Jvm.HOTSPOT,
+          jvmArgs = "-XX:+PreserveFramePointer -XX:CompileCommand=quiet -XX:CompileCommand=exclude,test.wall.InterpreterEntryApp::callee")
+    public void crashProtectionKeepsSignalUnblocked(TestProcess p) throws Exception {
+        Output out = p.profile("-e wall -d 4 -t -o collapsed");
+        long min = Long.MAX_VALUE, max = 0;
+        for (int t = 0; t < 4; t++) {
+            long s = out.samples("^\\[worker-" + t + " tid=");
+            min = Math.min(min, s);
+            max = Math.max(max, s);
+        }
+        Assert.isGreater(max, 40);
+        Assert.isGreater(min, max / 2);
     }
 
     // Regression test for #1249
