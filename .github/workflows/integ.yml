@@ -41,7 +41,7 @@ jobs:
   integration-test:
     runs-on: ${{ inputs.runner }}
     container:
-      image: ${{ inputs.container-image && format('public.ecr.aws/async-profiler/asprof-builder-{0}', inputs.container-image) || '' }}
+      image: ${{ inputs.container-image && format('ghcr.io/apangin/asprof-builder-{0}', inputs.container-image) || '' }}
       options: --privileged
     name: "${{ inputs.test-platform }}, ${{ inputs.java-distribution }} ${{ inputs.java-version }}"
     steps:
