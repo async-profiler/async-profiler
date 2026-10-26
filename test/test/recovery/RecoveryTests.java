@@ -62,6 +62,22 @@ public class RecoveryTests {
         Assert.isLess(out.ratio("^[^ ;]+(;[^ ;]+)? "), 0.01, "No more than 1% of short stacks");
     }
 
+    // Regression test for #1828: on macOS, recovering from a fault during stack walking must not leave the profiling
+    // signal blocked in other threads. The fault comes from #1829: if that is fixed, this test no longer triggers one.
+    @Test(mainClass = InterpreterEntryApp.class, jvm = Jvm.HOTSPOT,
+          jvmArgs = "-XX:+PreserveFramePointer -XX:CompileCommand=quiet -XX:CompileCommand=exclude,test.recovery.InterpreterEntryApp::callee")
+    public void sigMaskAfterFault(TestProcess p) throws Exception {
+        Output out = p.profile("-e wall -d 4 -t -o collapsed");
+        long min = Long.MAX_VALUE, max = 0;
+        for (int t = 0; t < 4; t++) {
+            long s = out.samples("^\\[worker-" + t + " tid=");
+            min = Math.min(min, s);
+            max = Math.max(max, s);
+        }
+        Assert.isGreater(max, 40);
+        Assert.isGreater(min, max / 2);
+    }
+
     // Verify that System.currentTimeMillis() intrinsic is unwound correctly
     // TODO: The test is flaky on JDK 11
     @Test(mainClass = TimeLoop.class, jvm = Jvm.HOTSPOT, jvmVer = {17, Integer.MAX_VALUE}, debugNonSafepoints = true)

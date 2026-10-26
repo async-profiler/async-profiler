@@ -18,7 +18,7 @@ const intptr_t MAX_INTERPRETER_FRAME_SIZE = 0x1000;
 const intptr_t DEAD_ZONE = 0x1000;
 
 static ucontext_t empty_ucontext{};
-static jmp_buf* crash_protection_ctx[CONCURRENCY_LEVEL];
+static sigjmp_buf* crash_protection_ctx[CONCURRENCY_LEVEL];
 
 
 static inline bool aligned(uintptr_t ptr) {
@@ -232,13 +232,13 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
     Profiler* profiler = Profiler::instance();
     int bcp_offset = InterpreterFrame::bcp_offset();
 
-    jmp_buf current_ctx;
+    sigjmp_buf current_ctx;
     crash_protection_ctx[lock_index] = &current_ctx;
 
-    // Should be preserved across setjmp/longjmp
+    // Should be preserved across sigsetjmp/siglongjmp
     volatile int depth = 0;
 
-    if (setjmp(current_ctx) != 0) {
+    if (sigsetjmp(current_ctx, 0) != 0) {
         crash_protection_ctx[lock_index] = NULL;
         if (depth < max_depth) {
             fillFrame(frames[depth++], BCI_ERROR, "break_not_walkable");
@@ -524,12 +524,12 @@ void StackWalker::checkFault() {
     // Search for a crash protection context located on the current thread stack.
     // Since one thread may use multiple contexts because of simultaneous profiling engines,
     // we need to walk through all of them and find the nearest one (i.e. the most recent).
-    jmp_buf* nearest_ctx = NULL;
+    sigjmp_buf* nearest_ctx = NULL;
     uintptr_t stack_distance = 32768;  // maximum allowed stack distance
     const uintptr_t current_sp = (uintptr_t)&nearest_ctx;
 
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
-        jmp_buf* ctx = crash_protection_ctx[i];
+        sigjmp_buf* ctx = crash_protection_ctx[i];
         if ((uintptr_t)ctx - current_sp < stack_distance) {
             nearest_ctx = ctx;
             stack_distance = (uintptr_t)ctx - current_sp;
@@ -537,6 +537,6 @@ void StackWalker::checkFault() {
     }
 
     if (nearest_ctx != NULL) {
-        longjmp(*nearest_ctx, 1);
+        siglongjmp(*nearest_ctx, 1);
     }
 }
