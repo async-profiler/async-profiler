@@ -36,6 +36,18 @@ public abstract class JfrConverter extends Classifier {
         Filter filter = readFilter();
 
         jfr.stopAtNewChunk = true;
+        if (collector instanceof MallocLeakAggregator) {
+            // Find surviving allocations before converting them. Stack and thread IDs
+            // are chunk-local, so leaks must be converted in their original chunk.
+            while (jfr.hasMoreChunks()) {
+                collector.beforeChunk();
+                collectEvents(filter);
+                collector.afterChunk();
+            }
+            ((MallocLeakAggregator) collector).startReplay();
+            jfr.rewind();
+        }
+
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
@@ -112,12 +124,12 @@ public abstract class JfrConverter extends Classifier {
         long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
 
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
-            if (event.time >= startTicks && event.time <= endTicks) {
-                if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    if (filter == null || filter.matches(event.tid, jfr.eventTimeToNanos(event.time))) {
-                        collector.collect(event);
-                    }
-                }
+            if (event.time >= startTicks && event.time <= endTicks
+                    && (threadStates == null || threadStates.get(((ExecutionSample) event).threadState))
+                    && (filter == null || filter.matches(event.tid, jfr.eventTimeToNanos(event.time)))) {
+                collector.collect(event);
+            } else if (collector instanceof MallocLeakAggregator) {
+                ((MallocLeakAggregator) collector).skipEvent();
             }
         }
     }
