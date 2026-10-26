@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package test.wall;
+package test.recovery;
 
 // Compiled code calling an interpreted method (excluded from compilation) with many locals, so that samples often land
 // in the interpreter's method entry while it zeroes the locals, before it has pushed its frame. With
