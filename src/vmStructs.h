@@ -62,7 +62,6 @@ class VMStructs {
     static int _jmethod_ids_offset;
     static int _thread_osthread_offset;
     static int _thread_anchor_offset;
-    static int _thread_state_offset;
     static int _thread_vframe_offset;
     static int _osthread_id_offset;
     static int _call_wrapper_anchor_offset;
@@ -398,10 +397,6 @@ class VMThread : VMStructs {
         return (vtbl[1] == _java_thread_vtbl[1]) +
                (vtbl[3] == _java_thread_vtbl[3]) +
                (vtbl[5] == _java_thread_vtbl[5]) >= 2;
-    }
-
-    int state() {
-        return _thread_state_offset >= 0 ? *(int*) at(_thread_state_offset) : 0;
     }
 
     bool inDeopt() {

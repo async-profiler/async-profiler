@@ -43,7 +43,7 @@ bool TSC::syncWithJvm() {
     JNIEnv* env = VM::jni();
 
     jfieldID jvm;
-    jmethodID counterTime, getTicksFrequency;
+    jmethodID counterTime, getTimeConversionFactor, getTicksFrequency;
     jclass cls = env->FindClass("jdk/jfr/internal/JVM");
     if (cls == nullptr || (counterTime = env->GetStaticMethodID(cls, "counterTime", "()J")) == nullptr) {
         env->ExceptionClear();
@@ -51,9 +51,9 @@ bool TSC::syncWithJvm() {
     }
 
     u64 frequency = 0;
-    // Method is static since JDK 22
-    if ((getTicksFrequency = env->GetStaticMethodID(cls, "getTicksFrequency", "()J")) != nullptr) {
-        frequency = env->CallStaticLongMethod(cls, getTicksFrequency);
+    // getTicksFrequency became static in JDK 22 and was removed in JDK 28
+    if ((getTimeConversionFactor = env->GetStaticMethodID(cls, "getTimeConversionFactor", "()D")) != nullptr) {
+        frequency = env->CallStaticDoubleMethod(cls, getTimeConversionFactor) * NANOTIME_FREQ;
     } else {
         env->ExceptionClear();
         if ((getTicksFrequency = env->GetMethodID(cls, "getTicksFrequency", "()J")) != nullptr &&
