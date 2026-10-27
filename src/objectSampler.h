@@ -14,9 +14,15 @@
 
 class ObjectSampler : public Engine {
   protected:
-    static u64 _interval;
+    static u64 _base_interval;
+    static volatile u64 _interval;
+    static u64 _alloc_samples;
     static bool _live;
     static volatile u64 _allocated_bytes;
+    static volatile u64 _window_start;
+    static volatile u64 _window_samples;
+
+    static void updateSamplingInterval();
 
     static void initLiveRefs(bool live);
     static void dumpLiveRefs();
