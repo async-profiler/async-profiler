@@ -162,17 +162,26 @@ public class NativememTests {
         assertNoLeaks(p);
     }
 
-    @Test(mainClass = CallsMallocAcrossChunks.class, args = "%f.jfr", agentArgs = "start,nativemem,cstack=vm,file=%f.jfr")
+    @Test(mainClass = CallsMallocAcrossChunks.class, args = "%f.jfr %fresh.jfr", agentArgs = "start,nativemem,cstack=vm,file=%f.jfr")
     public void jfrLeaksAcrossChunks(TestProcess p) throws Exception {
         p.waitForExit();
         Assert.isEqual(p.exitCode(), 0);
-        // Resolve leaked allocations using the method dictionary of their own chunk.
+        // Earlier allocations must still resolve correctly after reading all chunks.
         Output flame = Output.convertJfrToCollapsed(p.getFilePath("%f"),
                 "--nativemem", "--leak", "--tail", "0", "--total");
 
         Assert.isEqual(flame.samples("CallsMallocAcrossChunks.firstAllocation"), CallsMallocAcrossChunks.FIRST_SIZE);
         Assert.isEqual(flame.samples("CallsMallocAcrossChunks.secondAllocation"), CallsMallocAcrossChunks.SECOND_SIZE);
+        Assert.isEqual(flame.samples("CallsMallocAcrossChunks.thirdAllocation"), CallsMallocAcrossChunks.THIRD_SIZE);
+        Assert.isEqual(flame.samples("CallsMallocAcrossChunks.afterFlushAllocation"), CallsMallocAcrossChunks.AFTER_FLUSH_SIZE);
         Assert.isEqual(flame.samples("CallsMallocAcrossChunks.freedAllocation"), 0);
+
+        Output fresh = Output.convertJfrToCollapsed(p.getFilePath("%fresh"),
+                "--nativemem", "--leak", "--tail", "0", "--total");
+        Assert.isEqual(fresh.samples("CallsMallocAcrossChunks.firstAllocation"), CallsMallocAcrossChunks.FIRST_SIZE);
+        Assert.isEqual(fresh.samples("CallsMallocAcrossChunks.secondAllocation"), 0);
+        Assert.isEqual(fresh.samples("CallsMallocAcrossChunks.thirdAllocation"), 0);
+        Assert.isEqual(fresh.samples("CallsMallocAcrossChunks.afterFlushAllocation"), 0);
     }
 
     @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", env = {"LD_PRELOAD=%lib", "ASPROF_COMMAND=start,nativemem,file=%f.jfr"})

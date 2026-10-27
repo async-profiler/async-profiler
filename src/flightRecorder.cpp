@@ -241,6 +241,9 @@ class Recording {
     static char* _jvm_flags;
     static char* _java_command;
 
+    // Keep method and symbol IDs distinct across chunks, including stop/resume.
+    static u64 _base_id;
+
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
     int _memfd;
@@ -255,7 +258,6 @@ class Recording {
     u64 _stop_time;
     u64 _stop_ticks;
 
-    u64 _base_id;
     u64 _bytes_written;
     u64 _chunk_size;
     u64 _chunk_time;
@@ -282,7 +284,6 @@ class Recording {
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
-        _base_id = 0;
         _bytes_written = 0;
         _memfd = -1;
         _in_memory = false;
@@ -396,6 +397,7 @@ class Recording {
         OS::freePageCache(_fd, _chunk_start);
 
         _buf->reset();
+        _base_id += 0x1000000;
         return chunk_end;
     }
 
@@ -403,7 +405,6 @@ class Recording {
         _chunk_start = finishChunk();
         _start_time = _stop_time;
         _start_ticks = _stop_ticks;
-        _base_id += 0x1000000;
         _bytes_written = 0;
 
         writeHeader(_buf);
@@ -972,7 +973,7 @@ class Recording {
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
-                buf->putVar32(mi->_key);
+                buf->putVar64(mi->_key | _base_id);
                 if (mi->_type == FRAME_INTERPRETED) {
                     jint bci = trace->frames[i].bci;
                     FrameTypeId type = FrameType::decode(bci);
@@ -1006,7 +1007,7 @@ class Recording {
             MethodInfo& mi = it->second;
             if (mi._mark) {
                 mi._mark = false;
-                buf->putVar32(mi._key);
+                buf->putVar64(mi._key | _base_id);
                 buf->putVar32(mi._class);
                 buf->putVar64(mi._name | _base_id);
                 buf->putVar64(mi._sig | _base_id);
@@ -1312,6 +1313,7 @@ char* Recording::_agent_properties = NULL;
 char* Recording::_jvm_args = NULL;
 char* Recording::_jvm_flags = NULL;
 char* Recording::_java_command = NULL;
+u64 Recording::_base_id = 0;
 
 
 Error FlightRecorder::start(Arguments& args, bool reset) {
