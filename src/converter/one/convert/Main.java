@@ -66,7 +66,14 @@ public class Main {
 
         for (int i = 0; i < fileCount; i++) {
             String input = args.files.get(i);
-            String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
+            String output;
+            if (isDirectory) {
+                output = new File(lastFile, replaceExt(input, args.output)).getPath();
+            } else if (fileCount > 1) {
+                output = replaceWithIndex(lastFile, i);
+            } else {
+                output = lastFile;
+            }
 
             System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
             System.out.flush();
@@ -114,6 +121,14 @@ public class Main {
         int slash = fileName.lastIndexOf(File.separatorChar);
         int dot = fileName.lastIndexOf('.');
         return dot > slash ? fileName.substring(slash + 1, dot + 1) + ext : fileName.substring(slash + 1) + '.' + ext;
+    }
+
+    private static String replaceWithIndex(String fileName, int index) {
+        int slash = fileName.lastIndexOf(File.separatorChar);
+        int dot = fileName.lastIndexOf('.');
+        return dot > slash
+                ? fileName.substring(0, dot) + "-" + index + fileName.substring(dot)
+                : fileName + '-' + index;
     }
 
     private static boolean isJfr(String fileName) throws IOException {
