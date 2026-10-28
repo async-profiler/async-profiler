@@ -255,7 +255,7 @@ class Recording {
     u64 _stop_time;
     u64 _stop_ticks;
 
-    u64 _base_id;
+    u64& _base_id;
     u64 _bytes_written;
     u64 _chunk_size;
     u64 _chunk_time;
@@ -277,12 +277,11 @@ class Recording {
     }
 
   public:
-    Recording(int fd, const char* master_recording_file, Arguments& args) : _fd(fd) {
+    Recording(int fd, const char* master_recording_file, Arguments& args, u64& base_id) : _fd(fd), _base_id(base_id) {
         _master_recording_file = master_recording_file == NULL ? NULL : strdup(master_recording_file);
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
-        _base_id = 0;
         _bytes_written = 0;
         _memfd = -1;
         _in_memory = false;
@@ -396,6 +395,7 @@ class Recording {
         OS::freePageCache(_fd, _chunk_start);
 
         _buf->reset();
+        _base_id += 0x1000000;
         return chunk_end;
     }
 
@@ -403,7 +403,6 @@ class Recording {
         _chunk_start = finishChunk();
         _start_time = _stop_time;
         _start_ticks = _stop_ticks;
-        _base_id += 0x1000000;
         _bytes_written = 0;
 
         writeHeader(_buf);
@@ -972,7 +971,7 @@ class Recording {
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
-                buf->putVar32(mi->_key);
+                buf->putVar64(mi->_key | _base_id);
                 if (mi->_type == FRAME_INTERPRETED) {
                     jint bci = trace->frames[i].bci;
                     FrameTypeId type = FrameType::decode(bci);
@@ -1006,7 +1005,7 @@ class Recording {
             MethodInfo& mi = it->second;
             if (mi._mark) {
                 mi._mark = false;
-                buf->putVar32(mi._key);
+                buf->putVar64(mi._key | _base_id);
                 buf->putVar32(mi._class);
                 buf->putVar64(mi._name | _base_id);
                 buf->putVar64(mi._sig | _base_id);
@@ -1353,7 +1352,10 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
     RateLimit::enable(args);
     RecordingAPI::start();
 
-    _rec = new Recording(fd, master_recording_file, args);
+    if (reset) {
+        _base_id = 0;
+    }
+    _rec = new Recording(fd, master_recording_file, args, _base_id);
     _rec_lock.unlock();
     return Error::OK;
 }
