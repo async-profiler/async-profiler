@@ -64,6 +64,10 @@ public class Main {
             return;
         }
 
+        if (fileCount > 1 && !isDirectory) {
+            throw new IllegalArgumentException("Multiple input files require an existing output directory");
+        }
+
         for (int i = 0; i < fileCount; i++) {
             String input = args.files.get(i);
             String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
