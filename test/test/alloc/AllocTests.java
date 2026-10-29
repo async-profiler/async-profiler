@@ -143,4 +143,23 @@ public class AllocTests {
             }
         }
     }
+
+    @Test(mainClass = PacedAlloc.class, jvm = Jvm.HOTSPOT, jvmVer = {11, Integer.MAX_VALUE}, args = "%f.jfr")
+    public void rateLimit(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
+            List<AllocationSample> events = jfr.readAllEvents(AllocationSample.class);
+            Assert.isGreaterOrEqual(allocations(jfr, events, 0, 250), 2480);
+            Assert.isGreaterOrEqual(allocations(jfr, events, 500, 1000), 1650);
+            Assert.isLessOrEqual(allocations(jfr, events, 500, 1000), 2350);
+        }
+    }
+
+    private static long allocations(JfrReader jfr, List<AllocationSample> events, long fromMs, long toMs) {
+        long from = jfr.startTicks + fromMs * jfr.ticksPerSec / 1000;
+        long to = jfr.startTicks + toMs * jfr.ticksPerSec / 1000;
+        return events.stream().filter(e -> e.time >= from && e.time < to).count();
+    }
 }

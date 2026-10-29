@@ -606,6 +606,16 @@ bool Arguments::parseRateLimit(char* str) {
         if (limit < 0 || limit > INT_MAX || str == value || *str > ';') {
             return false;
         }
+        if (*str == '/') {
+            char* next = str + strcspn(str, ";");
+            char separator = *next;
+            *next = 0;
+            if (category != EC_ALLOC || (_alloc_window = parseUnits(str + 1, MILLIS)) <= 0) {
+                return false;
+            }
+            *next = separator;
+            str = next;
+        }
         if (*str) str++;
 
         _rate_limit[category] = limit;

@@ -14,6 +14,7 @@ const long DEFAULT_INTERVAL = 10000000;      // 10 ms
 const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
 const long DEFAULT_LOCK_INTERVAL = 10000;    // 10 us
 const long DEFAULT_PROC_INTERVAL = 30;       // 30 seconds
+const long DEFAULT_RATE_WINDOW = 30000;      // 30 seconds
 const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU        = "cpu";
@@ -122,6 +123,7 @@ struct Multiplier {
 };
 
 constexpr Multiplier NANOS[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {0, 0}};
+constexpr Multiplier MILLIS[] = {{'s', 1000}, {'m', 60000}, {'h', 3600000}, {'d', 86400000}, {0, 0}};
 constexpr Multiplier BYTES[] = {{'b', 1}, {'k', 1024}, {'m', 1048576}, {'g', 1073741824}, {0, 0}};
 constexpr Multiplier SECONDS[] = {{'s', 1}, {'m', 60}, {'h', 3600}, {'d', 86400}, {0, 0}};
 constexpr Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {'b', 1}, {'k', 1024}, {'g', 1073741824}, {0, 0}};
@@ -208,6 +210,7 @@ class Arguments {
     Clock _clock;
     Output _output;
     int _rate_limit[EC_CATEGORIES];
+    long _alloc_window;
     long _chunk_size;
     long _chunk_time;
     const char* _jfr_sync;
@@ -273,6 +276,7 @@ class Arguments {
         _cstack(CSTACK_DEFAULT),
         _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),
+        _alloc_window(0),
         _chunk_size(100 * 1024 * 1024),
         _chunk_time(3600),
         _jfr_sync(NULL),
