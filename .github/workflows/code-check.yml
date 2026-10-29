@@ -14,7 +14,7 @@ jobs:
   cpp-lint:
     runs-on: ubuntu-latest
     container:
-      image: "public.ecr.aws/async-profiler/asprof-code-check:latest"
+      image: "ghcr.io/apangin/asprof-code-check:latest"
     steps:
       - uses: actions/checkout@v4
         with:

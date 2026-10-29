@@ -24,16 +24,16 @@ class LateInitializer {
             dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
         }
 
-        if (!checkJvmLoaded()) {
-            const char* command = getenv("ASPROF_COMMAND");
-            if (command != NULL && OS::checkPreloaded() && Hooks::init(false)) {
-                startProfiler(command);
-            }
+        parseJvmLibraries();
+
+        const char* command = getenv("ASPROF_COMMAND");
+        if (command != NULL && OS::checkPreloaded() && Hooks::init(false)) {
+            startProfiler(command);
         }
     }
 
   private:
-    bool checkJvmLoaded() {
+    void parseJvmLibraries() {
         // Parsing all libraries in the constructor may cause a long time-to-safepoint pause.
         // Parse only essential libraries: libjvm, libj9*, libazsys, and the async-profiler library itself.
         Profiler* profiler = Profiler::instance();
@@ -49,8 +49,6 @@ class LateInitializer {
                 }
             }
         }
-
-        return libjvm != NULL;
     }
 
     void startProfiler(const char* command) {
