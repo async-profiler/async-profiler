@@ -1350,7 +1350,6 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         free(filename_tmp);
     }
 
-    RateLimit::enable(args);
     RecordingAPI::start();
 
     _rec = new Recording(fd, master_recording_file, args);

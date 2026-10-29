@@ -12,6 +12,7 @@ void J9ObjectSampler::JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thre
                                       jobject object, jclass object_klass, jlong size) {
     if (_enabled && updateCounter(_allocated_bytes, size, _interval)) {
         recordAllocation(jvmti, jni, ALLOC_SAMPLE, object, object_klass, size);
+        _rate_limiter.update(size, _interval);
     }
 }
 
@@ -19,6 +20,7 @@ void J9ObjectSampler::VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread
                                     jobject object, jclass object_klass, jlong size) {
     if (_enabled && updateCounter(_allocated_bytes, size, _interval)) {
         recordAllocation(jvmti, jni, ALLOC_OUTSIDE_TLAB, object, object_klass, size);
+        _rate_limiter.update(size, _interval);
     }
 }
 

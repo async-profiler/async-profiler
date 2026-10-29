@@ -19,8 +19,7 @@ class AllocTracer : public Engine {
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
 
-    static volatile u64 _interval;
-    static IntervalRateLimiter _rate_limiter;
+    static u64 _interval;
     static volatile u64 _allocated_bytes;
 
     static Error initialize();

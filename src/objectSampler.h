@@ -10,11 +10,12 @@
 #include "arch.h"
 #include "engine.h"
 #include "event.h"
+#include "rateLimit.h"
 
 
 class ObjectSampler : public Engine {
   protected:
-    static volatile u64 _interval;
+    static u64 _interval;
     static IntervalRateLimiter _rate_limiter;
     static bool _live;
     static volatile u64 _allocated_bytes;
