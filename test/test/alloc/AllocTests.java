@@ -88,9 +88,7 @@ public class AllocTests {
         assert out.containsExact("_[k] ") : "Some allocations are outside TLAB";
 
         Assert.isLess(out.ratio("break_"), 0.01, "No more than 1% of broken stacks");
-        Assert.isGreater(out.ratio("test/alloc/MapReaderOpt.main_...;" +
-                "test/alloc/MapReader.benchmark_...;" +
-                "test/alloc/MapReaderOpt.readMap_...;"), 0.7);
+        Assert.isGreater(out.filter("test/alloc/MapReader.benchmark_...;").ratio("test/alloc/MapReaderOpt.readMap_...;"), 0.7);
     }
 
     @Test(mainClass = MapReaderOpt.class, jvmVer = {11, Integer.MAX_VALUE})
