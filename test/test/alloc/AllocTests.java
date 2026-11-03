@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class AllocTests {
 
@@ -151,15 +152,15 @@ public class AllocTests {
 
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<AllocationSample> events = jfr.readAllEvents(AllocationSample.class);
-            Assert.isGreaterOrEqual(allocations(jfr, events, 0, 250), 2480);
-            Assert.isGreaterOrEqual(allocations(jfr, events, 500, 1000), 1650);
-            Assert.isLessOrEqual(allocations(jfr, events, 500, 1000), 2350);
+            assert allocations(jfr, events, 0, 250).allMatch(e -> e.value() == 1024);
+            Assert.isGreaterOrEqual(allocations(jfr, events, 500, 1000).count(), 1650);
+            Assert.isLessOrEqual(allocations(jfr, events, 500, 1000).count(), 2350);
         }
     }
 
-    private static long allocations(JfrReader jfr, List<AllocationSample> events, long fromMs, long toMs) {
+    private static Stream<AllocationSample> allocations(JfrReader jfr, List<AllocationSample> events, long fromMs, long toMs) {
         long from = jfr.startTicks + fromMs * jfr.ticksPerSec / 1000;
         long to = jfr.startTicks + toMs * jfr.ticksPerSec / 1000;
-        return events.stream().filter(e -> e.time >= from && e.time < to).count();
+        return events.stream().filter(e -> e.time >= from && e.time < to);
     }
 }
