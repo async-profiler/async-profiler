@@ -40,6 +40,7 @@ public class JfrReader implements Closeable {
     private ByteBuffer buf;
     private final long fileSize;
     private long filePosition;
+    private long chunkEnd;
     private byte state;
 
     public long startNanos = Long.MAX_VALUE;
@@ -171,6 +172,18 @@ public class JfrReader implements Closeable {
     // Similar to eof(), but parses the next chunk header
     public boolean hasMoreChunks() throws IOException {
         return state == STATE_NEW_CHUNK ? readChunk(buf.position()) : state == STATE_READING;
+    }
+
+    /**
+     * Skips the remaining events in the current chunk after hasMoreChunks() returns true.
+     * The chunk's metadata and constant pool have already been loaded. Call hasMoreChunks()
+     * again to load the next chunk. Does nothing if no chunk is being read.
+     */
+    public void skipChunk() throws IOException {
+        if (state == STATE_READING) {
+            seek(chunkEnd);
+            state = ensureBytes(CHUNK_HEADER_SIZE) ? STATE_NEW_CHUNK : STATE_EOF;
+        }
     }
 
     public List<Event> readAllEvents() throws IOException {
@@ -378,6 +391,7 @@ public class JfrReader implements Closeable {
             state = STATE_INCOMPLETE;
             return false;
         }
+        chunkEnd = chunkStart + chunkSize;
 
         long cpOffset = buf.getLong(pos + 16);
         long metaOffset = buf.getLong(pos + 24);
