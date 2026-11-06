@@ -886,7 +886,7 @@ static bool verifyBaseAddress(const CodeCache* cc, void* lib_handle) {
     return cc->imageBase() == (const char*)dl_info.dli_fbase;
 }
 
-UnloadProtection::UnloadProtection(const CodeCache *cc) {
+UnloadProtection::UnloadProtection(const CodeCache* cc) {
     if (OS::isMusl() || isMainExecutable(cc->imageBase(), cc->maxAddress()) || isLoader(cc->imageBase())) {
         _lib_handle = NULL;
         _valid = true;
