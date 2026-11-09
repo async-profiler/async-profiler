@@ -92,11 +92,12 @@ TEST_CASE(Parse_proc_with_units) {
 
 TEST_CASE(Parse_ratelimit) {
     Arguments args;
-    char argument[] = "start,event=cpu,ratelimit=cpu:1000;alloc:200;span:100,file=%f.jfr";
+    char argument[] = "start,event=cpu,ratelimit=cpu:1000;alloc:200/1m;span:100,file=%f.jfr";
     Error error = args.parse(argument);
     ASSERT_EQ(error.message(), NULL);
     ASSERT_EQ(args._rate_limit[EC_CPU], 1000);
     ASSERT_EQ(args._rate_limit[EC_ALLOC], 200);
+    ASSERT_EQ(args._alloc_window, 60000);
     ASSERT_EQ(args._rate_limit[EC_SPAN], 100);
     for (int i = 0; i < EC_CATEGORIES; i++) {
         if (i != EC_CPU && i != EC_ALLOC && i != EC_SPAN) {
@@ -129,6 +130,8 @@ TEST_CASE(Parse_ratelimit_invalid) {
         "start,ratelimit=foo:100,file=%f.jfr",
         "start,ratelimit=cpu:100;;lock:200,file=%f.jfr",
         "start,ratelimit=cpu:100@lock:200,file=%f.jfr",
+        "start,ratelimit=cpu:100/1m,file=%f.jfr",
+        "start,ratelimit=alloc:100/0,file=%f.jfr",
     };
     for (size_t i = 0; i < sizeof(invalid_arguments) / sizeof(invalid_arguments[0]); i++) {
         Arguments args;
