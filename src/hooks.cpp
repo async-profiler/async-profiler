@@ -95,7 +95,7 @@ static dlopen_t _orig_dlopen = NULL;
 static void* dlopen_hook_impl(const char* filename, int flags, bool patch) {
     Log::debug("dlopen: %s", filename);
     void* result = _orig_dlopen(filename, flags);
-    if (result != NULL && filename != NULL) {
+    if (result != NULL && filename != NULL && !(flags & RTLD_NOLOAD)) {
         Profiler::instance()->updateSymbols(false);
         if (patch) {
             Hooks::patchLibraries();
