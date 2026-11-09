@@ -16,8 +16,6 @@ class Recording;
 class FlightRecorder {
   private:
     Recording* _rec;
-    // Preserve the next chunk's ID base across stop/resume.
-    u64 _base_id;
 
     Error startMasterRecording(Arguments& args, const char* filename);
     void stopMasterRecording();
@@ -25,7 +23,7 @@ class FlightRecorder {
   public:
     static const LogLevel MIN_LOG_LEVEL = LogLevel::LOG_DEBUG;
 
-    FlightRecorder() : _rec(NULL), _base_id(0) {
+    FlightRecorder() : _rec(NULL) {
     }
 
     Error start(Arguments& args, bool reset);

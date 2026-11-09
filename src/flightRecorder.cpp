@@ -240,6 +240,7 @@ class Recording {
     static char* _jvm_args;
     static char* _jvm_flags;
     static char* _java_command;
+    static u64 _base_id;
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
@@ -255,7 +256,6 @@ class Recording {
     u64 _stop_time;
     u64 _stop_ticks;
 
-    u64& _base_id;
     u64 _bytes_written;
     u64 _chunk_size;
     u64 _chunk_time;
@@ -277,7 +277,10 @@ class Recording {
     }
 
   public:
-    Recording(int fd, const char* master_recording_file, Arguments& args, u64& base_id) : _fd(fd), _base_id(base_id) {
+    Recording(int fd, const char* master_recording_file, Arguments& args, bool reset) : _fd(fd) {
+        if (reset) {
+            _base_id = 0;
+        }
         _master_recording_file = master_recording_file == NULL ? NULL : strdup(master_recording_file);
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
@@ -1311,6 +1314,7 @@ char* Recording::_agent_properties = NULL;
 char* Recording::_jvm_args = NULL;
 char* Recording::_jvm_flags = NULL;
 char* Recording::_java_command = NULL;
+u64 Recording::_base_id = 0;
 
 
 Error FlightRecorder::start(Arguments& args, bool reset) {
@@ -1352,10 +1356,7 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
     RateLimit::enable(args);
     RecordingAPI::start();
 
-    if (reset) {
-        _base_id = 0;
-    }
-    _rec = new Recording(fd, master_recording_file, args, _base_id);
+    _rec = new Recording(fd, master_recording_file, args, reset);
     _rec_lock.unlock();
     return Error::OK;
 }
