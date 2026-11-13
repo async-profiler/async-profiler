@@ -17,10 +17,9 @@ class StackFrame {
   private:
     ucontext_t* _ucontext;
 
-    static bool withinCurrentStack(uintptr_t address) {
-        // Check that the address is not too far from the stack pointer of current context
-        void* real_sp;
-        return address - (uintptr_t)&real_sp <= 0xffff;
+    static bool withinSameStack(uintptr_t address, uintptr_t sp) {
+        // Check that the address is not too far from the current stack pointer
+        return address - sp <= 0xffff;
     }
 
   public:
