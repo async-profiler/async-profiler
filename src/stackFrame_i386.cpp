@@ -84,7 +84,7 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
             pc = ((uintptr_t*)sp)[1];
             sp += 8;
             return true;
-        } else if (withinCurrentStack(fp)) {
+        } else if (withinSameStack(fp, sp)) {
             sp = fp + 8;
             fp = ((uintptr_t*)sp)[-2];
             pc = ((uintptr_t*)sp)[-1];

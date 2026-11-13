@@ -244,12 +244,13 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
     struct sigaction oldsa;
     sigemptyset(&sa.sa_mask);
 
+    // SA_ONSTACK is needed for goroutines that run on a tiny stack but have a separate sigaltstack
     if (handler != NULL) {
         sa.sa_handler = handler;
-        sa.sa_flags = 0;
+        sa.sa_flags = SA_ONSTACK;
     } else {
         sa.sa_sigaction = action;
-        sa.sa_flags = SA_SIGINFO | SA_RESTART;
+        sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
         if (signo > 0 && signo < sizeof(installed_sigaction) / sizeof(installed_sigaction[0])) {
             installed_sigaction[signo] = action;
         }

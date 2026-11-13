@@ -155,7 +155,7 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
             sp += 16;
             pc = ((uintptr_t*)sp)[-1];
             return true;
-        } else if (entry[1] == 0x910003fd && withinCurrentStack(fp)) {
+        } else if (entry[1] == 0x910003fd && withinSameStack(fp, sp)) {
             sp = fp + 16;
             fp = ((uintptr_t*)sp)[-2];
             pc = ((uintptr_t*)sp)[-1];
