@@ -39,12 +39,11 @@ static inline uintptr_t defaultSenderSP(uintptr_t sp, uintptr_t fp) {
 #endif
 }
 
-static inline uintptr_t stackBottom() {
+static inline uintptr_t stackBottom(uintptr_t sp) {
     // For threads created with pthread_create(), control block is usually placed at the stack bottom.
     // Exceptions are the main thread, threads with a user-provided stack, and threads made via raw clone().
     uintptr_t tcb = (uintptr_t)pthread_self();
-    uintptr_t current_frame = (uintptr_t)&tcb;
-    return tcb - current_frame <= MAX_WALK_SIZE ? tcb : current_frame + MAX_WALK_SIZE;
+    return tcb - sp <= MAX_WALK_SIZE ? tcb : sp + MAX_WALK_SIZE;
 }
 
 static inline void fillFrame(ASGCT_CallFrame& frame, ASGCT_CallFrameType type, const char* name) {
@@ -74,7 +73,6 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
-    uintptr_t bottom = stackBottom();
 
     StackFrame frame(ucontext);
     if (ucontext == NULL) {
@@ -86,6 +84,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
         fp = frame.fp();
         sp = frame.sp();
     }
+    uintptr_t bottom = stackBottom(sp);
 
     int depth = 0;
 
@@ -123,7 +122,6 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
-    uintptr_t bottom = stackBottom();
 
     StackFrame frame(ucontext);
     if (ucontext == NULL) {
@@ -135,6 +133,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         fp = frame.fp();
         sp = frame.sp();
     }
+    uintptr_t bottom = stackBottom(sp);
 
     int depth = 0;
     Profiler* profiler = Profiler::instance();
@@ -216,7 +215,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
-    uintptr_t bottom = stackBottom();
 
     StackFrame frame(ucontext ? ucontext : &empty_ucontext);
     if (ucontext == NULL) {
@@ -263,6 +261,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
     }
 
     unwind_loop:
+    uintptr_t bottom = stackBottom(sp);
     uintptr_t prev_sp = sp;
     while (depth < max_depth) {
         // As an extra safety measure, verify stack pointer invariants on every iteration

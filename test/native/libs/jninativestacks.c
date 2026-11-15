@@ -42,6 +42,13 @@ JNIEXPORT double generateDeepStack(int count) {
     }
 }
 
+JNIEXPORT double deepFrame() {
+    char frame[0x30000];
+    // Prevent from being optimized by compiler
+    (void)frame;
+    return generateDeepStack(6);
+}
+
 JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_largeFrame(JNIEnv* env, jclass cls) {
     char frame[0x50000];
     // Prevent from being optimized by compiler
@@ -50,10 +57,7 @@ JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_largeFrame(JNIEnv
 }
 
 JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_deepFrame(JNIEnv* env, jclass cls) {
-    char frame[0x30000];
-    // Prevent from being optimized by compiler
-    (void)frame;
-    return generateDeepStack(6);
+    return deepFrame();
 }
 
 JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_leafFrame(JNIEnv* env, jclass cls) {
