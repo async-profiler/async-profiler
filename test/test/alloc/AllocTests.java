@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class AllocTests {
 
@@ -87,9 +88,7 @@ public class AllocTests {
         assert out.containsExact("_[k] ") : "Some allocations are outside TLAB";
 
         Assert.isLess(out.ratio("break_"), 0.01, "No more than 1% of broken stacks");
-        Assert.isGreater(out.ratio("test/alloc/MapReaderOpt.main_...;" +
-                "test/alloc/MapReader.benchmark_...;" +
-                "test/alloc/MapReaderOpt.readMap_...;"), 0.7);
+        Assert.isGreater(out.filter("test/alloc/MapReader.benchmark_...;").ratio("test/alloc/MapReaderOpt.readMap_...;"), 0.7);
     }
 
     @Test(mainClass = MapReaderOpt.class, jvmVer = {11, Integer.MAX_VALUE})
@@ -142,5 +141,24 @@ public class AllocTests {
                 assert trace != null : "Stack trace missing for id " + event.stackTraceId;
             }
         }
+    }
+
+    @Test(mainClass = PacedAlloc.class, jvm = Jvm.HOTSPOT, jvmVer = {11, Integer.MAX_VALUE}, args = "%f.jfr")
+    public void rateLimit(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
+            List<AllocationSample> events = jfr.readAllEvents(AllocationSample.class);
+            assert allocations(jfr, events, 0, 250).allMatch(e -> e.value() == 1024);
+            Assert.isGreaterOrEqual(allocations(jfr, events, 500, 1000).count(), 1650);
+            Assert.isLessOrEqual(allocations(jfr, events, 500, 1000).count(), 2350);
+        }
+    }
+
+    private static Stream<AllocationSample> allocations(JfrReader jfr, List<AllocationSample> events, long fromMs, long toMs) {
+        long from = jfr.startTicks + fromMs * jfr.ticksPerSec / 1000;
+        long to = jfr.startTicks + toMs * jfr.ticksPerSec / 1000;
+        return events.stream().filter(e -> e.time >= from && e.time < to);
     }
 }

@@ -10,6 +10,7 @@
 
 
 u64 ObjectSampler::_interval;
+IntervalRateLimiter ObjectSampler::_rate_limiter;
 bool ObjectSampler::_live;
 volatile u64 ObjectSampler::_allocated_bytes;
 
@@ -125,6 +126,9 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
                                        jobject object, jclass object_klass, jlong size) {
     if (_enabled) {
         recordAllocation(jvmti, jni, ALLOC_SAMPLE, object, object_klass, size);
+        if (_rate_limiter.update(size, _interval)) {
+            jvmti->SetHeapSamplingInterval(_interval);
+        }
     }
 }
 
@@ -167,6 +171,7 @@ void ObjectSampler::dumpLiveRefs() {
 
 Error ObjectSampler::start(Arguments& args) {
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
+    _rate_limiter.start(args, EC_ALLOC, _interval);
 
     initLiveRefs(args._live);
 

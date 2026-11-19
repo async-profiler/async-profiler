@@ -1014,9 +1014,14 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
     switchLibcHooks(true);
 
+    if (hasEvent(EC_ALLOC)) {
+        _alloc_engine = selectAllocEngine(args._tlab);
+    }
     if (args._output == OUTPUT_JFR) {
+        RateLimit::enable(args, hasEvent(EC_ALLOC) && _alloc_engine != &alloc_tracer ? 1 << EC_ALLOC : 0);
         error = _jfr.start(args, reset);
         if (error) {
+            RateLimit::disable();
             uninstallTraps();
             switchLibcHooks(false);
             return error;
@@ -1029,7 +1034,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (hasEvent(EC_ALLOC)) {
-        _alloc_engine = selectAllocEngine(args._tlab);
         error = _alloc_engine->start(args);
         if (error) {
             goto error2;
