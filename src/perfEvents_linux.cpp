@@ -654,9 +654,11 @@ int PerfEvents::createForThread(int tid) {
         }
     }
 
-    _events[tid].reset();
-    _events[tid]._fd = fd;
-    _events[tid]._page = (struct perf_event_mmap_page*)page;
+    PerfEvent* event = &_events[tid];
+    // A sampling handler may already hold the lock; do not reset it.
+    event->lock();
+    event->_fd = fd;
+    event->_page = (struct perf_event_mmap_page*)page;
 
     if (multiplex_state_dirty && fd < MAX_MULTIPLEXED_FD) {
         multiplex_state[fd].time_enabled = 0;
@@ -675,16 +677,18 @@ int PerfEvents::createForThread(int tid) {
         err = errno;
         Log::warn("perf_event ioctl failed: %s", strerror(err));
     } else {
+        event->unlock();
         return 0;
     }
 
     // Failed to setup perf_event - rollback changes
     if (page != NULL) {
         munmap(page, 2 * OS::page_size);
-        _events[tid]._page = NULL;
+        event->_page = NULL;
     }
     close(fd);
-    _events[tid]._fd = 0;
+    event->_fd = 0;
+    event->unlock();
 
     return err;
 }
