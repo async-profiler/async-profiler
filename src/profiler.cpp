@@ -295,8 +295,7 @@ CodeBlob* Profiler::findRuntimeStub(const void* address) {
     return _runtime_stubs.findBlobByAddress(address);
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, u64* cpu) {
-    const void* callchain[MAX_NATIVE_FRAMES];
+int Profiler::getNativeTrace(void* ucontext, const void** callchain, ASGCT_CallFrame* frames, EventType event_type, int tid, u64* cpu) {
     int native_frames;
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
@@ -432,7 +431,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
         if (_cstack != CSTACK_NO) {
-            num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &cpu);
+            num_frames += getNativeTrace(ucontext, _callchain[lock_index], frames + num_frames, event_type, tid, &cpu);
         }
     }
 

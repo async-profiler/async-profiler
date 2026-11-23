@@ -78,6 +78,7 @@ class Profiler {
     u64 _failures[ASGCT_FAILURE_TYPES];
 
     SpinLock _locks[CONCURRENCY_LEVEL];
+    const void* _callchain[CONCURRENCY_LEVEL][MAX_NATIVE_FRAMES];
     CallTraceBuffer* _calltrace_buffer[CONCURRENCY_LEVEL];
     int _max_stack_depth;
     int _truncated_stack_depth;
@@ -115,7 +116,7 @@ class Profiler {
     const char* asgctError(int code);
     int tryLock(int tid);
     void unlock(int lock_index);
-    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, u64* cpu);
+    int getNativeTrace(void* ucontext, const void** callchain, ASGCT_CallFrame* frames, EventType event_type, int tid, u64* cpu);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     void setThreadInfo(int tid, const char* name, jlong java_thread_id);
