@@ -637,7 +637,7 @@ int PerfEvents::createForThread(int tid) {
     if (fd == -1) {
         int err = errno;
         Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(err));
-        _events[tid]._fd = 0;
+        storeRelease(_events[tid]._fd, 0);
         if (isResourceLimit(err) && _current != NULL) {
             // Emergency shutdown
             stop();
@@ -653,9 +653,6 @@ int PerfEvents::createForThread(int tid) {
             page = NULL;
         }
     }
-
-    _events[tid].reset();
-    _events[tid]._fd = fd;
     _events[tid]._page = (struct perf_event_mmap_page*)page;
 
     if (multiplex_state_dirty && fd < MAX_MULTIPLEXED_FD) {
@@ -675,6 +672,7 @@ int PerfEvents::createForThread(int tid) {
         err = errno;
         Log::warn("perf_event ioctl failed: %s", strerror(err));
     } else {
+        storeRelease(_events[tid]._fd, fd);
         return 0;
     }
 
@@ -684,7 +682,7 @@ int PerfEvents::createForThread(int tid) {
         _events[tid]._page = NULL;
     }
     close(fd);
-    _events[tid]._fd = 0;
+    storeRelease(_events[tid]._fd, 0);
 
     return err;
 }
@@ -695,17 +693,22 @@ void PerfEvents::destroyForThread(int tid) {
     }
 
     PerfEvent* event = &_events[tid];
-    int fd = event->_fd;
-    if (fd > 0 && __sync_bool_compare_and_swap(&event->_fd, fd, 0)) {
-        ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
-        close(fd);
+    int fd = loadAcquire(event->_fd);
+    if (fd <= 0 || !__sync_bool_compare_and_swap(&event->_fd, fd, -1)) {
+        return;
     }
+
+    ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
+    close(fd);
+
     if (event->_page != NULL) {
         event->lock();
         munmap(event->_page, 2 * OS::page_size);
         event->_page = NULL;
         event->unlock();
     }
+
+    storeRelease(event->_fd, 0);
 }
 
 u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {

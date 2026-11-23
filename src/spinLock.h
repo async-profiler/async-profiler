@@ -22,10 +22,6 @@ class SpinLock {
     SpinLock(int initial_state = 0) : _lock(initial_state) {
     }
 
-    void reset() {
-        _lock = 0;
-    }
-
     bool tryLock() {
         return __sync_bool_compare_and_swap(&_lock, 0, 1);
     }
