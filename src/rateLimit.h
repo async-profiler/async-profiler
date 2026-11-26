@@ -44,7 +44,7 @@ class RateLimit {
     static int _enabled_categories;
 
   public:
-    static void enable(Arguments& args);
+    static void enable(Arguments& args, int adaptive_categories);
     static void disable();
 
     static void refill();
@@ -58,6 +58,19 @@ class RateLimit {
         }
         return true;
     }
+};
+
+class IntervalRateLimiter {
+  private:
+    u64 _limit;
+    u64 _min_interval;
+    u64 _window_ms;
+    u64 _window_start;
+    u64 _window_bytes;
+
+  public:
+    void start(Arguments& args, int category, u64 min_interval);
+    bool update(u64 size, u64& interval);
 };
 
 #endif // _RATELIMIT_H
